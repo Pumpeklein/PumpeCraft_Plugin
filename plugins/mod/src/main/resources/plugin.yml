@@ -1,0 +1,60 @@
+name: PumpeMod
+version: ${version}
+main: de.pumpecraft.mod.PumpeModPlugin
+api-version: '1.21'
+author: PumpeCraft
+description: Moderation plugin for PumpeCraft.
+commands:
+  report:
+    description: Reports a known player to the staff team.
+    usage: /report <Spieler> <Grund>
+    permission: pumpecraft.mod.report
+  reports:
+    description: Shows unseen or all open reports.
+    usage: /reports [unseen|all]
+    permission: pumpecraft.mod.reports
+  warn:
+    description: Warns a known player and stores the warning count.
+    usage: /warn <Spieler> <Grund>
+    permission: pumpecraft.mod.warn
+  mute:
+    description: Mutes a known player for the given minutes.
+    usage: /mute <Spieler> <Minuten> [Grund]
+    permission: pumpecraft.mod.mute
+  ban:
+    description: Bans a known player permanently or for a duration.
+    usage: /ban <Spieler> <Grund> [Zeit]
+    permission: pumpecraft.mod.ban
+  vanish:
+    description: Toggles staff vanish.
+    usage: /vanish
+    permission: pumpecraft.mod.vanish
+permissions:
+  pumpecraft.mod.*:
+    description: Allows using all PumpeMod staff features.
+    default: false
+    children:
+      pumpecraft.mod.report: true
+      pumpecraft.mod.reports: true
+      pumpecraft.mod.warn: true
+      pumpecraft.mod.mute: true
+      pumpecraft.mod.ban: true
+      pumpecraft.mod.vanish: true
+  pumpecraft.mod.report:
+    description: Allows reporting known players.
+    default: false
+  pumpecraft.mod.reports:
+    description: Allows viewing open reports and receiving staff report notifications.
+    default: false
+  pumpecraft.mod.warn:
+    description: Allows warning known players.
+    default: false
+  pumpecraft.mod.mute:
+    description: Allows muting known players.
+    default: false
+  pumpecraft.mod.ban:
+    description: Allows banning known players.
+    default: false
+  pumpecraft.mod.vanish:
+    description: Allows toggling staff vanish.
+    default: false

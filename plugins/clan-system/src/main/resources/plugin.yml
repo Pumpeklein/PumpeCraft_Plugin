@@ -1,0 +1,6 @@
+name: PumpeClanSystem
+version: ${version}
+main: de.pumpecraft.clans.PumpeClanSystemPlugin
+api-version: '1.21'
+author: PumpeCraft
+description: Clan system plugin for PumpeCraft.

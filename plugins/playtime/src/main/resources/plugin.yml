@@ -1,0 +1,15 @@
+name: PumpePlaytime
+version: ${version}
+main: de.pumpecraft.playtime.PumpePlaytimePlugin
+api-version: '1.21'
+author: PumpeCraft
+description: Playtime plugin for PumpeCraft.
+commands:
+  playtime:
+    description: Shows your tracked playtime.
+    usage: /playtime
+    permission: pumpecraft.playtime.use
+permissions:
+  pumpecraft.playtime.use:
+    description: Allows viewing your own playtime.
+    default: true

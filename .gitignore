@@ -1,0 +1,14 @@
+.gradle/
+build/
+out/
+target/
+*.class
+*.jar
+*.log
+
+.idea/
+*.iml
+.vscode/
+
+run/
+server/

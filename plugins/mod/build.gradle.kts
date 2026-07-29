@@ -1,0 +1,1 @@
+description = "PumpeCraft moderation plugin"

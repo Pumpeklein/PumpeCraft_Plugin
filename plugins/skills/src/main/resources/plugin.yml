@@ -1,0 +1,6 @@
+name: PumpeSkills
+version: ${version}
+main: de.pumpecraft.skills.PumpeSkillsPlugin
+api-version: '1.21'
+author: PumpeCraft
+description: Skills plugin for PumpeCraft.
