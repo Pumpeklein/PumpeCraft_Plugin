@@ -4,6 +4,7 @@ main: de.pumpecraft.playtime.PumpePlaytimePlugin
 api-version: '1.21'
 author: PumpeCraft
 description: Playtime plugin for PumpeCraft.
+depend: [PumpeDatabase]
 commands:
   playtime:
     description: Shows your tracked playtime.

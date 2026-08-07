@@ -1,52 +1,54 @@
 package de.pumpecraft.playtime;
 
 import java.io.File;
-import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
-import java.util.logging.Level;
+
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 
+import de.pumpecraft.database.DatabaseService;
+import de.pumpecraft.database.Databases;
+
 final class PlaytimeRepository {
+    private static final String LEGACY_IMPORT_KEY = "playtime-yaml-v1";
+
     private final PumpePlaytimePlugin plugin;
-    private final File dataFile;
+    private final DatabaseService database;
     private final Map<UUID, PlaytimeRecord> records = new HashMap<>();
-    private YamlConfiguration data;
+    private final Set<UUID> dirtyRecords = new HashSet<>();
 
     PlaytimeRepository(PumpePlaytimePlugin plugin) {
         this.plugin = plugin;
-        this.dataFile = new File(plugin.getDataFolder(), "playtime-data.yml");
+        this.database = Databases.require(plugin);
     }
 
     void load() {
-        if (!plugin.getDataFolder().exists() && !plugin.getDataFolder().mkdirs()) {
-            plugin.getLogger().warning("Could not create plugin data folder.");
-        }
-
-        data = YamlConfiguration.loadConfiguration(dataFile);
-        ConfigurationSection section = data.getConfigurationSection("players");
-        if (section == null) {
-            data.createSection("players");
-            save();
-            return;
-        }
-
-        for (String key : section.getKeys(false)) {
-            UUID playerId;
-            try {
-                playerId = UUID.fromString(key);
-            } catch (IllegalArgumentException exception) {
-                continue;
+        importLegacyYaml();
+        database.withConnection(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT player_uuid, total_seconds, afk_seconds, active_seconds FROM pc_playtime"
+            ); ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    records.put(
+                        UUID.fromString(result.getString("player_uuid")),
+                        new PlaytimeRecord(
+                            result.getLong("total_seconds"),
+                            result.getLong("afk_seconds"),
+                            result.getLong("active_seconds")
+                        )
+                    );
+                }
             }
-
-            records.put(playerId, new PlaytimeRecord(
-                data.getLong("players." + key + ".total-seconds", 0L),
-                data.getLong("players." + key + ".afk-seconds", 0L),
-                data.getLong("players." + key + ".active-seconds", 0L)
-            ));
-        }
+            return null;
+        });
     }
 
     synchronized PlaytimeRecord get(UUID playerId) {
@@ -62,26 +64,111 @@ final class PlaytimeRepository {
             record = record.addActive(1L);
         }
         records.put(playerId, record);
+        dirtyRecords.add(playerId);
     }
 
     synchronized void save() {
-        if (data == null) {
-            data = new YamlConfiguration();
+        if (dirtyRecords.isEmpty()) {
+            return;
         }
 
-        data.set("players", null);
-        for (Map.Entry<UUID, PlaytimeRecord> entry : records.entrySet()) {
-            String path = "players." + entry.getKey();
-            PlaytimeRecord record = entry.getValue();
-            data.set(path + ".total-seconds", record.totalSeconds());
-            data.set(path + ".afk-seconds", record.afkSeconds());
-            data.set(path + ".active-seconds", record.activeSeconds());
+        Map<UUID, PlaytimeRecord> snapshot = new HashMap<>();
+        for (UUID playerId : dirtyRecords) {
+            snapshot.put(playerId, records.get(playerId));
         }
 
-        try {
-            data.save(dataFile);
-        } catch (IOException exception) {
-            plugin.getLogger().log(Level.SEVERE, "Could not save playtime data.", exception);
+        database.inTransaction(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                """
+                INSERT INTO pc_playtime
+                    (player_uuid, total_seconds, afk_seconds, active_seconds)
+                VALUES (?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                    total_seconds = VALUES(total_seconds),
+                    afk_seconds = VALUES(afk_seconds),
+                    active_seconds = VALUES(active_seconds)
+                """
+            )) {
+                for (Map.Entry<UUID, PlaytimeRecord> entry : snapshot.entrySet()) {
+                    PlaytimeRecord record = entry.getValue();
+                    statement.setString(1, entry.getKey().toString());
+                    statement.setLong(2, record.totalSeconds());
+                    statement.setLong(3, record.afkSeconds());
+                    statement.setLong(4, record.activeSeconds());
+                    statement.addBatch();
+                }
+                statement.executeBatch();
+            }
+            return null;
+        });
+        dirtyRecords.removeAll(snapshot.keySet());
+    }
+
+    private void importLegacyYaml() {
+        File file = new File(plugin.getDataFolder(), "playtime-data.yml");
+        if (!file.isFile()) {
+            return;
+        }
+
+        YamlConfiguration legacy = YamlConfiguration.loadConfiguration(file);
+        ConfigurationSection players = legacy.getConfigurationSection("players");
+        boolean imported = database.inTransaction(connection -> {
+            if (wasImported(connection)) {
+                return false;
+            }
+
+            if (players != null) {
+                try (PreparedStatement statement = connection.prepareStatement(
+                    """
+                    INSERT INTO pc_playtime
+                        (player_uuid, total_seconds, afk_seconds, active_seconds)
+                    VALUES (?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE
+                        total_seconds = GREATEST(total_seconds, VALUES(total_seconds)),
+                        afk_seconds = GREATEST(afk_seconds, VALUES(afk_seconds)),
+                        active_seconds = GREATEST(active_seconds, VALUES(active_seconds))
+                    """
+                )) {
+                    for (String key : players.getKeys(false)) {
+                        try {
+                            statement.setString(1, UUID.fromString(key).toString());
+                        } catch (IllegalArgumentException ignored) {
+                            continue;
+                        }
+                        String path = "players." + key;
+                        statement.setLong(2, Math.max(0L, legacy.getLong(path + ".total-seconds")));
+                        statement.setLong(3, Math.max(0L, legacy.getLong(path + ".afk-seconds")));
+                        statement.setLong(4, Math.max(0L, legacy.getLong(path + ".active-seconds")));
+                        statement.addBatch();
+                    }
+                    statement.executeBatch();
+                }
+            }
+            markImported(connection);
+            return true;
+        });
+        if (imported) {
+            plugin.getLogger().info("Imported legacy playtime-data.yml into MariaDB.");
+        }
+    }
+
+    private boolean wasImported(Connection connection) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+            "SELECT 1 FROM pc_legacy_imports WHERE import_key = ?"
+        )) {
+            statement.setString(1, LEGACY_IMPORT_KEY);
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next();
+            }
+        }
+    }
+
+    private void markImported(Connection connection) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+            "INSERT INTO pc_legacy_imports (import_key) VALUES (?)"
+        )) {
+            statement.setString(1, LEGACY_IMPORT_KEY);
+            statement.executeUpdate();
         }
     }
 }

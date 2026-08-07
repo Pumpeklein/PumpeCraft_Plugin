@@ -1,5 +1,6 @@
 package de.pumpecraft.deathmessages;
 
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class PumpeDeathMessagesPlugin extends JavaPlugin {
@@ -7,6 +8,10 @@ public final class PumpeDeathMessagesPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        if (!databaseAvailable()) {
+            return;
+        }
+
         repository = new DeathCounterRepository(this);
         repository.load();
         getServer().getPluginManager().registerEvents(new DeathMessageListener(repository), this);
@@ -16,9 +21,16 @@ public final class PumpeDeathMessagesPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (repository != null) {
-            repository.save();
-        }
         getLogger().info("PumpeDeathMessages disabled.");
+    }
+
+    private boolean databaseAvailable() {
+        Plugin databasePlugin = getServer().getPluginManager().getPlugin("PumpeDatabase");
+        if (databasePlugin != null && databasePlugin.isEnabled()) {
+            return true;
+        }
+        getLogger().severe("PumpeDatabase is not available; PumpeDeathMessages will remain disabled.");
+        getServer().getPluginManager().disablePlugin(this);
+        return false;
     }
 }

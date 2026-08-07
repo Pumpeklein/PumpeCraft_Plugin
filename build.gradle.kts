@@ -11,6 +11,7 @@ plugins {
 
 val paperApiVersion: String by project
 val pluginModulePaths = listOf(
+    ":plugins:database",
     ":plugins:essentials",
     ":plugins:mod",
     ":plugins:clan-system",
@@ -66,13 +67,23 @@ configure(pluginProjects) {
     }
 }
 
+configure(pluginProjects.filter { it.path != ":plugins:database" }) {
+    dependencies {
+        add("compileOnly", project(":plugins:database"))
+    }
+}
+
 tasks.register<Copy>("collectPluginJars") {
     group = "build"
     description = "Copies all plugin jars into build/plugins."
     outputs.upToDateWhen { false }
 
     pluginProjects.forEach { pluginProject ->
-        val jarTask = pluginProject.tasks.named<Jar>("jar")
+        val jarTask = if (pluginProject.path == ":plugins:database") {
+            pluginProject.tasks.named<Jar>("shadowJar")
+        } else {
+            pluginProject.tasks.named<Jar>("jar")
+        }
         dependsOn(jarTask)
         from(jarTask.flatMap { it.archiveFile })
     }

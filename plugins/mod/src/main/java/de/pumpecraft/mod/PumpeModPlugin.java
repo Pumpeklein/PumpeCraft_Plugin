@@ -2,6 +2,7 @@ package de.pumpecraft.mod;
 
 import java.util.Objects;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class PumpeModPlugin extends JavaPlugin {
@@ -10,6 +11,10 @@ public final class PumpeModPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        if (!databaseAvailable()) {
+            return;
+        }
+
         repository = new ModerationRepository(this);
         repository.load();
 
@@ -30,10 +35,17 @@ public final class PumpeModPlugin extends JavaPlugin {
         if (moderationCommand != null) {
             moderationCommand.revealAllVanishedPlayers();
         }
-        if (repository != null) {
-            repository.save();
-        }
         getLogger().info("PumpeMod disabled.");
+    }
+
+    private boolean databaseAvailable() {
+        Plugin databasePlugin = getServer().getPluginManager().getPlugin("PumpeDatabase");
+        if (databasePlugin != null && databasePlugin.isEnabled()) {
+            return true;
+        }
+        getLogger().severe("PumpeDatabase is not available; PumpeMod will remain disabled.");
+        getServer().getPluginManager().disablePlugin(this);
+        return false;
     }
 
     private void registerCommand(String commandName, ModerationCommand executor) {

@@ -19,6 +19,7 @@ dependencyResolutionManagement {
 rootProject.name = "pumpecraft-plugins"
 
 include(":plugins:essentials")
+include(":plugins:database")
 include(":plugins:mod")
 include(":plugins:clan-system")
 include(":plugins:skills")

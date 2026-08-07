@@ -2,6 +2,7 @@ package de.pumpecraft.playtime;
 
 import java.util.Objects;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class PumpePlaytimePlugin extends JavaPlugin {
@@ -10,6 +11,10 @@ public final class PumpePlaytimePlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        if (!databaseAvailable()) {
+            return;
+        }
+
         repository = new PlaytimeRepository(this);
         repository.load();
 
@@ -34,5 +39,15 @@ public final class PumpePlaytimePlugin extends JavaPlugin {
             repository.save();
         }
         getLogger().info("PumpePlaytime disabled.");
+    }
+
+    private boolean databaseAvailable() {
+        Plugin databasePlugin = getServer().getPluginManager().getPlugin("PumpeDatabase");
+        if (databasePlugin != null && databasePlugin.isEnabled()) {
+            return true;
+        }
+        getLogger().severe("PumpeDatabase is not available; PumpePlaytime will remain disabled.");
+        getServer().getPluginManager().disablePlugin(this);
+        return false;
     }
 }

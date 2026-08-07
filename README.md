@@ -4,6 +4,7 @@ Multi-plugin workspace for the PumpeCraft server.
 
 ## Structure
 
+- `plugins/database` - shared MariaDB pool, schema migrations and database API
 - `plugins/essentials` - basic server commands and quality-of-life features
 - `plugins/mod` - moderation tools
 - `plugins/clan-system` - clan and group gameplay
@@ -24,3 +25,10 @@ Use the Gradle wrapper once it is available:
 ```
 
 The collected plugin jars will be placed in `build/plugins`.
+
+## Database
+
+Deploy `database-<version>.jar` together with the other plugin jars and provide
+`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` and `DB_CHARSET` in
+the server environment. PumpeDatabase applies versioned Flyway migrations
+before database-dependent plugins start.
