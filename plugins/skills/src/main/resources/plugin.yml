@@ -4,3 +4,16 @@ main: de.pumpecraft.skills.PumpeSkillsPlugin
 api-version: '1.21'
 author: PumpeCraft
 description: Skills plugin for PumpeCraft.
+depend: [PumpeDatabase]
+commands:
+  skills:
+    description: Shows skill levels, details and leaderboards.
+    usage: /skills [Skill|Spieler|top <Skill>]
+    permission: pumpecraft.skills.use
+permissions:
+  pumpecraft.skills.use:
+    description: Allows viewing your own skills and the leaderboards.
+    default: true
+  pumpecraft.skills.others:
+    description: Allows viewing the skills of other players.
+    default: op

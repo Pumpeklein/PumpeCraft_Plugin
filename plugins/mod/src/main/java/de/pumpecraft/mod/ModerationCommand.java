@@ -487,7 +487,6 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
         ProfileBanList banList = Bukkit.getBanList(BanListType.PROFILE);
         boolean wasBanned = banList.isBanned(offlineTarget.getPlayerProfile());
         banList.pardon(offlineTarget.getPlayerProfile());
-        banList.pardon(target.name());
         return wasBanned;
     }
 
