@@ -1,0 +1,31 @@
+name: PumpeEssentials
+version: ${version}
+main: de.pumpecraft.essentials.PumpeEssentialsPlugin
+api-version: '1.21'
+author: PumpeCraft
+description: Essentials plugin for PumpeCraft.
+commands:
+  openinv:
+    description: Opens a structured inventory view of an online player.
+    usage: /openinv <Spieler>
+    permission: pumpecraft.essentials.openinv
+  opendender:
+    description: Opens the ender chest of an online player.
+    usage: /opendender <Spieler>
+    aliases:
+      - openender
+      - openec
+    permission: pumpecraft.essentials.opendender
+permissions:
+  pumpecraft.essentials.*:
+    description: Allows using all PumpeEssentials staff features.
+    default: false
+    children:
+      pumpecraft.essentials.openinv: true
+      pumpecraft.essentials.opendender: true
+  pumpecraft.essentials.openinv:
+    description: Allows opening and editing player inventories.
+    default: false
+  pumpecraft.essentials.opendender:
+    description: Allows opening player ender chests.
+    default: false
