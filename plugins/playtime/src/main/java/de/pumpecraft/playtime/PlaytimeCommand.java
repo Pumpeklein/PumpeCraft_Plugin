@@ -28,8 +28,13 @@ final class PlaytimeCommand implements CommandExecutor, TabCompleter {
         PlaytimeRecord record = tracker.getRecord(player);
         player.sendMessage(Component.text("Deine Playtime", NamedTextColor.GOLD));
         player.sendMessage(line("Gesamt", record.totalSeconds(), NamedTextColor.AQUA));
+        player.sendMessage(line("Nicht AFK", record.nonAfkSeconds(), NamedTextColor.GREEN));
         player.sendMessage(line("Aktiv", record.activeSeconds(), NamedTextColor.GREEN));
         player.sendMessage(line("AFK", record.afkSeconds(), NamedTextColor.YELLOW));
+        player.sendMessage(Component.text(
+            "Aktiv zählt nur Sekunden, in denen du dich bewegst oder etwas tust.",
+            NamedTextColor.DARK_GRAY
+        ));
         return true;
     }
 

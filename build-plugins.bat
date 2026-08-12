@@ -13,7 +13,9 @@ if not exist "gradlew.bat" (
 )
 
 echo Baue alle PumpeCraft-Plugins...
-call gradlew.bat clean build collectPluginJars --warning-mode all
+rem Voller Pfad, damit der Aufruf auch bei gesetztem
+rem NoDefaultCurrentDirectoryInExePath funktioniert.
+call "%~dp0gradlew.bat" clean build collectPluginJars --warning-mode all
 set "EXIT_CODE=%ERRORLEVEL%"
 
 if not "%EXIT_CODE%"=="0" (

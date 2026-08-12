@@ -798,15 +798,15 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
             lines.add(field("Dauer", Durations.format(ban.total()), NamedTextColor.GOLD));
             lines.add(field("Verbleibend", Durations.format(ban.remaining()), NamedTextColor.GOLD));
             lines.add(field(
-                "Entbannt am",
+                "Gebannt bis",
                 BAN_TIME_FORMAT.format(Instant.ofEpochMilli(ban.expiresAt())),
                 NamedTextColor.WHITE
             ));
         }
         lines.add(Component.empty());
 
-        lines.add(field("Gebannt am", BAN_TIME_FORMAT.format(Instant.ofEpochMilli(ban.createdAt())), NamedTextColor.WHITE));
-        lines.add(field("Team", ban.staffName(), NamedTextColor.AQUA));
+        // Kein Teammitglied auf dem Ban-Screen: der gebannte Spieler soll nicht sehen,
+        // wer ihn gebannt hat. Ueber die Strafen-ID bleibt der Fall im Ticket zuordenbar.
         lines.add(field("Strafen-ID", ban.punishmentId(), NamedTextColor.LIGHT_PURPLE));
         lines.add(Component.empty());
 
