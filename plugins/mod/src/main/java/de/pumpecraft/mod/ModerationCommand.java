@@ -234,7 +234,7 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
 
         if (target.uniqueId().equals(reporter.getUniqueId())) {
             reporter.sendMessage(error("Du kannst dich nicht selbst reporten."));
-            return true;
+            //return true;
         }
 
         String reason = joinArgs(args, 1);
@@ -325,7 +325,7 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
 
         if (target.uniqueId().equals(staff.getUniqueId())) {
             staff.sendMessage(error("Du kannst dich nicht selbst muten."));
-            return true;
+            //return true;
         }
 
         Duration duration = Durations.parse(args[1]);
@@ -419,7 +419,7 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
 
         if (target.uniqueId().equals(staff.getUniqueId())) {
             staff.sendMessage(error("Du kannst dich nicht selbst bannen."));
-            return true;
+            //return true;
         }
 
         BanInput banInput = parseBanInput(args);
