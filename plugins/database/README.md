@@ -30,3 +30,15 @@ On their first database-backed startup, PumpeMod, PumpePlaytime and
 PumpeDeathMessages import any existing YAML data in a transaction. Completed
 imports are tracked in `pc_legacy_imports`. The YAML files remain untouched as
 backups and are no longer used for persistence.
+
+### Versions
+
+| Version | Script | Inhalt |
+| --- | --- | --- |
+| V1 | `V1__initial_schema.sql` | Grundschema für Reports, Warnungen, Mutes, Bans, Playtime und Tode |
+| V2 | `V2__readable_uuid_columns.sql` | UUID-Spalten von `BINARY(16)` auf lesbares `CHAR(36)` |
+| V3 | `V3__punishment_lifecycle.sql` | `revoked_at`/`revoked_by`/`revoke_reason` für Bans, `unmuted_at`/`unmuted_by` für Mutes |
+
+V3 macht aufgehobene Strafen nachvollziehbar: `/unban` und `/unmute` markieren
+den Eintrag, statt ihn zu löschen. Das Web-Panel erkennt selbst, ob die Spalten
+schon vorhanden sind, und funktioniert auch vor der Migration.

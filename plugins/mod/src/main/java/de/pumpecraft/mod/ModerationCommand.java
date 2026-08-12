@@ -1,5 +1,6 @@
 package de.pumpecraft.mod;
 
+import io.papermc.paper.ban.BanListType;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import java.time.Duration;
 import java.time.Instant;
@@ -13,12 +14,16 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.ban.ProfileBanList;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -29,6 +34,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.EntityTargetEvent;
+import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
@@ -36,16 +42,24 @@ import org.bukkit.event.player.PlayerTeleportEvent;
 
 public final class ModerationCommand implements CommandExecutor, TabCompleter, Listener {
     private static final DateTimeFormatter REPORT_TIME_FORMAT = DateTimeFormatter
-        .ofPattern("dd.MM.yyyy HH:mm")
+        .ofPattern("dd.MM.yyyy HH:mm:ss")
         .withZone(ZoneId.systemDefault());
     private static final DateTimeFormatter BAN_TIME_FORMAT = DateTimeFormatter
-        .ofPattern("dd.MM.yyyy HH:mm")
+        .ofPattern("dd.MM.yyyy HH:mm:ss")
         .withZone(ZoneId.systemDefault());
+    private static final List<String> DURATION_SUGGESTIONS =
+        List.of("30s", "5m", "10m", "30m", "1h", "6h", "1d", "7d", "30d");
+    private static final Component SCREEN_DIVIDER =
+        Component.text("─".repeat(38), NamedTextColor.DARK_GRAY);
+    private static final Component CHAT_DIVIDER =
+        Component.text("─".repeat(28), NamedTextColor.DARK_GRAY);
 
     private final PumpeModPlugin plugin;
     private final ModerationRepository repository;
     private final Set<UUID> vanishedPlayers = new HashSet<>();
     private final Map<UUID, VanishState> vanishStates = new HashMap<>();
+    /** Aktive Mutes der eingeloggten Spieler; hält den Chat-Check von der Datenbank fern. */
+    private final Map<UUID, MuteRecord> muteCache = new ConcurrentHashMap<>();
 
     public ModerationCommand(PumpeModPlugin plugin, ModerationRepository repository) {
         this.plugin = plugin;
@@ -59,7 +73,9 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
             case "reports" -> handleReports(sender, args);
             case "warn" -> handleWarn(sender, label, args);
             case "mute" -> handleMute(sender, label, args);
+            case "unmute" -> handleUnmute(sender, label, args);
             case "ban" -> handleBan(sender, label, args);
+            case "unban" -> handleUnban(sender, label, args);
             case "vanish" -> handleVanish(sender);
             default -> false;
         };
@@ -72,13 +88,51 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
         }
 
         return switch (command.getName().toLowerCase(Locale.ROOT)) {
-            case "report", "warn" -> args.length == 1 ? completeKnownPlayers(args[0]) : List.of();
+            case "report", "warn", "unmute", "unban" ->
+                args.length == 1 ? completeKnownPlayers(args[0]) : List.of();
             case "reports" -> completeReports(args);
             case "mute" -> completeMute(args);
             case "ban" -> completeBan(args);
             case "vanish" -> List.of();
             default -> List.of();
         };
+    }
+
+    /**
+     * Bans werden ausschließlich aus der Datenbank durchgesetzt, damit Panel,
+     * Konsole und Server dieselbe Wahrheit sehen. Der aktive Mute wird hier
+     * gleich mitgeladen, damit der Chat-Check später ohne Datenbank auskommt.
+     */
+    @EventHandler
+    public void onAsyncPlayerPreLogin(AsyncPlayerPreLoginEvent event) {
+        if (event.getLoginResult() != AsyncPlayerPreLoginEvent.Result.ALLOWED) {
+            return;
+        }
+
+        UUID playerId = event.getUniqueId();
+        try {
+            BanRecord ban = repository.getActiveBan(playerId);
+            if (ban != null) {
+                event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_BANNED, banScreen(ban));
+                muteCache.remove(playerId);
+                return;
+            }
+
+            MuteRecord mute = repository.getActiveMute(playerId);
+            if (mute == null) {
+                muteCache.remove(playerId);
+            } else {
+                muteCache.put(playerId, mute);
+            }
+        } catch (RuntimeException exception) {
+            // Lieber einen Spieler durchlassen als den kompletten Login blockieren.
+            muteCache.remove(playerId);
+            plugin.getLogger().log(
+                Level.SEVERE,
+                "Could not load punishments for " + event.getName() + "; letting the login pass.",
+                exception
+            );
+        }
     }
 
     @EventHandler
@@ -94,7 +148,7 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
             }
         }
 
-        MuteRecord mute = repository.getActiveMute(player.getUniqueId());
+        MuteRecord mute = activeMute(player.getUniqueId());
         if (mute != null) {
             player.sendMessage(muteMessage(mute));
         }
@@ -112,6 +166,8 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
+        muteCache.remove(event.getPlayer().getUniqueId());
+
         if (!vanishedPlayers.remove(event.getPlayer().getUniqueId())) {
             return;
         }
@@ -122,13 +178,26 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
 
     @EventHandler
     public void onAsyncChat(AsyncChatEvent event) {
-        MuteRecord mute = repository.getActiveMute(event.getPlayer().getUniqueId());
+        MuteRecord mute = activeMute(event.getPlayer().getUniqueId());
         if (mute == null) {
             return;
         }
 
         event.setCancelled(true);
         event.getPlayer().sendMessage(muteMessage(mute));
+    }
+
+    /** Cache-Lookup ohne Datenbankzugriff; abgelaufene Einträge fallen dabei raus. */
+    private MuteRecord activeMute(UUID playerId) {
+        MuteRecord mute = muteCache.get(playerId);
+        if (mute == null) {
+            return null;
+        }
+        if (mute.isActive()) {
+            return mute;
+        }
+        muteCache.remove(playerId);
+        return null;
     }
 
     @EventHandler
@@ -243,7 +312,8 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
         }
 
         if (args.length < 2) {
-            staff.sendMessage(error("Nutzung: /" + label + " <Spieler> <Minuten> [Grund]"));
+            staff.sendMessage(error("Nutzung: /" + label + " <Spieler> <Zeit> [Grund]"));
+            staff.sendMessage(hint("Zeit: " + Durations.EXAMPLES + ". Eine reine Zahl gilt als Minuten."));
             return true;
         }
 
@@ -253,32 +323,79 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
             return true;
         }
 
-        int minutes;
-        try {
-            minutes = Integer.parseInt(args[1]);
-        } catch (NumberFormatException exception) {
-            staff.sendMessage(error("Die Zeit muss in Minuten angegeben werden."));
+        if (target.uniqueId().equals(staff.getUniqueId())) {
+            staff.sendMessage(error("Du kannst dich nicht selbst muten."));
             return true;
         }
 
-        if (minutes <= 0) {
-            staff.sendMessage(error("Die Zeit muss mindestens 1 Minute betragen."));
+        Duration duration = Durations.parse(args[1]);
+        if (duration == null) {
+            staff.sendMessage(error("Ungültige Zeitangabe: " + args[1]));
+            staff.sendMessage(hint("Erlaubt: " + Durations.EXAMPLES + ". Eine reine Zahl gilt als Minuten."));
             return true;
         }
 
         String reason = args.length >= 3 ? joinArgs(args, 2) : "Kein Grund angegeben";
-        repository.setMute(target.uniqueId(), target.name(), staff.getName(), minutes, reason);
+        MuteRecord mute = repository.setMute(
+            target.uniqueId(),
+            target.name(),
+            staff.getName(),
+            duration,
+            reason
+        );
 
         Player onlineTarget = Bukkit.getPlayer(target.uniqueId());
         if (onlineTarget != null) {
-            MuteRecord mute = repository.getActiveMute(target.uniqueId());
-            if (mute != null) {
-                onlineTarget.sendMessage(muteMessage(mute));
-            }
+            muteCache.put(target.uniqueId(), mute);
+            onlineTarget.sendMessage(muteMessage(mute));
         }
 
-        Bukkit.broadcast(Component.text(target.name() + " wurde gemutet.", NamedTextColor.RED));
-        staff.sendMessage(success(target.name() + " wurde für " + minutes + " Minuten gemutet."));
+        String formattedDuration = Durations.format(duration);
+        Bukkit.broadcast(
+            Component.text(target.name(), NamedTextColor.AQUA)
+                .append(Component.text(" wurde für ", NamedTextColor.RED))
+                .append(Component.text(formattedDuration, NamedTextColor.GOLD))
+                .append(Component.text(" gemutet.", NamedTextColor.RED))
+        );
+        staff.sendMessage(success(target.name() + " wurde für " + formattedDuration + " gemutet."));
+        return true;
+    }
+
+    private boolean handleUnmute(CommandSender sender, String label, String[] args) {
+        if (!(sender instanceof Player staff)) {
+            sender.sendMessage(error("Dieser Befehl kann nur von Spielern genutzt werden."));
+            return true;
+        }
+
+        if (args.length < 1) {
+            staff.sendMessage(error("Nutzung: /" + label + " <Spieler>"));
+            return true;
+        }
+
+        TargetPlayer target = findKnownPlayer(args[0]);
+        if (target == null) {
+            staff.sendMessage(error("Der Spieler ist nicht bekannt."));
+            return true;
+        }
+
+        boolean lifted = repository.clearMute(target.uniqueId(), staff.getName());
+        muteCache.remove(target.uniqueId());
+
+        if (!lifted) {
+            staff.sendMessage(error(target.name() + " ist aktuell nicht gemutet."));
+            return true;
+        }
+
+        Player onlineTarget = Bukkit.getPlayer(target.uniqueId());
+        if (onlineTarget != null) {
+            onlineTarget.sendMessage(unmuteMessage(staff.getName()));
+        }
+
+        Bukkit.broadcast(
+            Component.text(target.name(), NamedTextColor.AQUA)
+                .append(Component.text(" wurde entmutet.", NamedTextColor.GREEN))
+        );
+        staff.sendMessage(success("Der Mute von " + target.name() + " wurde aufgehoben."));
         return true;
     }
 
@@ -290,6 +407,7 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
 
         if (args.length < 2) {
             staff.sendMessage(error("Nutzung: /" + label + " <Spieler> <Grund> [Zeit]"));
+            staff.sendMessage(hint("Zeit: " + Durations.EXAMPLES + ". Ohne Zeit ist der Ban permanent."));
             return true;
         }
 
@@ -299,8 +417,13 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
             return true;
         }
 
+        if (target.uniqueId().equals(staff.getUniqueId())) {
+            staff.sendMessage(error("Du kannst dich nicht selbst bannen."));
+            return true;
+        }
+
         BanInput banInput = parseBanInput(args);
-        String punishmentId = repository.createBanPunishment(
+        BanRecord ban = repository.createBanPunishment(
             target.uniqueId(),
             target.name(),
             staff.getName(),
@@ -308,21 +431,64 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
             banInput.expiresAt()
         );
 
-        OfflinePlayer offlineTarget = Bukkit.getOfflinePlayer(target.uniqueId());
-        String banReason = banReasonText(punishmentId, banInput);
-        if (banInput.expiresAt() == null) {
-            offlineTarget.ban(banReason, (Instant) null, staff.getName());
-        } else {
-            offlineTarget.ban(banReason, banInput.expiresAt(), staff.getName());
-        }
-
         Player onlineTarget = Bukkit.getPlayer(target.uniqueId());
         if (onlineTarget != null) {
-            onlineTarget.kick(banScreen(punishmentId, banInput));
+            onlineTarget.kick(banScreen(ban));
         }
 
-        staff.sendMessage(success(target.name() + " wurde gebannt. Punishment-ID: " + punishmentId));
+        staff.sendMessage(success(
+            target.name() + " wurde "
+                + (ban.permanent() ? "permanent" : "für " + Durations.format(ban.total()))
+                + " gebannt. Strafen-ID: " + ban.punishmentId()
+        ));
         return true;
+    }
+
+    private boolean handleUnban(CommandSender sender, String label, String[] args) {
+        if (!(sender instanceof Player staff)) {
+            sender.sendMessage(error("Dieser Befehl kann nur von Spielern genutzt werden."));
+            return true;
+        }
+
+        if (args.length < 1) {
+            staff.sendMessage(error("Nutzung: /" + label + " <Spieler> [Grund]"));
+            return true;
+        }
+
+        TargetPlayer target = findKnownPlayer(args[0]);
+        if (target == null) {
+            staff.sendMessage(error("Der Spieler ist nicht bekannt."));
+            return true;
+        }
+
+        String reason = args.length >= 2 ? joinArgs(args, 1) : "Kein Grund angegeben";
+        int revoked = repository.revokeActiveBans(target.uniqueId(), staff.getName(), reason);
+        boolean pardonedServerBan = pardonServerBan(target);
+
+        if (revoked == 0) {
+            staff.sendMessage(error(target.name() + " hat keinen aktiven Ban in der Datenbank."));
+            if (pardonedServerBan) {
+                staff.sendMessage(hint("Ein alter Server-Ban-Eintrag wurde trotzdem entfernt."));
+            }
+            return true;
+        }
+
+        staff.sendMessage(success("Der Ban von " + target.name() + " wurde aufgehoben."));
+        return true;
+    }
+
+    /**
+     * Entfernt Alt-Einträge aus {@code banned-players.json}. Vor der Umstellung auf
+     * die Datenbank wurden Bans zusätzlich dort abgelegt und würden den Spieler
+     * sonst weiterhin mit dem Vanilla-Bildschirm aussperren.
+     */
+    private boolean pardonServerBan(TargetPlayer target) {
+        OfflinePlayer offlineTarget = Bukkit.getOfflinePlayer(target.uniqueId());
+        ProfileBanList banList = Bukkit.getBanList(BanListType.PROFILE);
+        boolean wasBanned = banList.isBanned(offlineTarget.getPlayerProfile());
+        banList.pardon(offlineTarget.getPlayerProfile());
+        banList.pardon(target.name());
+        return wasBanned;
     }
 
     private boolean handleVanish(CommandSender sender) {
@@ -357,9 +523,7 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
         }
 
         if (args.length == 2) {
-            return List.of("5", "10", "30", "60").stream()
-                .filter(option -> option.startsWith(args[1]))
-                .toList();
+            return completeDurations(args[1]);
         }
 
         return List.of();
@@ -371,13 +535,17 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
         }
 
         if (args.length >= 3) {
-            String current = args[args.length - 1].toLowerCase(Locale.ROOT);
-            return List.of("30m", "2h", "1d", "7d", "30d").stream()
-                .filter(option -> option.startsWith(current))
-                .toList();
+            return completeDurations(args[args.length - 1]);
         }
 
         return List.of();
+    }
+
+    private List<String> completeDurations(String input) {
+        String current = input.toLowerCase(Locale.ROOT);
+        return DURATION_SUGGESTIONS.stream()
+            .filter(option -> option.startsWith(current))
+            .toList();
     }
 
     private TargetPlayer findKnownPlayer(String input) {
@@ -554,6 +722,10 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
         vanishStates.clear();
     }
 
+    void clearCaches() {
+        muteCache.clear();
+    }
+
     private boolean canViewReports(Player player) {
         PluginCommand command = plugin.getCommand("reports");
         return command != null && command.testPermissionSilent(player);
@@ -588,77 +760,88 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
     }
 
     private Component muteMessage(MuteRecord mute) {
-        Duration remaining = Duration.between(Instant.now(), Instant.ofEpochMilli(mute.expiresAt()));
-        long remainingMinutes = Math.max(1L, remaining.toMinutes());
-
-        return Component.text("Du bist gemutet. ", NamedTextColor.RED)
-            .append(Component.text("Verbleibend: " + remainingMinutes + " Minuten. ", NamedTextColor.GRAY))
-            .append(Component.text("Grund: ", NamedTextColor.GRAY))
-            .append(Component.text(mute.reason(), NamedTextColor.YELLOW));
+        List<Component> lines = new ArrayList<>();
+        lines.add(CHAT_DIVIDER);
+        lines.add(Component.text("Du bist stummgeschaltet", NamedTextColor.RED, TextDecoration.BOLD));
+        lines.add(field("Grund", mute.reason(), NamedTextColor.YELLOW));
+        lines.add(field("Verbleibend", Durations.format(mute.remaining()), NamedTextColor.GOLD));
+        lines.add(field("Gesamtdauer", Durations.format(mute.total()), NamedTextColor.WHITE));
+        lines.add(field("Team", mute.staffName(), NamedTextColor.AQUA));
+        lines.add(CHAT_DIVIDER);
+        return joinLines(lines);
     }
 
-    private Component banScreen(String punishmentId, BanInput banInput) {
-        Component timeLine = banInput.expiresAt() == null
-            ? Component.text("Dauer: Permanent", NamedTextColor.GRAY)
-            : Component.text("Gebannt bis: " + BAN_TIME_FORMAT.format(banInput.expiresAt()), NamedTextColor.GRAY);
-
-        return Component.text("Du wurdest von PumpeCraft gebannt.", NamedTextColor.RED)
-            .append(Component.newline())
-            .append(Component.text("Grund: ", NamedTextColor.GRAY))
-            .append(Component.text(banInput.reason(), NamedTextColor.YELLOW))
-            .append(Component.newline())
-            .append(timeLine)
-            .append(Component.newline())
-            .append(Component.text("Punishment-ID: ", NamedTextColor.GRAY))
-            .append(Component.text(punishmentId, NamedTextColor.AQUA))
-            .append(Component.newline())
-            .append(Component.text("Wenn du Einspruch einlegen willst, öffne bitte ein Ticket im Discord.", NamedTextColor.WHITE));
+    private Component unmuteMessage(String staffName) {
+        return joinLines(List.of(
+            CHAT_DIVIDER,
+            Component.text("Dein Mute wurde aufgehoben", NamedTextColor.GREEN, TextDecoration.BOLD),
+            field("Aufgehoben von", staffName, NamedTextColor.AQUA),
+            CHAT_DIVIDER
+        ));
     }
 
-    private String banReasonText(String punishmentId, BanInput banInput) {
-        String duration = banInput.expiresAt() == null ? "Permanent" : "Bis " + BAN_TIME_FORMAT.format(banInput.expiresAt());
-        return "Du wurdest von PumpeCraft gebannt.\n"
-            + "Grund: " + banInput.reason() + "\n"
-            + "Dauer: " + duration + "\n"
-            + "Punishment-ID: " + punishmentId + "\n"
-            + "Wenn du Einspruch einlegen willst, öffne bitte ein Ticket im Discord.";
+    /** Kick-Bildschirm: Kopf, Blöcke und Fußzeile klar getrennt und farblich sortiert. */
+    private Component banScreen(BanRecord ban) {
+        List<Component> lines = new ArrayList<>();
+
+        lines.add(SCREEN_DIVIDER);
+        lines.add(Component.text("DU WURDEST GEBANNT", NamedTextColor.DARK_RED, TextDecoration.BOLD));
+        lines.add(Component.text("PumpeCraft", NamedTextColor.GRAY));
+        lines.add(SCREEN_DIVIDER);
+        lines.add(Component.empty());
+
+        lines.add(field("Grund", ban.reason(), NamedTextColor.YELLOW));
+        lines.add(Component.empty());
+
+        if (ban.permanent()) {
+            lines.add(field("Dauer", "Permanent", NamedTextColor.DARK_RED));
+        } else {
+            lines.add(field("Dauer", Durations.format(ban.total()), NamedTextColor.GOLD));
+            lines.add(field("Verbleibend", Durations.format(ban.remaining()), NamedTextColor.GOLD));
+            lines.add(field(
+                "Entbannt am",
+                BAN_TIME_FORMAT.format(Instant.ofEpochMilli(ban.expiresAt())),
+                NamedTextColor.WHITE
+            ));
+        }
+        lines.add(Component.empty());
+
+        lines.add(field("Gebannt am", BAN_TIME_FORMAT.format(Instant.ofEpochMilli(ban.createdAt())), NamedTextColor.WHITE));
+        lines.add(field("Team", ban.staffName(), NamedTextColor.AQUA));
+        lines.add(field("Strafen-ID", ban.punishmentId(), NamedTextColor.LIGHT_PURPLE));
+        lines.add(Component.empty());
+
+        lines.add(SCREEN_DIVIDER);
+        lines.add(Component.text("Einspruch? Öffne ein Ticket in unserem Discord", NamedTextColor.GREEN));
+        lines.add(Component.text("und nenne dort deine Strafen-ID.", NamedTextColor.GREEN));
+
+        return joinLines(lines);
+    }
+
+    private Component field(String label, String value, NamedTextColor valueColor) {
+        return Component.text(label + ": ", NamedTextColor.GRAY)
+            .append(Component.text(value, valueColor));
+    }
+
+    private Component joinLines(List<Component> lines) {
+        Component result = Component.empty();
+        for (int index = 0; index < lines.size(); index++) {
+            if (index > 0) {
+                result = result.append(Component.newline());
+            }
+            result = result.append(lines.get(index));
+        }
+        return result;
     }
 
     private BanInput parseBanInput(String[] args) {
-        Duration duration = parseDuration(args[args.length - 1]);
+        Duration duration = Durations.parse(stripMatchingQuotes(args[args.length - 1].trim()));
         if (duration == null) {
             return new BanInput(joinArgs(args, 1), null);
         }
 
         String reason = args.length > 2 ? joinArgs(args, 1, args.length - 1) : "Kein Grund angegeben";
         return new BanInput(reason, Instant.now().plus(duration));
-    }
-
-    private Duration parseDuration(String input) {
-        String normalized = stripMatchingQuotes(input.trim()).toLowerCase(Locale.ROOT);
-        if (!normalized.matches("\\d+[mhdw]?")) {
-            return null;
-        }
-
-        long amount;
-        try {
-            amount = Long.parseLong(normalized.replaceAll("[mhdw]", ""));
-        } catch (NumberFormatException exception) {
-            return null;
-        }
-
-        if (amount <= 0) {
-            return null;
-        }
-
-        char unit = normalized.charAt(normalized.length() - 1);
-        return switch (unit) {
-            case 'h' -> Duration.ofHours(amount);
-            case 'd' -> Duration.ofDays(amount);
-            case 'w' -> Duration.ofDays(amount * 7L);
-            case 'm' -> Duration.ofMinutes(amount);
-            default -> Duration.ofMinutes(amount);
-        };
     }
 
     private String joinArgs(String[] args, int startIndex) {
@@ -691,6 +874,10 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
 
     private Component success(String message) {
         return Component.text(message, NamedTextColor.GREEN);
+    }
+
+    private Component hint(String message) {
+        return Component.text(message, NamedTextColor.GRAY);
     }
 
     private record TargetPlayer(UUID uniqueId, String name) {

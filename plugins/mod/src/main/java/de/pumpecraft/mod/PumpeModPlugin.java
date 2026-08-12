@@ -23,7 +23,9 @@ public final class PumpeModPlugin extends JavaPlugin {
         registerCommand("reports", moderationCommand);
         registerCommand("warn", moderationCommand);
         registerCommand("mute", moderationCommand);
+        registerCommand("unmute", moderationCommand);
         registerCommand("ban", moderationCommand);
+        registerCommand("unban", moderationCommand);
         registerCommand("vanish", moderationCommand);
         getServer().getPluginManager().registerEvents(moderationCommand, this);
 
@@ -34,6 +36,7 @@ public final class PumpeModPlugin extends JavaPlugin {
     public void onDisable() {
         if (moderationCommand != null) {
             moderationCommand.revealAllVanishedPlayers();
+            moderationCommand.clearCaches();
         }
         getLogger().info("PumpeMod disabled.");
     }

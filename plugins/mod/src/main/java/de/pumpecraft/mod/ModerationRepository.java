@@ -9,6 +9,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -159,21 +160,30 @@ final class ModerationRepository {
         });
     }
 
-    void setMute(UUID targetId, String targetName, String staffName, int minutes, String reason) {
+    MuteRecord setMute(
+        UUID targetId,
+        String targetName,
+        String staffName,
+        Duration duration,
+        String reason
+    ) {
         long mutedAt = Instant.now().toEpochMilli();
-        long expiresAt = Instant.now().plusSeconds(minutes * 60L).toEpochMilli();
+        long expiresAt = mutedAt + duration.toMillis();
         database.withConnection(connection -> {
             try (PreparedStatement statement = connection.prepareStatement(
                 """
                 INSERT INTO pc_mutes
-                    (target_uuid, target_name, staff_name, reason, muted_at, expires_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                    (target_uuid, target_name, staff_name, reason, muted_at, expires_at,
+                     unmuted_at, unmuted_by)
+                VALUES (?, ?, ?, ?, ?, ?, NULL, NULL)
                 ON DUPLICATE KEY UPDATE
                     target_name = VALUES(target_name),
                     staff_name = VALUES(staff_name),
                     reason = VALUES(reason),
                     muted_at = VALUES(muted_at),
-                    expires_at = VALUES(expires_at)
+                    expires_at = VALUES(expires_at),
+                    unmuted_at = NULL,
+                    unmuted_by = NULL
                 """
             )) {
                 statement.setString(1, targetId.toString());
@@ -186,44 +196,70 @@ final class ModerationRepository {
             }
             return null;
         });
+        return new MuteRecord(reason, staffName, mutedAt, expiresAt);
     }
 
+    /**
+     * Liest den aktiven Mute. Abgelaufene oder aufgehobene Einträge bleiben als
+     * Historie in der Tabelle stehen und liefern hier {@code null}.
+     */
     MuteRecord getActiveMute(UUID targetId) {
-        return database.inTransaction(connection -> {
+        return database.withConnection(connection -> {
             try (PreparedStatement statement = connection.prepareStatement(
-                "SELECT reason, expires_at FROM pc_mutes WHERE target_uuid = ? FOR UPDATE"
+                """
+                SELECT reason, staff_name, muted_at, expires_at
+                FROM pc_mutes
+                WHERE target_uuid = ? AND unmuted_at IS NULL AND expires_at > ?
+                """
             )) {
                 statement.setString(1, targetId.toString());
+                statement.setLong(2, Instant.now().toEpochMilli());
                 try (ResultSet result = statement.executeQuery()) {
                     if (!result.next()) {
                         return null;
                     }
-                    long expiresAt = result.getLong("expires_at");
-                    if (expiresAt > Instant.now().toEpochMilli()) {
-                        return new MuteRecord(result.getString("reason"), expiresAt);
-                    }
+                    return new MuteRecord(
+                        result.getString("reason"),
+                        result.getString("staff_name"),
+                        result.getLong("muted_at"),
+                        result.getLong("expires_at")
+                    );
                 }
             }
-            try (PreparedStatement statement = connection.prepareStatement(
-                "DELETE FROM pc_mutes WHERE target_uuid = ?"
-            )) {
-                statement.setString(1, targetId.toString());
-                statement.executeUpdate();
-            }
-            return null;
         });
     }
 
-    String createBanPunishment(
+    /** @return {@code true}, wenn tatsächlich ein aktiver Mute aufgehoben wurde. */
+    boolean clearMute(UUID targetId, String staffName) {
+        return database.withConnection(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                """
+                UPDATE pc_mutes
+                   SET unmuted_at = ?, unmuted_by = ?
+                 WHERE target_uuid = ? AND unmuted_at IS NULL AND expires_at > ?
+                """
+            )) {
+                long now = Instant.now().toEpochMilli();
+                statement.setLong(1, now);
+                statement.setString(2, staffName);
+                statement.setString(3, targetId.toString());
+                statement.setLong(4, now);
+                return statement.executeUpdate() > 0;
+            }
+        });
+    }
+
+    BanRecord createBanPunishment(
         UUID targetId,
         String targetName,
         String staffName,
         String reason,
         Instant expiresAt
     ) {
-        return database.withConnection(connection -> {
+        long createdAt = Instant.now().toEpochMilli();
+        String punishmentId = database.withConnection(connection -> {
             for (int attempt = 0; attempt < 20; attempt++) {
-                String punishmentId = generatePunishmentId();
+                String candidate = generatePunishmentId();
                 try (PreparedStatement statement = connection.prepareStatement(
                     """
                     INSERT INTO pc_punishments
@@ -232,19 +268,19 @@ final class ModerationRepository {
                     VALUES (?, 'BAN', ?, ?, ?, ?, ?, ?)
                     """
                 )) {
-                    statement.setString(1, punishmentId);
+                    statement.setString(1, candidate);
                     statement.setString(2, targetId.toString());
                     statement.setString(3, targetName);
                     statement.setString(4, staffName);
                     statement.setString(5, reason);
-                    statement.setLong(6, Instant.now().toEpochMilli());
+                    statement.setLong(6, createdAt);
                     if (expiresAt == null) {
                         statement.setNull(7, java.sql.Types.BIGINT);
                     } else {
                         statement.setLong(7, expiresAt.toEpochMilli());
                     }
                     statement.executeUpdate();
-                    return punishmentId;
+                    return candidate;
                 } catch (SQLException exception) {
                     if (!"23000".equals(exception.getSQLState())) {
                         throw exception;
@@ -252,6 +288,75 @@ final class ModerationRepository {
                 }
             }
             throw new SQLException("Could not generate a unique punishment ID after 20 attempts.");
+        });
+        return new BanRecord(
+            punishmentId,
+            reason,
+            staffName,
+            createdAt,
+            expiresAt == null ? null : expiresAt.toEpochMilli()
+        );
+    }
+
+    /**
+     * Der aktive Ban eines Spielers. Permanente Bans haben Vorrang vor
+     * befristeten, danach gilt der am spätesten endende.
+     */
+    BanRecord getActiveBan(UUID targetId) {
+        return database.withConnection(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                """
+                SELECT punishment_id, reason, staff_name, created_at, expires_at
+                FROM pc_punishments
+                WHERE target_uuid = ?
+                  AND punishment_type = 'BAN'
+                  AND revoked_at IS NULL
+                  AND (expires_at IS NULL OR expires_at > ?)
+                ORDER BY (expires_at IS NULL) DESC, expires_at DESC
+                LIMIT 1
+                """
+            )) {
+                statement.setString(1, targetId.toString());
+                statement.setLong(2, Instant.now().toEpochMilli());
+                try (ResultSet result = statement.executeQuery()) {
+                    if (!result.next()) {
+                        return null;
+                    }
+                    long expiresAtValue = result.getLong("expires_at");
+                    Long expiresAt = result.wasNull() ? null : expiresAtValue;
+                    return new BanRecord(
+                        result.getString("punishment_id"),
+                        result.getString("reason"),
+                        result.getString("staff_name"),
+                        result.getLong("created_at"),
+                        expiresAt
+                    );
+                }
+            }
+        });
+    }
+
+    /** @return Anzahl der aufgehobenen Bans. */
+    int revokeActiveBans(UUID targetId, String staffName, String reason) {
+        return database.withConnection(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                """
+                UPDATE pc_punishments
+                   SET revoked_at = ?, revoked_by = ?, revoke_reason = ?
+                 WHERE target_uuid = ?
+                   AND punishment_type = 'BAN'
+                   AND revoked_at IS NULL
+                   AND (expires_at IS NULL OR expires_at > ?)
+                """
+            )) {
+                long now = Instant.now().toEpochMilli();
+                statement.setLong(1, now);
+                statement.setString(2, staffName);
+                statement.setString(3, reason);
+                statement.setString(4, targetId.toString());
+                statement.setLong(5, now);
+                return statement.executeUpdate();
+            }
         });
     }
 
