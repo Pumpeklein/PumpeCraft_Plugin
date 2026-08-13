@@ -21,20 +21,16 @@ final class PlaytimeCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(Component.text("Dieser Befehl kann nur von Spielern genutzt werden.", NamedTextColor.RED));
+            sender.sendMessage(
+                    Component.text("Dieser Befehl kann nur von Spielern genutzt werden.", NamedTextColor.RED));
             return true;
         }
 
         PlaytimeRecord record = tracker.getRecord(player);
         player.sendMessage(Component.text("Deine Playtime", NamedTextColor.GOLD));
-        player.sendMessage(line("Gesamt", record.totalSeconds(), NamedTextColor.AQUA));
-        player.sendMessage(line("Nicht AFK", record.nonAfkSeconds(), NamedTextColor.GREEN));
         player.sendMessage(line("Aktiv", record.activeSeconds(), NamedTextColor.GREEN));
         player.sendMessage(line("AFK", record.afkSeconds(), NamedTextColor.YELLOW));
-        player.sendMessage(Component.text(
-            "Aktiv zählt nur Sekunden, in denen du dich bewegst oder etwas tust.",
-            NamedTextColor.DARK_GRAY
-        ));
+        player.sendMessage(line("Gesamt", record.totalSeconds(), NamedTextColor.AQUA));
         return true;
     }
 
@@ -45,7 +41,7 @@ final class PlaytimeCommand implements CommandExecutor, TabCompleter {
 
     private Component line(String label, long seconds, NamedTextColor valueColor) {
         return Component.text(" - " + label + ": ", NamedTextColor.GRAY)
-            .append(Component.text(formatDuration(seconds), valueColor));
+                .append(Component.text(formatDuration(seconds), valueColor));
     }
 
     private String formatDuration(long seconds) {

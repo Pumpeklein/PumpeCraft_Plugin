@@ -1,23 +1,15 @@
 package de.pumpecraft.playtime;
 
-record PlaytimeRecord(long totalSeconds, long afkSeconds, long activeSeconds) {
-    /**
-     * Online-Zeit ohne AFK. {@link #activeSeconds()} zaehlt nur Sekunden mit echter
-     * Aktion (Bewegung, Interaktion) und ist deshalb immer kleiner als dieser Wert.
-     */
-    long nonAfkSeconds() {
-        return Math.max(0L, totalSeconds - afkSeconds);
-    }
-
-    PlaytimeRecord addTotal(long seconds) {
-        return new PlaytimeRecord(totalSeconds + seconds, afkSeconds, activeSeconds);
-    }
-
-    PlaytimeRecord addAfk(long seconds) {
-        return new PlaytimeRecord(totalSeconds, afkSeconds + seconds, activeSeconds);
+record PlaytimeRecord(long activeSeconds, long afkSeconds) {
+    long totalSeconds() {
+        return activeSeconds + afkSeconds;
     }
 
     PlaytimeRecord addActive(long seconds) {
-        return new PlaytimeRecord(totalSeconds, afkSeconds, activeSeconds + seconds);
+        return new PlaytimeRecord(activeSeconds + seconds, afkSeconds);
+    }
+
+    PlaytimeRecord addAfk(long seconds) {
+        return new PlaytimeRecord(activeSeconds, afkSeconds + seconds);
     }
 }

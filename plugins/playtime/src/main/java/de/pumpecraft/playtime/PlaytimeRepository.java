@@ -34,16 +34,17 @@ final class PlaytimeRepository {
         importLegacyYaml();
         database.withConnection(connection -> {
             try (PreparedStatement statement = connection.prepareStatement(
-                "SELECT player_uuid, total_seconds, afk_seconds, active_seconds FROM pc_playtime"
+                "SELECT player_uuid, total_seconds, afk_seconds FROM pc_playtime"
             ); ResultSet result = statement.executeQuery()) {
                 while (result.next()) {
+                    long totalSeconds = Math.max(0L, result.getLong("total_seconds"));
+                    long afkSeconds = Math.min(
+                        Math.max(0L, result.getLong("afk_seconds")),
+                        totalSeconds
+                    );
                     records.put(
                         UUID.fromString(result.getString("player_uuid")),
-                        new PlaytimeRecord(
-                            result.getLong("total_seconds"),
-                            result.getLong("afk_seconds"),
-                            result.getLong("active_seconds")
-                        )
+                        new PlaytimeRecord(totalSeconds - afkSeconds, afkSeconds)
                     );
                 }
             }
@@ -52,17 +53,12 @@ final class PlaytimeRepository {
     }
 
     synchronized PlaytimeRecord get(UUID playerId) {
-        return records.getOrDefault(playerId, new PlaytimeRecord(0L, 0L, 0L));
+        return records.getOrDefault(playerId, new PlaytimeRecord(0L, 0L));
     }
 
-    synchronized void addSecond(UUID playerId, boolean afk, boolean active) {
-        PlaytimeRecord record = get(playerId).addTotal(1L);
-        if (afk) {
-            record = record.addAfk(1L);
-        }
-        if (active) {
-            record = record.addActive(1L);
-        }
+    synchronized void addSecond(UUID playerId, boolean afk) {
+        PlaytimeRecord current = get(playerId);
+        PlaytimeRecord record = afk ? current.addAfk(1L) : current.addActive(1L);
         records.put(playerId, record);
         dirtyRecords.add(playerId);
     }
@@ -136,9 +132,14 @@ final class PlaytimeRepository {
                             continue;
                         }
                         String path = "players." + key;
-                        statement.setLong(2, Math.max(0L, legacy.getLong(path + ".total-seconds")));
-                        statement.setLong(3, Math.max(0L, legacy.getLong(path + ".afk-seconds")));
-                        statement.setLong(4, Math.max(0L, legacy.getLong(path + ".active-seconds")));
+                        long totalSeconds = Math.max(0L, legacy.getLong(path + ".total-seconds"));
+                        long afkSeconds = Math.min(
+                            Math.max(0L, legacy.getLong(path + ".afk-seconds")),
+                            totalSeconds
+                        );
+                        statement.setLong(2, totalSeconds);
+                        statement.setLong(3, afkSeconds);
+                        statement.setLong(4, totalSeconds - afkSeconds);
                         statement.addBatch();
                     }
                     statement.executeBatch();
