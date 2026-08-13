@@ -14,6 +14,8 @@ final class PlayerState {
     final Map<CheckType, Long> lastAlerts = new EnumMap<>(CheckType.class);
 
     Location lastMovementLocation;
+    Location lastFlySampleLocation;
+    Location lastGroundLocation;
     long lastMovementNanos;
     long movementWindowStarted;
     double movementWindowDistance;
@@ -21,6 +23,7 @@ final class PlayerState {
     long teleportGraceUntil;
     long velocityGraceUntil;
     long lastAttackMillis;
+    long lastPlaceMillis;
     int airTicks;
     int scaffoldStreak;
     double accumulatedFall;
@@ -41,6 +44,10 @@ final class PlayerState {
 
     void resetMovement(Location location) {
         lastMovementLocation = location.clone();
+        lastFlySampleLocation = location.clone();
+        if (lastGroundLocation == null) {
+            lastGroundLocation = location.clone();
+        }
         lastMovementNanos = System.nanoTime();
         movementWindowStarted = System.currentTimeMillis();
         movementWindowDistance = 0.0;

@@ -16,7 +16,7 @@ import org.bukkit.util.BoundingBox;
 
 final class CombatChecks implements Listener {
     private static final long CLICK_WINDOW_MILLIS = 1_000L;
-    private static final long COMBAT_WINDOW_MILLIS = 2_000L;
+    private static final long COMBAT_WINDOW_MILLIS = 5_000L;
 
     private final PumpeAntiCheatPlugin plugin;
     private final PlayerStateStore states;
@@ -68,14 +68,36 @@ final class CombatChecks implements Listener {
         int minimumSamples = plugin.getConfig().getInt("checks.autoclicker.minimum-samples", 12);
         int maximum = integerThreshold("autoclicker.maximum-cps", player);
         int clicks = state.swingTimes.size();
-        if (clicks >= minimumSamples && clicks > maximum) {
+        if (clicks < minimumSamples) {
+            return;
+        }
+
+        ClickPattern pattern = analyzeClickPattern(state.swingTimes);
+        double minimumConsistentCps = decimalThreshold(
+            "autoclicker.minimum-consistent-cps",
+            player
+        );
+        double maximumVariation = decimalThreshold(
+            "autoclicker.maximum-interval-variation",
+            player
+        );
+        if (clicks > maximum) {
             violations.flag(
                 player,
                 CheckType.AUTO_CLICKER,
                 Math.min(2.0, (clicks - maximum) * 0.5),
                 clicks + " CPS > " + maximum
             );
-        } else if (clicks < maximum - 2) {
+        } else if (pattern.cps() >= minimumConsistentCps
+            && pattern.intervalVariation() <= maximumVariation) {
+            violations.flag(
+                player,
+                CheckType.AUTO_CLICKER,
+                0.5,
+                format(pattern.cps()) + " CPS mit "
+                    + format(pattern.intervalVariation() * 100.0) + "% Abweichung"
+            );
+        } else {
             violations.reward(player, CheckType.AUTO_CLICKER, 0.05);
         }
     }
@@ -125,6 +147,31 @@ final class CombatChecks implements Listener {
         }
     }
 
+    private ClickPattern analyzeClickPattern(Deque<Long> times) {
+        long previous = -1L;
+        int intervals = 0;
+        double sum = 0.0;
+        double squaredSum = 0.0;
+        for (long time : times) {
+            if (previous >= 0L) {
+                double interval = time - previous;
+                sum += interval;
+                squaredSum += interval * interval;
+                intervals++;
+            }
+            previous = time;
+        }
+
+        if (intervals == 0 || sum <= 0.0) {
+            return new ClickPattern(0.0, Double.POSITIVE_INFINITY);
+        }
+
+        double average = sum / intervals;
+        double variance = Math.max(0.0, squaredSum / intervals - average * average);
+        double variation = Math.sqrt(variance) / average;
+        return new ClickPattern(1_000.0 / average, variation);
+    }
+
     private boolean exempt(Player player) {
         GameMode mode = player.getGameMode();
         return mode == GameMode.CREATIVE || mode == GameMode.SPECTATOR;
@@ -142,5 +189,8 @@ final class CombatChecks implements Listener {
 
     private String format(double value) {
         return String.format(Locale.ROOT, "%.2f", value);
+    }
+
+    private record ClickPattern(double cps, double intervalVariation) {
     }
 }

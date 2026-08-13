@@ -11,6 +11,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.util.Vector;
 
 final class BlockChecks implements Listener {
     private static final long RATE_WINDOW_MILLIS = 1_000L;
@@ -41,6 +42,7 @@ final class BlockChecks implements Listener {
 
         PlayerState state = states.get(player);
         long now = System.currentTimeMillis();
+        long previousPlace = state.lastPlaceMillis;
         int places = record(state.placeTimes, now);
         int maximum = integerThreshold("fastplace.max-places-per-second", player);
         if (violations.enabled(CheckType.FAST_PLACE)
@@ -57,7 +59,8 @@ final class BlockChecks implements Listener {
             }
         }
 
-        checkScaffold(event, state);
+        checkScaffold(event, state, now, previousPlace);
+        state.lastPlaceMillis = now;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -90,25 +93,40 @@ final class BlockChecks implements Listener {
         }
     }
 
-    private void checkScaffold(BlockPlaceEvent event, PlayerState state) {
+    private void checkScaffold(
+        BlockPlaceEvent event,
+        PlayerState state,
+        long now,
+        long previousPlace
+    ) {
         Player player = event.getPlayer();
-        if (!violations.enabled(CheckType.SCAFFOLD)
-        ) {
+        if (!violations.enabled(CheckType.SCAFFOLD)) {
             return;
         }
 
         Location playerLocation = player.getLocation();
         Location blockLocation = event.getBlockPlaced().getLocation().add(0.5, 0.5, 0.5);
         double horizontalVelocity = Math.hypot(player.getVelocity().getX(), player.getVelocity().getZ());
-        boolean belowFeet = blockLocation.getY() <= playerLocation.getY() + 0.15;
-        boolean close = horizontalDistance(playerLocation, blockLocation) <= 1.65;
-        boolean notLookingDown = playerLocation.getPitch() < 55.0f;
-        boolean moving = horizontalVelocity > 0.08 || state.recentHorizontalMovement > 0.04;
+        double horizontalDistance = horizontalDistance(playerLocation, blockLocation);
+        boolean belowFeet = blockLocation.getY() <= playerLocation.getY() + 0.2;
+        boolean close = horizontalDistance <= 1.9;
+        boolean underFeet = horizontalDistance <= 1.35;
+        boolean verticalTower = Math.abs(player.getVelocity().getY()) > 0.08 && underFeet;
+        boolean moving = horizontalVelocity > 0.08
+            || state.recentHorizontalMovement > 0.04
+            || verticalTower;
+        long maximumDelay = integerThreshold("scaffold.maximum-delay-millis", player);
+        boolean rapid = previousPlace > 0L && now - previousPlace <= maximumDelay;
+        double minimumAimDot = decimalThreshold("scaffold.minimum-aim-dot", player);
+        boolean aimMismatch = aimDot(player, blockLocation) < minimumAimDot;
 
-        if (belowFeet && close && notLookingDown && moving) {
-            state.scaffoldStreak++;
+        if (belowFeet && close && moving && rapid && (underFeet || aimMismatch)) {
+            state.scaffoldStreak += aimMismatch ? 2 : 1;
+            if (player.isSprinting()) {
+                state.scaffoldStreak++;
+            }
         } else {
-            state.scaffoldStreak = Math.max(0, state.scaffoldStreak - 2);
+            state.scaffoldStreak = Math.max(0, state.scaffoldStreak - 1);
             violations.reward(player, CheckType.SCAFFOLD, 0.1);
             return;
         }
@@ -119,7 +137,7 @@ final class BlockChecks implements Listener {
                 player,
                 CheckType.SCAFFOLD,
                 1.0,
-                state.scaffoldStreak + " verdächtige Platzierungen in Folge"
+                state.scaffoldStreak + " Scaffold-Punkte in schneller Platzierungsfolge"
             );
             state.scaffoldStreak = maximum / 2;
         }
@@ -141,6 +159,20 @@ final class BlockChecks implements Listener {
     private int integerThreshold(String path, Player player) {
         String platform = bedrockDetector.isBedrock(player.getUniqueId()) ? "-bedrock" : "-java";
         return plugin.getConfig().getInt("checks." + path + platform);
+    }
+
+    private double decimalThreshold(String path, Player player) {
+        String platform = bedrockDetector.isBedrock(player.getUniqueId()) ? "-bedrock" : "-java";
+        return plugin.getConfig().getDouble("checks." + path + platform);
+    }
+
+    private double aimDot(Player player, Location blockLocation) {
+        Location eye = player.getEyeLocation();
+        Vector towardBlock = blockLocation.toVector().subtract(eye.toVector());
+        if (towardBlock.lengthSquared() == 0.0) {
+            return 1.0;
+        }
+        return eye.getDirection().normalize().dot(towardBlock.normalize());
     }
 
     private double horizontalDistance(Location first, Location second) {

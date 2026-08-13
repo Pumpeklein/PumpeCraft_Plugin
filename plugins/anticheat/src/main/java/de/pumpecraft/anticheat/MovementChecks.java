@@ -103,8 +103,11 @@ final class MovementChecks implements Listener {
         }
 
         checkSpeed(event, state, now);
-        checkFly(event, state, grounded, deltaY);
         checkNoFall(player, state, grounded, deltaY);
+
+        if (grounded) {
+            state.lastGroundLocation = to.clone();
+        }
 
         state.wasOnGround = grounded;
         state.lastMovementLocation = to.clone();
@@ -154,36 +157,65 @@ final class MovementChecks implements Listener {
         state.movementWindowStarted = now;
     }
 
-    private void checkFly(
-        PlayerMoveEvent event,
-        PlayerState state,
-        boolean grounded,
-        double deltaY
-    ) {
-        Player player = event.getPlayer();
-        if (!violations.enabled(CheckType.FLY)) {
-            return;
-        }
+    void tickFlyChecks() {
+        long now = System.currentTimeMillis();
+        for (Player player : plugin.getServer().getOnlinePlayers()) {
+            PlayerState state = states.get(player);
+            Location current = player.getLocation();
+            if (!violations.enabled(CheckType.FLY)
+                || movementExempt(player, current, now, state)) {
+                resetFlySample(state, current, false);
+                continue;
+            }
 
-        if (grounded || deltaY < -0.08 || player.getFallDistance() > 0.5f) {
-            state.airTicks = 0;
-            violations.reward(player, CheckType.FLY, 0.1);
-            return;
-        }
+            boolean grounded = isGrounded(player, current);
+            if (grounded) {
+                resetFlySample(state, current, true);
+                violations.reward(player, CheckType.FLY, 0.05);
+                continue;
+            }
 
-        state.airTicks++;
-        int maximum = (int) Math.round(threshold("fly.max-air-ticks", player));
-        if (state.airTicks > maximum) {
+            Location previous = state.lastFlySampleLocation;
+            if (previous == null || previous.getWorld() != current.getWorld()) {
+                resetFlySample(state, current, false);
+                continue;
+            }
+
+            double deltaY = current.getY() - previous.getY();
+            if (deltaY > -0.08) {
+                state.airTicks++;
+            } else {
+                state.airTicks = Math.max(0, state.airTicks - 3);
+            }
+            state.lastFlySampleLocation = current.clone();
+
+            int maximum = (int) Math.round(threshold("fly.max-air-ticks", player));
+            if (state.airTicks <= maximum
+                || (state.airTicks != maximum + 1 && (state.airTicks - maximum) % 10 != 0)) {
+                continue;
+            }
+
             double level = violations.flag(
                 player,
                 CheckType.FLY,
                 1.0,
-                state.airTicks + " Luftbewegungen ohne Fallphase"
+                state.airTicks + " Ticks ohne normale Fallbewegung"
             );
-            if (violations.shouldCancel(player, CheckType.FLY, level)) {
-                event.setTo(event.getFrom());
-                state.airTicks = maximum;
+            if (violations.shouldCancel(player, CheckType.FLY, level)
+                && state.lastGroundLocation != null
+                && state.lastGroundLocation.getWorld() == player.getWorld()) {
+                Location destination = state.lastGroundLocation.clone();
+                player.teleport(destination, PlayerTeleportEvent.TeleportCause.PLUGIN);
+                grantTeleportGrace(player);
             }
+        }
+    }
+
+    private void resetFlySample(PlayerState state, Location location, boolean grounded) {
+        state.airTicks = 0;
+        state.lastFlySampleLocation = location.clone();
+        if (grounded) {
+            state.lastGroundLocation = location.clone();
         }
     }
 
@@ -233,7 +265,6 @@ final class MovementChecks implements Listener {
         GameMode mode = player.getGameMode();
         return mode == GameMode.CREATIVE
             || mode == GameMode.SPECTATOR
-            || player.getAllowFlight()
             || player.isFlying()
             || player.isGliding()
             || player.isSwimming()

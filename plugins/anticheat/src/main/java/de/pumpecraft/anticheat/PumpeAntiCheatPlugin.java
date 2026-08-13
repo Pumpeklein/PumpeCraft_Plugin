@@ -16,10 +16,8 @@ public final class PumpeAntiCheatPlugin extends JavaPlugin {
         BedrockDetector bedrockDetector = new BedrockDetector(this);
         ViolationService violations = new ViolationService(this, states, bedrockDetector);
 
-        getServer().getPluginManager().registerEvents(
-            new MovementChecks(this, states, violations, bedrockDetector),
-            this
-        );
+        MovementChecks movementChecks = new MovementChecks(this, states, violations, bedrockDetector);
+        getServer().getPluginManager().registerEvents(movementChecks, this);
         getServer().getPluginManager().registerEvents(
             new BlockChecks(this, states, violations, bedrockDetector),
             this
@@ -50,6 +48,7 @@ public final class PumpeAntiCheatPlugin extends JavaPlugin {
         command.setTabCompleter(commandHandler);
 
         getServer().getScheduler().runTaskTimer(this, violations::decay, 20L, 20L);
+        getServer().getScheduler().runTaskTimer(this, movementChecks::tickFlyChecks, 1L, 1L);
         getLogger().info("PumpeAntiCheat enabled with 9 checks.");
     }
 
@@ -63,7 +62,38 @@ public final class PumpeAntiCheatPlugin extends JavaPlugin {
 
     void reloadSettings() {
         reloadConfig();
+        int configVersion = getConfig().contains("config-version", true)
+            ? getConfig().getInt("config-version")
+            : 1;
+        if (configVersion < 2) {
+            migrateVersionTwoDefaults();
+        }
         getConfig().options().copyDefaults(true);
+        getConfig().set("config-version", 2);
         saveConfig();
+    }
+
+    private void migrateVersionTwoDefaults() {
+        replaceIntDefault("checks.fastplace.max-places-per-second-java", 12, 8);
+        replaceIntDefault("checks.fastplace.max-places-per-second-bedrock", 16, 11);
+        replaceDoubleDefault("checks.fastplace.cancel-level", 5.0, 4.0);
+        replaceIntDefault("checks.autoclicker.maximum-cps-java", 20, 16);
+        replaceIntDefault("checks.autoclicker.maximum-cps-bedrock", 25, 20);
+        replaceDoubleDefault("checks.autoclicker.alert-level", 4.0, 2.0);
+        replaceIntDefault("checks.scaffold.suspicious-placements-java", 5, 6);
+        replaceIntDefault("checks.scaffold.suspicious-placements-bedrock", 8, 10);
+        replaceDoubleDefault("checks.scaffold.alert-level", 4.0, 2.0);
+    }
+
+    private void replaceIntDefault(String path, int previousDefault, int newDefault) {
+        if (getConfig().getInt(path) == previousDefault) {
+            getConfig().set(path, newDefault);
+        }
+    }
+
+    private void replaceDoubleDefault(String path, double previousDefault, double newDefault) {
+        if (Double.compare(getConfig().getDouble(path), previousDefault) == 0) {
+            getConfig().set(path, newDefault);
+        }
     }
 }
