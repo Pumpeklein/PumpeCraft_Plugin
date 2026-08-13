@@ -68,8 +68,11 @@ public final class PumpeAntiCheatPlugin extends JavaPlugin {
         if (configVersion < 2) {
             migrateVersionTwoDefaults();
         }
+        if (configVersion < 3) {
+            migrateVersionThreeDefaults();
+        }
         getConfig().options().copyDefaults(true);
-        getConfig().set("config-version", 2);
+        getConfig().set("config-version", 3);
         saveConfig();
     }
 
@@ -83,6 +86,16 @@ public final class PumpeAntiCheatPlugin extends JavaPlugin {
         replaceIntDefault("checks.scaffold.suspicious-placements-java", 5, 6);
         replaceIntDefault("checks.scaffold.suspicious-placements-bedrock", 8, 10);
         replaceDoubleDefault("checks.scaffold.alert-level", 4.0, 2.0);
+    }
+
+    private void migrateVersionThreeDefaults() {
+        replaceIntDefault("checks.autoclicker.maximum-cps-java", 16, 15);
+        replaceIntDefault("checks.autoclicker.maximum-cps-bedrock", 20, 18);
+        replaceIntDefault("checks.autoclicker.minimum-samples", 12, 10);
+        replaceDoubleDefault("checks.autoclicker.minimum-consistent-cps-java", 10.0, 9.0);
+        replaceDoubleDefault("checks.autoclicker.minimum-consistent-cps-bedrock", 13.0, 11.0);
+        replaceDoubleDefault("checks.autoclicker.maximum-interval-variation-java", 0.075, 0.22);
+        replaceDoubleDefault("checks.autoclicker.maximum-interval-variation-bedrock", 0.05, 0.30);
     }
 
     private void replaceIntDefault(String path, int previousDefault, int newDefault) {

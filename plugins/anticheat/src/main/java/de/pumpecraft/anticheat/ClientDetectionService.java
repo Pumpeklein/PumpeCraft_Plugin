@@ -3,7 +3,8 @@ package de.pumpecraft.anticheat;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -64,7 +65,7 @@ final class ClientDetectionService implements Listener, PluginMessageListener {
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        profile(player);
+        refreshProfile(player, profile(player));
         long delay = Math.max(
             20L,
             plugin.getConfig().getLong("client-detection.join-message-delay-ticks", 60L)
@@ -124,24 +125,18 @@ final class ClientDetectionService implements Listener, PluginMessageListener {
         }
 
         ClientProfile profile = profile(player);
-        profile.channels.addAll(player.getListeningPluginChannels());
+        refreshProfile(player, profile);
         scanSignatures(player, profile);
         profile.joinAnnounced = true;
 
         boolean bedrock = bedrockDetector.isBedrock(player.getUniqueId());
         String client = bedrock
-            ? "Bedrock via " + bedrockDetector.providerName()
-            : "Java / " + profile.brand;
+            ? "Bedrock"
+            : "Java | Client: " + identifyJavaClient(profile);
         Component message = Component.text("[ClientCheck] ", NamedTextColor.DARK_AQUA)
             .append(Component.text(player.getName(), NamedTextColor.YELLOW))
             .append(Component.text(" ist beigetreten: ", NamedTextColor.GRAY))
             .append(Component.text(client, bedrock ? NamedTextColor.GOLD : NamedTextColor.AQUA));
-        if (!profile.detections.isEmpty()) {
-            message = message.append(Component.text(
-                " | Erkannt: " + String.join(", ", profile.detections),
-                NamedTextColor.RED
-            ));
-        }
         notifyStaff(message);
     }
 
@@ -151,7 +146,7 @@ final class ClientDetectionService implements Listener, PluginMessageListener {
         }
         for (Player player : Bukkit.getOnlinePlayers()) {
             ClientProfile profile = profile(player);
-            profile.channels.addAll(player.getListeningPluginChannels());
+            refreshProfile(player, profile);
             scanSignatures(player, profile);
         }
     }
@@ -161,7 +156,8 @@ final class ClientDetectionService implements Listener, PluginMessageListener {
             return;
         }
 
-        String observable = (profile.brand + " " + String.join(" ", profile.channels))
+        String brand = profile.brand == null ? "" : profile.brand;
+        String observable = (brand + " " + String.join(" ", profile.channels))
             .toLowerCase(Locale.ROOT);
         for (Map.Entry<String, List<String>> entry : configuredSignatures().entrySet()) {
             boolean matched = entry.getValue().stream().anyMatch(observable::contains);
@@ -178,7 +174,7 @@ final class ClientDetectionService implements Listener, PluginMessageListener {
     }
 
     private Map<String, List<String>> configuredSignatures() {
-        Map<String, List<String>> signatures = new HashMap<>();
+        Map<String, List<String>> signatures = new LinkedHashMap<>();
         ConfigurationSection section = plugin.getConfig()
             .getConfigurationSection("client-detection.known-signatures");
         if (section == null) {
@@ -210,6 +206,35 @@ final class ClientDetectionService implements Listener, PluginMessageListener {
         return profiles.computeIfAbsent(player.getUniqueId(), ignored -> new ClientProfile());
     }
 
+    private void refreshProfile(Player player, ClientProfile profile) {
+        String paperBrand = sanitizeBrand(player.getClientBrandName());
+        if (paperBrand != null) {
+            profile.brand = paperBrand;
+        }
+        profile.channels.addAll(player.getListeningPluginChannels());
+    }
+
+    private String identifyJavaClient(ClientProfile profile) {
+        if (!profile.detections.isEmpty()) {
+            return String.join(", ", profile.detections);
+        }
+        if (profile.brand != null) {
+            return friendlyBrand(profile.brand);
+        }
+        return "Standard";
+    }
+
+    private String friendlyBrand(String brand) {
+        return switch (brand.toLowerCase(Locale.ROOT)) {
+            case "vanilla" -> "Vanilla";
+            case "fabric" -> "Fabric";
+            case "forge" -> "Forge";
+            case "neoforge" -> "NeoForge";
+            case "quilt" -> "Quilt";
+            default -> brand;
+        };
+    }
+
     private String decodeBrand(byte[] message) {
         int index = 0;
         int length = 0;
@@ -229,17 +254,23 @@ final class ClientDetectionService implements Listener, PluginMessageListener {
         } else {
             decoded = new String(message, StandardCharsets.UTF_8);
         }
-        String sanitized = decoded.replaceAll("[\\p{Cntrl}&&[^\\t]]", "").trim();
-        if (sanitized.isEmpty()) {
-            return "unbekannt";
+        return sanitizeBrand(decoded);
+    }
+
+    private String sanitizeBrand(String brand) {
+        if (brand == null) {
+            return null;
         }
-        return sanitized.substring(0, Math.min(MAX_BRAND_LENGTH, sanitized.length()));
+        String sanitized = brand.replaceAll("[\\p{Cntrl}&&[^\\t]]", "").trim();
+        return sanitized.isEmpty()
+            ? null
+            : sanitized.substring(0, Math.min(MAX_BRAND_LENGTH, sanitized.length()));
     }
 
     private static final class ClientProfile {
-        private String brand = "unbekannt";
-        private final Set<String> channels = new HashSet<>();
-        private final Set<String> detections = new HashSet<>();
+        private String brand;
+        private final Set<String> channels = new LinkedHashSet<>();
+        private final Set<String> detections = new LinkedHashSet<>();
         private boolean joinAnnounced;
     }
 }

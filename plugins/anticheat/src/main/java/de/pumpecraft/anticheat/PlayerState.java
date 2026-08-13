@@ -9,7 +9,7 @@ import org.bukkit.Location;
 final class PlayerState {
     final Deque<Long> placeTimes = new ArrayDeque<>();
     final Deque<Long> breakTimes = new ArrayDeque<>();
-    final Deque<Long> swingTimes = new ArrayDeque<>();
+    final Deque<Long> clickTimes = new ArrayDeque<>();
     final Map<CheckType, Double> violations = new EnumMap<>(CheckType.class);
     final Map<CheckType, Long> lastAlerts = new EnumMap<>(CheckType.class);
 
@@ -22,7 +22,7 @@ final class PlayerState {
     double recentHorizontalMovement;
     long teleportGraceUntil;
     long velocityGraceUntil;
-    long lastAttackMillis;
+    long lastRecordedClickMillis;
     long lastPlaceMillis;
     int airTicks;
     int scaffoldStreak;

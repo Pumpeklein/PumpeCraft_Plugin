@@ -1,8 +1,17 @@
+import org.gradle.language.jvm.tasks.ProcessResources
+
 plugins {
     id("com.gradleup.shadow") version "9.4.2"
 }
 
 description = "Shared PumpeCraft MariaDB service and schema migrations"
+
+tasks.named<ProcessResources>("processResources") {
+    exclude("config.yml")
+    from(layout.projectDirectory.file("config.example.yml")) {
+        rename { "config.yml" }
+    }
+}
 
 dependencies {
     implementation("com.zaxxer:HikariCP:6.3.0")

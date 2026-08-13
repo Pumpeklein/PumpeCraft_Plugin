@@ -1,0 +1,11 @@
+# Copy this file to the plugin data directory as config.yml or use environment variables.
+# Never commit real credentials.
+database:
+  host: ""
+  port: 3306
+  name: ""
+  user: ""
+  password: ""
+  charset: utf8mb4
+  pool-size: 10
+  connection-timeout-ms: 10000

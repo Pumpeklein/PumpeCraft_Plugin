@@ -1,5 +1,6 @@
 package de.pumpecraft.anticheat;
 
+import io.papermc.paper.event.player.PrePlayerAttackEntityEvent;
 import java.util.Deque;
 import java.util.Locale;
 import org.bukkit.GameMode;
@@ -16,7 +17,7 @@ import org.bukkit.util.BoundingBox;
 
 final class CombatChecks implements Listener {
     private static final long CLICK_WINDOW_MILLIS = 1_000L;
-    private static final long COMBAT_WINDOW_MILLIS = 5_000L;
+    private static final long DUPLICATE_EVENT_MILLIS = 25L;
 
     private final PumpeAntiCheatPlugin plugin;
     private final PlayerStateStore states;
@@ -41,9 +42,15 @@ final class CombatChecks implements Listener {
             return;
         }
 
-        PlayerState state = states.get(player);
-        state.lastAttackMillis = System.currentTimeMillis();
         checkReach(event, player, event.getEntity());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onAttackAttempt(PrePlayerAttackEntityEvent event) {
+        if (!event.willAttack()) {
+            return;
+        }
+        checkAutoClicker(event.getPlayer(), System.currentTimeMillis());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -53,26 +60,35 @@ final class CombatChecks implements Listener {
         }
 
         Player player = event.getPlayer();
-        PlayerState state = states.get(player);
-        long now = System.currentTimeMillis();
-        record(state.swingTimes, now);
+        if (player.getTargetBlockExact(5) != null) {
+            return;
+        }
+        checkAutoClicker(player, System.currentTimeMillis());
+    }
 
+    private void checkAutoClicker(Player player, long now) {
         if (exempt(player)
-            || now - state.lastAttackMillis > COMBAT_WINDOW_MILLIS
             || !violations.enabled(CheckType.AUTO_CLICKER)
             || (!bedrockDetector.isAvailable()
                 && plugin.getConfig().getBoolean("bedrock.disable-autoclicker-without-bedrock-api", false))) {
             return;
         }
 
+        PlayerState state = states.get(player);
+        if (now - state.lastRecordedClickMillis <= DUPLICATE_EVENT_MILLIS) {
+            return;
+        }
+        state.lastRecordedClickMillis = now;
+        record(state.clickTimes, now);
+
         int minimumSamples = plugin.getConfig().getInt("checks.autoclicker.minimum-samples", 12);
         int maximum = integerThreshold("autoclicker.maximum-cps", player);
-        int clicks = state.swingTimes.size();
+        int clicks = state.clickTimes.size();
         if (clicks < minimumSamples) {
             return;
         }
 
-        ClickPattern pattern = analyzeClickPattern(state.swingTimes);
+        ClickPattern pattern = analyzeClickPattern(state.clickTimes);
         double minimumConsistentCps = decimalThreshold(
             "autoclicker.minimum-consistent-cps",
             player
@@ -86,7 +102,7 @@ final class CombatChecks implements Listener {
                 player,
                 CheckType.AUTO_CLICKER,
                 Math.min(2.0, (clicks - maximum) * 0.5),
-                clicks + " CPS > " + maximum
+                clicks + " Angriffe/s > " + maximum
             );
         } else if (pattern.cps() >= minimumConsistentCps
             && pattern.intervalVariation() <= maximumVariation) {

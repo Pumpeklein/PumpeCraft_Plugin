@@ -1,4 +1,4 @@
-config-version: 2
+config-version: 3
 
 checks:
   speed:
@@ -33,13 +33,13 @@ checks:
     cancel-level: 4.0
   autoclicker:
     enabled: true
-    maximum-cps-java: 16
-    maximum-cps-bedrock: 20
-    minimum-samples: 12
-    minimum-consistent-cps-java: 10.0
-    minimum-consistent-cps-bedrock: 13.0
-    maximum-interval-variation-java: 0.075
-    maximum-interval-variation-bedrock: 0.05
+    maximum-cps-java: 15
+    maximum-cps-bedrock: 18
+    minimum-samples: 10
+    minimum-consistent-cps-java: 9.0
+    minimum-consistent-cps-bedrock: 11.0
+    maximum-interval-variation-java: 0.22
+    maximum-interval-variation-bedrock: 0.30
     alert-level: 2.0
   scaffold:
     enabled: true
@@ -81,10 +81,15 @@ client-detection:
   scan-interval-ticks: 100
   server-resource-pack-status: true
   known-signatures:
+    Vanilla: ["vanilla"]
     Fabric: ["fabric", "fabric-api"]
     Forge: ["forge", "fml"]
     NeoForge: ["neoforge"]
     Quilt: ["quilt"]
+    OptiFine: ["optifine", "optifabric"]
+    Sodium: ["sodium"]
+    Essential-Mod: ["essential"]
+    Vivecraft: ["vivecraft"]
     Lunar-Client: ["lunarclient", "lunar"]
     Badlion-Client: ["badlion", "badlionclient"]
     Feather-Client: ["feather"]

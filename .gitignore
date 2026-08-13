@@ -2,6 +2,7 @@
 build/
 out/
 target/
+**/bin/
 *.class
 *.jar
 !gradle/wrapper/gradle-wrapper.jar
@@ -13,3 +14,20 @@ target/
 
 run/
 server/
+
+# Local credentials and environment files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.db
+*.sqlite
+*.sqlite3
+credentials*.json
+service-account*.json
+plugins/database/src/main/resources/config.yml
