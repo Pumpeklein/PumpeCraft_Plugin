@@ -4,6 +4,7 @@ import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.jvm.tasks.Jar
 import org.gradle.language.jvm.tasks.ProcessResources
+import org.gradle.plugins.ide.eclipse.model.EclipseModel
 
 plugins {
     base
@@ -69,8 +70,25 @@ configure(pluginProjects) {
 }
 
 configure(pluginProjects.filter { it.path != ":plugins:database" }) {
+    apply(plugin = "eclipse")
+
     dependencies {
         add("compileOnly", project(":plugins:database"))
+    }
+
+    // Gradle's Eclipse model drops compileOnly project dependencies, so IDEs that build on
+    // it (VS Code / Buildship) cannot resolve de.pumpecraft.database even though the Gradle
+    // compile classpath is correct. Re-declare it in an IDE-only configuration; this changes
+    // neither the compile classpath nor the produced jars.
+    val ideClasspath = configurations.create("ideClasspath") {
+        isCanBeConsumed = false
+        isCanBeResolved = true
+    }
+    dependencies {
+        add(ideClasspath.name, project(":plugins:database"))
+    }
+    extensions.configure<EclipseModel> {
+        classpath.plusConfigurations.add(ideClasspath)
     }
 }
 
