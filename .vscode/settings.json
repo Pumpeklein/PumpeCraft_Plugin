@@ -1,7 +1,0 @@
-{
-  // Always import through the Gradle wrapper pinned in gradle/wrapper/gradle-wrapper.properties.
-  // A machine-wide Gradle (java.import.gradle.home / java.import.gradle.version) can be older than
-  // the JDK it runs on, and its Groovy then fails to parse Buildship's init script with
-  // "Unsupported class file major version". This workspace setting wins over the user settings.
-  "java.import.gradle.wrapper.enabled": true
-}

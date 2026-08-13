@@ -10,7 +10,6 @@ target/
 .idea/
 *.iml
 .vscode/*
-!.vscode/settings.json
 
 run/
 server/
