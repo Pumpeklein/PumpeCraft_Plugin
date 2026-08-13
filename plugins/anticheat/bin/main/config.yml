@@ -40,6 +40,20 @@ checks:
     suspicious-placements-java: 5
     suspicious-placements-bedrock: 8
     alert-level: 4.0
+  xray:
+    enabled: true
+    window-seconds: 600
+    minimum-natural-breaks-java: 40
+    minimum-natural-breaks-bedrock: 50
+    minimum-vein-discoveries-java: 5
+    minimum-vein-discoveries-bedrock: 6
+    maximum-vein-ratio-java: 0.12
+    maximum-vein-ratio-bedrock: 0.16
+    maximum-direct-blocks-java: 8
+    maximum-direct-blocks-bedrock: 10
+    suspicious-direct-paths-java: 3
+    suspicious-direct-paths-bedrock: 4
+    alert-level: 3.0
 
 violations:
   alert-cooldown-millis: 1200
@@ -49,3 +63,24 @@ bedrock:
   use-floodgate: true
   use-geyser: true
   disable-autoclicker-without-bedrock-api: false
+
+client-detection:
+  enabled: true
+  announce-joins: true
+  join-message-delay-ticks: 60
+  scan-interval-ticks: 100
+  server-resource-pack-status: true
+  known-signatures:
+    Fabric: ["fabric", "fabric-api"]
+    Forge: ["forge", "fml"]
+    NeoForge: ["neoforge"]
+    Quilt: ["quilt"]
+    Lunar-Client: ["lunarclient", "lunar"]
+    Badlion-Client: ["badlion", "badlionclient"]
+    Feather-Client: ["feather"]
+    LabyMod: ["labymod"]
+    Meteor-Client: ["meteor"]
+    Wurst-Client: ["wurst"]
+    LiquidBounce: ["liquidbounce"]
+    Impact-Client: ["impact"]
+    Aristois: ["aristois"]

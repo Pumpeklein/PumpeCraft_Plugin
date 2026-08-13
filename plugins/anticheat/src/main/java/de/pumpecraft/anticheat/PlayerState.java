@@ -27,6 +27,13 @@ final class PlayerState {
     boolean wasOnGround = true;
     boolean fallDamageObserved;
     long landingSequence;
+    long xrayWindowStarted;
+    long lastOreMillis;
+    int xrayNaturalBreaks;
+    int xrayVeinDiscoveries;
+    int xrayDirectPaths;
+    int xrayBlocksSinceVein;
+    Location lastOreLocation;
 
     double violation(CheckType check) {
         return violations.getOrDefault(check, 0.0);

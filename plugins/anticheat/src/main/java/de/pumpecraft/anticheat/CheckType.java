@@ -8,7 +8,8 @@ enum CheckType {
     FAST_BREAK("FastBreak", "fastbreak"),
     REACH("Reach", "reach"),
     AUTO_CLICKER("AutoClicker", "autoclicker"),
-    SCAFFOLD("Scaffold", "scaffold");
+    SCAFFOLD("Scaffold", "scaffold"),
+    XRAY("Xray", "xray");
 
     private final String displayName;
     private final String configKey;

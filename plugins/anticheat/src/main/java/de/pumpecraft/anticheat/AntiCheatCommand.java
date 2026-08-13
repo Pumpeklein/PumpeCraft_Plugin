@@ -44,7 +44,7 @@ final class AntiCheatCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args[0].equalsIgnoreCase("reload")) {
-            plugin.reloadConfig();
+            plugin.reloadSettings();
             sender.sendMessage(Component.text("AntiCheat-Konfiguration neu geladen.", NamedTextColor.GREEN));
             return true;
         }

@@ -10,7 +10,7 @@ plugins {
     base
 }
 
-val paperApiVersion: String by project
+val paperApiVersion = providers.gradleProperty("paperApiVersion").get()
 val pluginModulePaths = listOf(
     ":plugins:database",
     ":plugins:essentials",
