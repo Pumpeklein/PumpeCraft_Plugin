@@ -9,7 +9,8 @@ target/
 
 .idea/
 *.iml
-.vscode/
+.vscode/*
+!.vscode/settings.json
 
 run/
 server/
