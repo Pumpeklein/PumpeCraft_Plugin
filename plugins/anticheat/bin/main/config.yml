@@ -1,0 +1,51 @@
+checks:
+  speed:
+    enabled: true
+    max-blocks-per-second-java: 8.2
+    max-blocks-per-second-bedrock: 10.5
+    cancel-level: 6.0
+  fly:
+    enabled: true
+    max-air-ticks-java: 24
+    max-air-ticks-bedrock: 34
+    cancel-level: 7.0
+  nofall:
+    enabled: true
+    minimum-fall-java: 4.0
+    minimum-fall-bedrock: 6.0
+    alert-level: 3.0
+  fastplace:
+    enabled: true
+    max-places-per-second-java: 12
+    max-places-per-second-bedrock: 16
+    cancel-level: 5.0
+  fastbreak:
+    enabled: true
+    max-breaks-per-second-java: 14
+    max-breaks-per-second-bedrock: 18
+    cancel-level: 5.0
+  reach:
+    enabled: true
+    maximum-java: 3.35
+    maximum-bedrock: 3.85
+    cancel-level: 4.0
+  autoclicker:
+    enabled: true
+    maximum-cps-java: 20
+    maximum-cps-bedrock: 25
+    minimum-samples: 12
+    alert-level: 4.0
+  scaffold:
+    enabled: true
+    suspicious-placements-java: 5
+    suspicious-placements-bedrock: 8
+    alert-level: 4.0
+
+violations:
+  alert-cooldown-millis: 1200
+  decay-per-second: 0.08
+
+bedrock:
+  use-floodgate: true
+  use-geyser: true
+  disable-autoclicker-without-bedrock-api: false

@@ -1,0 +1,22 @@
+name: PumpeAntiCheat
+version: ${version}
+main: de.pumpecraft.anticheat.PumpeAntiCheatPlugin
+api-version: '1.21'
+author: PumpeCraft
+description: Bedrock-aware anticheat for PumpeCraft.
+softdepend: [floodgate, Geyser-Spigot]
+commands:
+  anticheat:
+    aliases: [ac]
+    description: Manages and inspects the anticheat.
+    usage: /anticheat <status|violations|reset|reload> [Spieler]
+    permission: pumpecraft.anticheat.command
+permissions:
+  pumpecraft.anticheat.*:
+    description: Allows all PumpeAntiCheat staff features.
+    default: false
+    children:
+      pumpecraft.anticheat.command: true
+  pumpecraft.anticheat.command:
+    description: Allows managing the anticheat and receiving alerts.
+    default: false

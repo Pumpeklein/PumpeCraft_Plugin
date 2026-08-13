@@ -12,6 +12,7 @@ Multi-plugin workspace for the PumpeCraft server.
 - `plugins/trader` - trader and economy interactions
 - `plugins/death-messages` - custom death messages
 - `plugins/playtime` - playtime tracking and rewards
+- `plugins/anticheat` - Bedrock-aware server-side cheat detection
 
 Each folder is an independent Paper plugin module with its own `plugin.yml`, Java entrypoint and README.
 
