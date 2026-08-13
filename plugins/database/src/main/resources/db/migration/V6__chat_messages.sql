@@ -1,0 +1,22 @@
+CREATE TABLE pc_chat_messages (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    message_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    player_uuid CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    player_name VARCHAR(16) NOT NULL,
+    message TEXT NOT NULL,
+    message_type VARCHAR(16) NOT NULL,
+    recipient_uuid CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NULL,
+    recipient_name VARCHAR(16) NULL,
+    blocked BOOLEAN NOT NULL DEFAULT FALSE,
+    block_reason VARCHAR(255) NULL,
+    created_at BIGINT NOT NULL,
+    deleted_at BIGINT NULL,
+    deleted_by_uuid CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NULL,
+    deleted_by_name VARCHAR(16) NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_chat_messages_message_id (message_id),
+    INDEX idx_chat_messages_created (created_at),
+    INDEX idx_chat_messages_player_created (player_uuid, created_at),
+    INDEX idx_chat_messages_type_created (message_type, created_at),
+    INDEX idx_chat_messages_blocked_created (blocked, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

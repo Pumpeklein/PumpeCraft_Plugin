@@ -1,0 +1,17 @@
+filter:
+  blocked-terms:
+    - hurensohn
+    - missgeburt
+    - bastard
+    - arschloch
+    - fotze
+    - wichser
+    - spast
+    - faggot
+  spam:
+    window-seconds: 8
+    max-messages: 5
+    repeat-seconds: 30
+messages:
+  blocked-prefix: "Deine Nachricht wurde blockiert: "
+  deleted-placeholder: "Diese Nachricht gibt's nimmer."

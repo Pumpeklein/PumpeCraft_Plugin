@@ -1,0 +1,16 @@
+name: PumpeChatControl
+version: ${version}
+main: de.pumpecraft.chatcontrol.PumpeChatControlPlugin
+api-version: '1.21'
+author: PumpeCraft
+description: Filters, tracks and moderates global and private player chat.
+depend: [PumpeDatabase]
+commands:
+  msg:
+    aliases: [tell, w]
+    description: Sends a private message to an online player.
+    usage: /msg <Spieler> <Nachricht>
+  chatcontrol:
+    aliases: [chatctl]
+    description: Internal chat moderation actions.
+    usage: /chatcontrol delete <Nachrichten-ID>

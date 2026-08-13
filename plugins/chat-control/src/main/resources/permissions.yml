@@ -1,0 +1,9 @@
+permissions:
+  delete:
+    node: pumpecraft.chatcontrol.delete
+    description: Shows DEL controls and allows deleting global chat messages.
+    default: false
+  bypass-filter:
+    node: pumpecraft.chatcontrol.bypass.filter
+    description: Bypasses word and spam filtering while still tracking messages.
+    default: false
