@@ -1,5 +1,6 @@
 package de.pumpecraft.anticheat;
 
+import de.pumpecraft.database.Databases;
 import java.util.Objects;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -14,7 +15,16 @@ public final class PumpeAntiCheatPlugin extends JavaPlugin {
 
         PlayerStateStore states = new PlayerStateStore();
         BedrockDetector bedrockDetector = new BedrockDetector(this);
-        ViolationService violations = new ViolationService(this, states, bedrockDetector);
+        AntiCheatEventRepository eventRepository = new AntiCheatEventRepository(
+            this,
+            Databases.require(this)
+        );
+        ViolationService violations = new ViolationService(
+            this,
+            states,
+            bedrockDetector,
+            eventRepository
+        );
 
         MovementChecks movementChecks = new MovementChecks(this, states, violations, bedrockDetector);
         getServer().getPluginManager().registerEvents(movementChecks, this);

@@ -39,6 +39,7 @@ backups and are no longer used for persistence.
 | V2 | `V2__readable_uuid_columns.sql` | UUID-Spalten von `BINARY(16)` auf lesbares `CHAR(36)` |
 | V3 | `V3__punishment_lifecycle.sql` | `revoked_at`/`revoked_by`/`revoke_reason` für Bans, `unmuted_at`/`unmuted_by` für Mutes |
 | V4 | `V4__skill_stats.sql` | `pc_players` (Name je UUID), `pc_skill_stats` und `pc_skill_village_partners` für PumpeSkills |
+| V5 | `V5__moderation_notes.sql` | Report-Abschluss, Teamnotizen und persistente AntiCheat-Ereignisse für das Web-Panel |
 
 V3 macht aufgehobene Strafen nachvollziehbar: `/unban` und `/unmute` markieren
 den Eintrag, statt ihn zu löschen. Das Web-Panel erkennt selbst, ob die Spalten

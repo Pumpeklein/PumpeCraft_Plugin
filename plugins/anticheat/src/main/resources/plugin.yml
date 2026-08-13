@@ -4,6 +4,7 @@ main: de.pumpecraft.anticheat.PumpeAntiCheatPlugin
 api-version: '1.21'
 author: PumpeCraft
 description: Bedrock-aware anticheat for PumpeCraft.
+depend: [PumpeDatabase]
 softdepend: [floodgate, Geyser-Spigot]
 commands:
   anticheat:

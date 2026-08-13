@@ -10,15 +10,18 @@ final class ViolationService {
     private final PumpeAntiCheatPlugin plugin;
     private final PlayerStateStore states;
     private final BedrockDetector bedrockDetector;
+    private final AntiCheatEventRepository eventRepository;
 
     ViolationService(
         PumpeAntiCheatPlugin plugin,
         PlayerStateStore states,
-        BedrockDetector bedrockDetector
+        BedrockDetector bedrockDetector,
+        AntiCheatEventRepository eventRepository
     ) {
         this.plugin = plugin;
         this.states = states;
         this.bedrockDetector = bedrockDetector;
+        this.eventRepository = eventRepository;
     }
 
     double flag(Player player, CheckType check, double amount, String detail) {
@@ -86,6 +89,7 @@ final class ViolationService {
             suspect.getName() + " failed " + check.displayName() + " at VL "
                 + String.format(Locale.ROOT, "%.1f", level) + ": " + detail
         );
+        eventRepository.record(suspect, check, level, detail, platform);
         for (Player staff : Bukkit.getOnlinePlayers()) {
             if (plugin.getCommand("anticheat").testPermissionSilent(staff)) {
                 staff.sendMessage(alert);
