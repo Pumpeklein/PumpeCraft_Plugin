@@ -6,7 +6,7 @@ author: PumpeCraft
 description: Essentials plugin for PumpeCraft.
 commands:
   openinv:
-    description: Opens a structured inventory view of an online player.
+    description: Opens a live, two-way synced inventory view of an online player.
     usage: /openinv <Spieler>
     permission: pumpecraft.essentials.openinv
   opendender:
