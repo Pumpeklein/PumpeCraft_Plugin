@@ -201,20 +201,11 @@ final class PlaytimeTracker implements Listener {
             );
 
             boolean countedAsAfk = session.afk();
-            boolean afk = now - session.lastInteractionMillis() >= AFK_AFTER_MILLIS;
-            if (afk && !session.afk()) {
-                setAfk(player, session);
-                session = sessions.get(player.getUniqueId());
-            } else if (!afk && session.afk()) {
-                clearAfk(player, true);
-                session = sessions.get(player.getUniqueId());
+            if (!session.afk() && now - session.lastInteractionMillis() >= AFK_AFTER_MILLIS) {
+                enterAfk(player, session);
             }
 
             repository.addSecond(player.getUniqueId(), countedAsAfk);
-            sessions.put(
-                player.getUniqueId(),
-                new SessionState(session.lastInteractionMillis(), afk, session.originalTabName())
-            );
         }
     }
 
@@ -225,9 +216,9 @@ final class PlaytimeTracker implements Listener {
             session = sessions.get(player.getUniqueId());
         }
 
-        if (session.afk()) {
-            player.playerListName(session.originalTabName());
-            player.sendMessage(Component.text("Welcome back, du bist nicht mehr AFK", NamedTextColor.GREEN));
+        boolean returnedFromAfk = session.afk();
+        if (returnedFromAfk) {
+            leaveAfk(player, session);
         }
 
         sessions.put(
@@ -236,13 +227,19 @@ final class PlaytimeTracker implements Listener {
         );
     }
 
-    private void setAfk(Player player, SessionState session) {
+    private void enterAfk(Player player, SessionState session) {
+        Component currentTabName = player.playerListName();
         sessions.put(
             player.getUniqueId(),
-            new SessionState(session.lastInteractionMillis(), true, session.originalTabName())
+            new SessionState(session.lastInteractionMillis(), true, currentTabName)
         );
-        player.playerListName(Component.text("[AFK] ", NamedTextColor.YELLOW).append(session.originalTabName()));
+        player.playerListName(Component.text("[AFK] ", NamedTextColor.YELLOW).append(currentTabName));
         player.sendMessage(Component.text("Bye Bye, du bist nun afk", NamedTextColor.YELLOW));
+    }
+
+    private void leaveAfk(Player player, SessionState session) {
+        player.playerListName(session.originalTabName());
+        player.sendMessage(Component.text("Welcome back, du bist nicht mehr AFK", NamedTextColor.GREEN));
     }
 
     private void clearAfk(Player player, boolean updateInteractionTime) {
@@ -251,8 +248,12 @@ final class PlaytimeTracker implements Listener {
             return;
         }
 
-        player.playerListName(session.originalTabName());
-        long interactionTime = updateInteractionTime ? System.currentTimeMillis() : session.lastInteractionMillis();
+        if (session.afk()) {
+            player.playerListName(session.originalTabName());
+        }
+        long interactionTime = updateInteractionTime
+            ? System.currentTimeMillis()
+            : session.lastInteractionMillis();
         sessions.put(
             player.getUniqueId(),
             new SessionState(interactionTime, false, session.originalTabName())
