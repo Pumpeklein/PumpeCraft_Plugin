@@ -32,7 +32,12 @@ public final class PumpeSkillsPlugin extends JavaPlugin {
 
         SkillsGui skillsGui = new SkillsGui(service, repository, rewards);
         getServer().getPluginManager().registerEvents(skillsGui, this);
-        SkillsCommand skillsCommand = new SkillsCommand(service, repository, skillsGui);
+        SkillsCommand skillsCommand = new SkillsCommand(
+            service,
+            repository,
+            skillsGui,
+            new SkillAdmin(service, repository, rewards)
+        );
         PluginCommand command = Objects.requireNonNull(getCommand("skills"), "Missing command: skills");
         command.setExecutor(skillsCommand);
         command.setTabCompleter(skillsCommand);

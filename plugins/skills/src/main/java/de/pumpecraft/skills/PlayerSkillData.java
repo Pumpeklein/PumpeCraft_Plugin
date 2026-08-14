@@ -30,6 +30,15 @@ final class PlayerSkillData {
         return values.get(key);
     }
 
+    synchronized void set(StatKey key, long value) {
+        Long current = values.get(key);
+        if (current != null && current == value) {
+            return;
+        }
+        values.put(key, value);
+        dirty.add(key);
+    }
+
     /** Setzt den Wert nur, wenn er kleiner als der bisherige ist (z. B. günstigster Trade). */
     synchronized void keepMinimum(StatKey key, long value) {
         Long current = values.get(key);

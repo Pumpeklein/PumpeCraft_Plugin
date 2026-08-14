@@ -16,6 +16,11 @@ public final class Texts {
         return String.format(Locale.ROOT, "%." + Math.max(0, digits) + "f", value);
     }
 
+    /** Tausendertrennung für Spielerausgaben, z. B. {@code 120.050}. */
+    public static String number(long value) {
+        return String.format(Locale.GERMANY, "%,d", value);
+    }
+
     public static String percent(double ratio) {
         return String.format(Locale.ROOT, "%.1f%%", ratio * 100.0);
     }

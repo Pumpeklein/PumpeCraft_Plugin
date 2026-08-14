@@ -24,19 +24,26 @@ final class SkillsCommand implements CommandExecutor, TabCompleter {
     private final SkillService service;
     private final SkillRepository repository;
     private final SkillsGui gui;
+    private final SkillAdmin admin;
 
     SkillsCommand(
         SkillService service,
         SkillRepository repository,
-        SkillsGui gui
+        SkillsGui gui,
+        SkillAdmin admin
     ) {
         this.service = service;
         this.repository = repository;
         this.gui = gui;
+        this.admin = admin;
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (args.length > 0 && SkillAdmin.handles(args[0])) {
+            return admin.handle(sender, label, args);
+        }
+
         if (!(sender instanceof Player player)) {
             sender.sendMessage(Component.text(
                 "Dieser Befehl kann nur von Spielern genutzt werden.", NamedTextColor.RED));
@@ -74,10 +81,17 @@ final class SkillsCommand implements CommandExecutor, TabCompleter {
             return List.of();
         }
 
+        if (args.length >= 2 && SkillAdmin.handles(args[0])) {
+            return admin.complete(sender, args);
+        }
+
         if (args.length == 1) {
             List<String> options = new ArrayList<>(skillIds());
             options.add("top");
             options.add("help");
+            if (sender.hasPermission(SkillAdmin.PERMISSION)) {
+                options.addAll(SkillAdmin.ACTIONS);
+            }
             if (sender.hasPermission(OTHERS_PERMISSION)) {
                 Bukkit.getOnlinePlayers().forEach(online -> options.add(online.getName()));
             }

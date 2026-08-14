@@ -4,11 +4,11 @@ main: de.pumpecraft.skills.PumpeSkillsPlugin
 api-version: '1.21'
 author: PumpeCraft
 description: Skill levels, rewards, progress GUIs and leaderboards for PumpeCraft.
-depend: [PumpeDatabase]
+depend: [PumpeDatabase, PumpeUtils]
 commands:
   skills:
-    description: Opens skill GUIs and shows leaderboards.
-    usage: /skills [Skill|Spieler|top <Skill>]
+    description: Opens skill GUIs, leaderboards and manages skill scores.
+    usage: /skills [Skill|Spieler|top <Skill>|set|add|setlevel|reset]
     permission: pumpecraft.skills.use
 permissions:
   pumpecraft.skills.use:
@@ -16,4 +16,7 @@ permissions:
     default: true
   pumpecraft.skills.others:
     description: Allows viewing the skills of other players.
+    default: op
+  pumpecraft.skills.admin:
+    description: Allows setting skill scores and levels of other players.
     default: op

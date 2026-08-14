@@ -129,6 +129,14 @@ final class SkillService {
         return data == null ? 0L : data.get(new StatKey(skill, statKey));
     }
 
+    /** Schreibt die Änderungen eines Spielers sofort weg, statt auf den Speicherlauf zu warten. */
+    void persistNow(UUID playerId) {
+        PlayerSkillData data = cache.get(playerId);
+        if (data != null) {
+            runAsync(() -> persist(playerId, data));
+        }
+    }
+
     void runAsync(Runnable action) {
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, action);
     }
