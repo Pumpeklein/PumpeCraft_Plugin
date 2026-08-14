@@ -1,0 +1,26 @@
+name: PumpeTransactions
+version: ${version}
+main: de.pumpecraft.transactions.PumpeTransactionsPlugin
+api-version: '1.21'
+author: PumpeCraft
+description: PumpePoints currency, transaction ledger and timed payouts for PumpeCraft.
+depend: [PumpeDatabase, PumpeUtils]
+commands:
+  pp:
+    description: Shows and moves PumpePoints.
+    usage: /pp [pay|top|history|give|take|set]
+    aliases: [points, pumpepoints]
+    permission: pumpecraft.points.use
+permissions:
+  pumpecraft.points.use:
+    description: Allows viewing the own PumpePoints balance.
+    default: true
+  pumpecraft.points.pay:
+    description: Allows transferring PumpePoints to other players.
+    default: true
+  pumpecraft.points.others:
+    description: Allows viewing balances and ledgers of other players.
+    default: op
+  pumpecraft.points.admin:
+    description: Allows granting, taking and setting PumpePoints.
+    default: op

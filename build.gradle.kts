@@ -23,6 +23,7 @@ val pluginModulePaths = listOf(
     ":plugins:playtime",
     ":plugins:anticheat",
     ":plugins:chat-control",
+    ":plugins:transactions",
 )
 val pluginProjects = pluginModulePaths.map { project(it) }
 

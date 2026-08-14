@@ -53,6 +53,7 @@ neue Schlüssel, es korrigiert keine alten.
 | `plugins/death-messages` | `PumpeDeathMessages` | Todesmeldungen und Zähler |
 | `plugins/playtime` | `PumpePlaytime` | Spielzeit-Erfassung |
 | `plugins/chat-control` | `PumpeChatControl` | Chatfilter, Privatnachrichten, Persistenz |
+| `plugins/transactions` | `PumpeTransactions` | PumpePoints (PP), Buchungen, Zeitgutschrift |
 
 `database` und `utils` sind Bibliotheks-Plugins: sie werden per `compileOnly` eingebunden
 und zur Laufzeit über `depend:` in der `plugin.yml` aufgelöst. Wer eines davon nutzt, muss

@@ -1,0 +1,34 @@
+# PumpePoints (PP): Kontostaende, Buchungen und die Zeitgutschrift.
+config-version: 1
+
+payout:
+  enabled: true
+
+  # Betrag pro Gutschrift.
+  amount: 500
+
+  # Aktive Spielzeit bis zur naechsten Gutschrift. Der Fortschritt liegt in
+  # pc_currency_payouts und ueberlebt damit einen Neustart.
+  interval-minutes: 30
+
+  # Ab wie vielen Minuten ohne Eingabe die Zeit nicht mehr mitzaehlt.
+  # 0 schaltet die AFK-Pruefung ab, dann reicht es, online zu sein.
+  max-idle-minutes: 5
+
+  # Chatmeldung an den Spieler, sobald eine Gutschrift gebucht wurde.
+  announce: true
+
+transfer:
+  enabled: true
+  minimum: 1
+
+  # Hoechstbetrag je Ueberweisung. 0 hebt das Limit auf.
+  maximum: 1000000
+
+history:
+  # Anzahl der Buchungen, die /pp history zeigt.
+  size: 10
+
+leaderboard:
+  # Anzahl der Plaetze in /pp top.
+  size: 10

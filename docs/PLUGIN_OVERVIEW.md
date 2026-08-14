@@ -15,6 +15,7 @@ This workspace contains the PumpeCraft Paper plugin modules:
 | `plugins/playtime` | `PumpePlaytime` | `de.pumpecraft.playtime.PumpePlaytimePlugin` |
 | `plugins/anticheat` | `PumpeAntiCheat` | `de.pumpecraft.anticheat.PumpeAntiCheatPlugin` |
 | `plugins/chat-control` | `PumpeChatControl` | `de.pumpecraft.chatcontrol.PumpeChatControlPlugin` |
+| `plugins/transactions` | `PumpeTransactions` | `de.pumpecraft.transactions.PumpeTransactionsPlugin` |
 
 `database` and `utils` are library plugins: consumers declare them via `compileOnly` in Gradle
 and `depend:` in their `plugin.yml`.
