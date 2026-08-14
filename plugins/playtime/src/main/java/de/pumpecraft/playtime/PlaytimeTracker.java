@@ -8,6 +8,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -28,6 +29,8 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.event.player.PlayerToggleSprintEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.scheduler.BukkitTask;
 
 final class PlaytimeTracker implements Listener {
@@ -93,6 +96,16 @@ final class PlaytimeTracker implements Listener {
         if (hasChangedPosition(event.getFrom(), event.getTo())) {
             markActive(event.getPlayer());
         }
+    }
+
+    @EventHandler
+    public void onPlayerTeleport(PlayerTeleportEvent event) {
+        markActive(event.getPlayer());
+    }
+
+    @EventHandler
+    public void onPlayerChangedWorld(PlayerChangedWorldEvent event) {
+        markActive(event.getPlayer());
     }
 
     @EventHandler
@@ -204,14 +217,15 @@ final class PlaytimeTracker implements Listener {
             );
 
             if (session.afk()) {
-                repository.addSecond(player.getUniqueId(), true);
+                repository.addSecond(player.getUniqueId(), dimension(player), true);
                 continue;
             }
 
             long idleSeconds = session.idleSeconds() + 1L;
-            repository.addSecond(player.getUniqueId(), false);
+            String dimension = dimension(player);
+            repository.addSecond(player.getUniqueId(), dimension, false);
             if (now - session.lastInteractionMillis() >= AFK_AFTER_MILLIS) {
-                repository.reclassifyActiveAsAfk(player.getUniqueId(), idleSeconds);
+                repository.reclassifyActiveAsAfk(player.getUniqueId(), dimension, idleSeconds);
                 enterAfk(player, session);
                 continue;
             }
@@ -244,6 +258,15 @@ final class PlaytimeTracker implements Listener {
             player.getUniqueId(),
             new SessionState(System.currentTimeMillis(), false, session.originalTabName(), 0L)
         );
+    }
+
+    private String dimension(Player player) {
+        World.Environment environment = player.getWorld().getEnvironment();
+        return switch (environment) {
+            case NETHER -> "NETHER";
+            case THE_END -> "END";
+            default -> "OVERWORLD";
+        };
     }
 
     private void enterAfk(Player player, SessionState session) {

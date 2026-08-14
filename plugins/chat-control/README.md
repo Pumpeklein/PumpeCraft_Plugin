@@ -1,8 +1,9 @@
 # PumpeChatControl
 
-Tracks accepted global and `/msg` player messages in `pc_chat_messages`, blocks
-configured terms and spam, and gives authorized staff a clickable `[DEL]`
-control for deletable signed global messages.
+Tracks accepted and blocked global and `/msg` player messages in
+`pc_chat_messages`, blocks configured terms and spam for every player, and
+gives authorized staff a clickable `[DEL]` control for deletable signed global
+messages.
 
 ## Configuration
 
@@ -12,7 +13,6 @@ control for deletable signed global messages.
 ## Permissions
 
 - `pumpecraft.chatcontrol.delete`: view and use the global chat delete control
-- `pumpecraft.chatcontrol.bypass.filter`: bypass filtering while retaining tracking
 
 ## Commands
 

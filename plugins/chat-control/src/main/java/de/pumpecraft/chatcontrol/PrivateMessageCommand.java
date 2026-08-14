@@ -46,13 +46,11 @@ final class PrivateMessageCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         String message = String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
-        if (!player.hasPermission(plugin.permission("bypass-filter"))) {
-            FilterResult result = filter.inspect(player.getUniqueId(), message);
-            if (!result.allowed()) {
-                repository.recordBlocked(player, message, "MSG", recipient, result.reason());
-                player.sendMessage(plugin.blockedMessage(result.reason()));
-                return true;
-            }
+        FilterResult result = filter.inspect(player.getUniqueId(), message);
+        if (!result.allowed()) {
+            repository.recordBlocked(player, message, "MSG", recipient, result.reason());
+            player.sendMessage(plugin.blockedMessage(result.reason()));
+            return true;
         }
 
         Component outgoing = Component.text("[MSG] ", NamedTextColor.DARK_AQUA)

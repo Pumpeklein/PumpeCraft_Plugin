@@ -8,6 +8,21 @@ filter:
     - wichser
     - spast
     - faggot
+    - idiot
+    - vollidiot
+    - depp
+    - opfer
+    - loser
+    - lappen
+    - mongo
+    - schwuchtel
+    - nutte
+    - schlampe
+    - hundesohn
+    - drecksau
+    - arsch
+    - pissnelke
+    - halt die fresse
   spam:
     window-seconds: 8
     max-messages: 5

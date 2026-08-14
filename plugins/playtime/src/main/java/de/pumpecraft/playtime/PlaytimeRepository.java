@@ -24,6 +24,8 @@ final class PlaytimeRepository {
     private final DatabaseService database;
     private final Map<UUID, PlaytimeRecord> records = new HashMap<>();
     private final Set<UUID> dirtyRecords = new HashSet<>();
+    private final Map<DimensionKey, PlaytimeRecord> dimensionRecords = new HashMap<>();
+    private final Set<DimensionKey> dirtyDimensionRecords = new HashSet<>();
 
     PlaytimeRepository(PumpePlaytimePlugin plugin) {
         this.plugin = plugin;
@@ -48,6 +50,19 @@ final class PlaytimeRepository {
                     );
                 }
             }
+            try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT player_uuid, dimension, total_seconds, afk_seconds FROM pc_dimension_playtime"
+            ); ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    long totalSeconds = Math.max(0L, result.getLong("total_seconds"));
+                    long afkSeconds = Math.min(Math.max(0L, result.getLong("afk_seconds")), totalSeconds);
+                    DimensionKey key = new DimensionKey(
+                        UUID.fromString(result.getString("player_uuid")),
+                        result.getString("dimension")
+                    );
+                    dimensionRecords.put(key, new PlaytimeRecord(totalSeconds - afkSeconds, afkSeconds));
+                }
+            }
             return null;
         });
     }
@@ -56,14 +71,19 @@ final class PlaytimeRepository {
         return records.getOrDefault(playerId, new PlaytimeRecord(0L, 0L));
     }
 
-    synchronized void addSecond(UUID playerId, boolean afk) {
+    synchronized void addSecond(UUID playerId, String dimension, boolean afk) {
         PlaytimeRecord current = get(playerId);
         PlaytimeRecord record = afk ? current.addAfk(1L) : current.addActive(1L);
         records.put(playerId, record);
         dirtyRecords.add(playerId);
+
+        DimensionKey key = new DimensionKey(playerId, dimension);
+        PlaytimeRecord dimensionCurrent = dimensionRecords.getOrDefault(key, new PlaytimeRecord(0L, 0L));
+        dimensionRecords.put(key, afk ? dimensionCurrent.addAfk(1L) : dimensionCurrent.addActive(1L));
+        dirtyDimensionRecords.add(key);
     }
 
-    synchronized void reclassifyActiveAsAfk(UUID playerId, long seconds) {
+    synchronized void reclassifyActiveAsAfk(UUID playerId, String dimension, long seconds) {
         if (seconds <= 0L) {
             return;
         }
@@ -74,16 +94,28 @@ final class PlaytimeRepository {
         }
         records.put(playerId, adjusted);
         dirtyRecords.add(playerId);
+
+        DimensionKey key = new DimensionKey(playerId, dimension);
+        PlaytimeRecord dimensionCurrent = dimensionRecords.getOrDefault(key, new PlaytimeRecord(0L, 0L));
+        PlaytimeRecord dimensionAdjusted = dimensionCurrent.reclassifyActiveAsAfk(seconds);
+        if (!dimensionAdjusted.equals(dimensionCurrent)) {
+            dimensionRecords.put(key, dimensionAdjusted);
+            dirtyDimensionRecords.add(key);
+        }
     }
 
     synchronized void save() {
-        if (dirtyRecords.isEmpty()) {
+        if (dirtyRecords.isEmpty() && dirtyDimensionRecords.isEmpty()) {
             return;
         }
 
         Map<UUID, PlaytimeRecord> snapshot = new HashMap<>();
         for (UUID playerId : dirtyRecords) {
             snapshot.put(playerId, records.get(playerId));
+        }
+        Map<DimensionKey, PlaytimeRecord> dimensionSnapshot = new HashMap<>();
+        for (DimensionKey key : dirtyDimensionRecords) {
+            dimensionSnapshot.put(key, dimensionRecords.get(key));
         }
 
         database.inTransaction(connection -> {
@@ -133,9 +165,60 @@ final class PlaytimeRepository {
                 }
                 statement.executeBatch();
             }
+            try (PreparedStatement statement = connection.prepareStatement(
+                """
+                INSERT INTO pc_dimension_playtime
+                    (player_uuid, dimension, total_seconds, active_seconds, afk_seconds)
+                VALUES (?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                    total_seconds = VALUES(total_seconds),
+                    active_seconds = VALUES(active_seconds),
+                    afk_seconds = VALUES(afk_seconds)
+                """
+            )) {
+                for (Map.Entry<DimensionKey, PlaytimeRecord> entry : dimensionSnapshot.entrySet()) {
+                    DimensionKey key = entry.getKey();
+                    PlaytimeRecord record = entry.getValue();
+                    statement.setString(1, key.playerId().toString());
+                    statement.setString(2, key.dimension());
+                    statement.setLong(3, record.totalSeconds());
+                    statement.setLong(4, record.activeSeconds());
+                    statement.setLong(5, record.afkSeconds());
+                    statement.addBatch();
+                }
+                statement.executeBatch();
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                """
+                INSERT INTO pc_dimension_playtime_history
+                    (player_uuid, dimension, snapshot_date, total_seconds,
+                     active_seconds, afk_seconds, captured_at)
+                VALUES (?, ?, CURRENT_DATE, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                    total_seconds = VALUES(total_seconds),
+                    active_seconds = VALUES(active_seconds),
+                    afk_seconds = VALUES(afk_seconds),
+                    captured_at = VALUES(captured_at)
+                """
+            )) {
+                long capturedAt = System.currentTimeMillis();
+                for (Map.Entry<DimensionKey, PlaytimeRecord> entry : dimensionSnapshot.entrySet()) {
+                    DimensionKey key = entry.getKey();
+                    PlaytimeRecord record = entry.getValue();
+                    statement.setString(1, key.playerId().toString());
+                    statement.setString(2, key.dimension());
+                    statement.setLong(3, record.totalSeconds());
+                    statement.setLong(4, record.activeSeconds());
+                    statement.setLong(5, record.afkSeconds());
+                    statement.setLong(6, capturedAt);
+                    statement.addBatch();
+                }
+                statement.executeBatch();
+            }
             return null;
         });
         dirtyRecords.removeAll(snapshot.keySet());
+        dirtyDimensionRecords.removeAll(dimensionSnapshot.keySet());
     }
 
     private void importLegacyYaml() {
@@ -209,5 +292,8 @@ final class PlaytimeRepository {
             statement.setString(1, LEGACY_IMPORT_KEY);
             statement.executeUpdate();
         }
+    }
+
+    private record DimensionKey(UUID playerId, String dimension) {
     }
 }

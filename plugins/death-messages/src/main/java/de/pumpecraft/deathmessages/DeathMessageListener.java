@@ -35,13 +35,21 @@ public final class DeathMessageListener implements Listener {
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player player = event.getPlayer();
-        int deathCount = repository.incrementDeaths(player.getUniqueId());
+        int deathCount = repository.incrementDeaths(player.getUniqueId(), dimension(player));
         DeathContext context = createContext(player, deathCount);
 
         String template = chooseTemplate(context);
         lastTemplate = template;
 
         event.deathMessage(Component.text(render(template, context), NamedTextColor.GRAY));
+    }
+
+    private String dimension(Player player) {
+        return switch (player.getWorld().getEnvironment()) {
+            case NETHER -> "NETHER";
+            case THE_END -> "END";
+            default -> "OVERWORLD";
+        };
     }
 
     private DeathContext createContext(Player player, int deathCount) {

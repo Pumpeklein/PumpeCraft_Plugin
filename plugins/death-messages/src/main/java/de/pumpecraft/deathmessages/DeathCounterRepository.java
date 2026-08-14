@@ -26,7 +26,7 @@ final class DeathCounterRepository {
         importLegacyYaml();
     }
 
-    int incrementDeaths(UUID playerId) {
+    int incrementDeaths(UUID playerId, String dimension) {
         return database.inTransaction(connection -> {
             int deaths = findDeathsForUpdate(connection, playerId) + 1;
             try (PreparedStatement statement = connection.prepareStatement(
@@ -37,6 +37,17 @@ final class DeathCounterRepository {
                             """)) {
                 statement.setString(1, playerId.toString());
                 statement.setInt(2, deaths);
+                statement.executeUpdate();
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                    """
+                            INSERT INTO pc_dimension_death_counts
+                                (player_uuid, dimension, death_count)
+                            VALUES (?, ?, 1)
+                            ON DUPLICATE KEY UPDATE death_count = death_count + 1
+                            """)) {
+                statement.setString(1, playerId.toString());
+                statement.setString(2, dimension);
                 statement.executeUpdate();
             }
             return deaths;

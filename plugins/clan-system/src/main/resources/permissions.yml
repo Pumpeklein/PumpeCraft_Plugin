@@ -1,0 +1,37 @@
+permissions:
+  clan-use:
+    node: pumpecraft.clan.use
+    description: Allows using clan information, invitations and membership commands.
+    default: true
+  clan-create:
+    node: pumpecraft.clan.create
+    description: Allows creating a clan.
+    default: true
+  clan-manage:
+    node: pumpecraft.clan.manage
+    description: Allows a clan owner to invite, kick and delete their clan.
+    default: true
+  clan-color:
+    node: pumpecraft.clan.tagcolor
+    description: Allows a clan owner to change the clan tag color.
+    default: true
+  base-use:
+    node: pumpecraft.base.use
+    description: Allows viewing player base information.
+    default: true
+  base-set:
+    node: pumpecraft.base.set
+    description: Allows setting, changing and deleting an own player base.
+    default: true
+  base-visit:
+    node: pumpecraft.base.visit
+    description: Allows visiting public player bases.
+    default: true
+  base-like:
+    node: pumpecraft.base.like
+    description: Allows liking public player bases.
+    default: true
+  base-admin:
+    node: pumpecraft.base.admin
+    description: Allows staff to inspect and visit private player bases.
+    default: false

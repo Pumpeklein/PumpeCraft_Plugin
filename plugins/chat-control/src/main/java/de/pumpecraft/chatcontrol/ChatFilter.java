@@ -65,8 +65,20 @@ final class ChatFilter {
     private static boolean containsTerm(String message, String term) {
         String paddedMessage = " " + message + " ";
         String paddedTerm = " " + term + " ";
-        return paddedMessage.contains(paddedTerm)
-            || message.replace(" ", "").contains(term.replace(" ", ""));
+        if (paddedMessage.contains(paddedTerm)) {
+            return true;
+        }
+
+        String collapsedTerm = term.replace(" ", "");
+        StringBuilder obfuscated = new StringBuilder("(?:^|\\s)");
+        for (int index = 0; index < collapsedTerm.length(); index++) {
+            obfuscated.append(Pattern.quote(String.valueOf(collapsedTerm.charAt(index))));
+            if (index + 1 < collapsedTerm.length()) {
+                obfuscated.append("\\s*");
+            }
+        }
+        obfuscated.append("(?:$|\\s)");
+        return Pattern.compile(obfuscated.toString()).matcher(message).find();
     }
 
     private static String normalize(String value) {

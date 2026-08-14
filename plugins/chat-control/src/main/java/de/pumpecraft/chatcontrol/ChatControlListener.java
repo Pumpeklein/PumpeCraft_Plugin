@@ -37,14 +37,12 @@ final class ChatControlListener implements Listener {
     public void onChat(AsyncChatEvent event) {
         Player sender = event.getPlayer();
         String message = PlainTextComponentSerializer.plainText().serialize(event.message()).trim();
-        if (!sender.hasPermission(plugin.permission("bypass-filter"))) {
-            FilterResult result = filter.inspect(sender.getUniqueId(), message);
-            if (!result.allowed()) {
-                event.setCancelled(true);
-                repository.recordBlocked(sender, message, "GLOBAL", null, result.reason());
-                sender.sendMessage(plugin.blockedMessage(result.reason()));
-                return;
-            }
+        FilterResult result = filter.inspect(sender.getUniqueId(), message);
+        if (!result.allowed()) {
+            event.setCancelled(true);
+            repository.recordBlocked(sender, message, "GLOBAL", null, result.reason());
+            sender.sendMessage(plugin.blockedMessage(result.reason()));
+            return;
         }
 
         String messageId = repository.recordAccepted(sender, message, "GLOBAL", null);

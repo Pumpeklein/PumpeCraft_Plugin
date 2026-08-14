@@ -3,4 +3,12 @@ version: ${version}
 main: de.pumpecraft.clans.PumpeClanSystemPlugin
 api-version: '1.21'
 author: PumpeCraft
-description: Clan system plugin for PumpeCraft.
+description: Persistent clans, clan tab tags and player bases for PumpeCraft.
+depend: [PumpeDatabase]
+commands:
+  clan:
+    description: Manages clans, memberships and clan tags.
+    usage: /clan <erstellen|info|einladen|annehmen|verlassen|kicken|tagfarbe|löschen>
+  base:
+    description: Manages and visits public or private player bases.
+    usage: /base <setzen|besuchen|liken|info|öffentlich|privat|löschen>
