@@ -65,6 +65,21 @@ Der `AlertDispatcher` ist die einzige gedrosselte Stelle. Konsole, Datenbank und
 Wer eine neue Meldung ergänzt, schickt sie über `violations.flag(...)`. Direkte
 `sendMessage`-Aufrufe an das Team umgehen die Bündelung und gehören nicht in Checks.
 
+### Klickbare Ziele
+
+Jede Meldung an das Team trägt den Spielernamen und, sofern eine Position bekannt ist, die
+Koordinaten als Klickziel. Der Klick **schreibt** den Befehl in die Chatzeile
+(`ClickEvent.suggestCommand`), ausgeführt wird er vom Teammitglied selbst — ein Fehlklick
+teleportiert also niemanden.
+
+Nie selbst zusammenbauen, sondern `AlertDispatcher.playerLink(name)` und
+`AlertDispatcher.locationLink(location)` verwenden; die lesen die Vorlagen aus
+`alerts.teleport-command` und `alerts.teleport-coordinates-command`. Ausserhalb des
+AntiCheat direkt `de.pumpecraft.utils.Teleports`.
+
+**Sobald irgendwo Koordinaten ausgegeben werden, gehören sie als `locationLink` dorthin —
+nie als reiner Text.**
+
 ## Item- und Effekt-Prüfung
 
 `ItemInspector` prüft und verändert nie — dasselbe Ergebnis trägt Meldung, Reparatur und

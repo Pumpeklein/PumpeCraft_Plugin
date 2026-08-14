@@ -11,6 +11,12 @@ alerts:
   escalation-step: 4.0
   max-lines-per-flush: 6
   log-to-console: true
+  # Spielername und Koordinaten in jeder Meldung sind anklickbar. Der Klick schreibt den
+  # Befehl nur in die Chatzeile, ausgefuehrt wird er vom Teammitglied selbst.
+  # Platzhalter: %player% bzw. %x% %y% %z% %world%
+  show-coordinates: true
+  teleport-command: "/tp %player%"
+  teleport-coordinates-command: "/tp %x% %y% %z%"
 
 violations:
   decay-per-second: 0.08

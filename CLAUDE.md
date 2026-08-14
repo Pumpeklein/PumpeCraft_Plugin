@@ -30,6 +30,10 @@ Siehe [plugins/utils/CLAUDE.md](plugins/utils/CLAUDE.md).
 **Sprache.** Bezeichner, Logausgaben und Javadoc auf Englisch. Alles, was ein Spieler oder
 Teammitglied im Spiel sieht, auf Deutsch.
 
+**Chatmeldungen.** Spielernamen und Koordinaten in Meldungen an das Team sind klickbare
+Teleport-Ziele über `Teleports` aus `plugins/utils`. Der Klick schreibt den Befehl in die
+Chatzeile, er wird nie automatisch ausgeführt. Koordinaten als reiner Text sind ein Fehler.
+
 **Konfiguration.** Jedes Plugin hat `config-version`. Wird das Layout einer bestehenden
 Option geändert, gehört eine Migration in die Hauptklasse; `copyDefaults(true)` ergänzt nur
 neue Schlüssel, es korrigiert keine alten.

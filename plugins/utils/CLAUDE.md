@@ -23,6 +23,7 @@ Nutzung: `depend: [PumpeUtils]` in der `plugin.yml`. Der Gradle-Classpath kommt 
 | `Cooldowns<K>` | Schlüssel-basierte Sperren: `tryAcquire`, `active`, `remainingMillis`, `purgeExpired` |
 | `Rates` | Gleitfenster über `Deque<Long>`: `record`, `trim`, `spread` (Rate + Streuung der Intervalle) |
 | `Staff` | `withPermission`, `broadcast` — Meldungen an Berechtigte |
+| `Teleports` | `playerLink`, `locationLink`, `clickable`, `coordinates` — klickbare Teleport-Ziele in Chatmeldungen |
 | `Configs` | `lowerStringList`, `matchesAny` (exakter Token-Abgleich mit `*`-Präfix) |
 
 ## Offene Migration

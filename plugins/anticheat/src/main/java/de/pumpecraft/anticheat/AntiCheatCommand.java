@@ -179,7 +179,10 @@ public final class AntiCheatCommand implements CommandExecutor, TabCompleter {
         }
 
         ClientReport report = clientDetection.report(target.get());
-        sender.sendMessage(Component.text("ClientCheck: " + target.get().getName(), NamedTextColor.GOLD));
+        sender.sendMessage(Component.text("ClientCheck: ", NamedTextColor.GOLD)
+            .append(alerts.playerLink(target.get().getName())));
+        sender.sendMessage(Component.text(" - Position: ", NamedTextColor.GRAY)
+            .append(alerts.locationLink(target.get().getLocation())));
         sender.sendMessage(Component.text(
             " - Plattform: " + (report.bedrock() ? "Bedrock" : "Java"),
             report.bedrock() ? NamedTextColor.YELLOW : NamedTextColor.GRAY
@@ -229,16 +232,20 @@ public final class AntiCheatCommand implements CommandExecutor, TabCompleter {
         }
         long now = System.currentTimeMillis();
         for (AlertDispatcher.Entry entry : entries) {
-            sender.sendMessage(Component.text(
+            Component line = Component.text(
                 " " + Duration.ofMillis(now - entry.createdAt()).toSeconds() + "s her  ",
                 NamedTextColor.DARK_GRAY
-            ).append(Component.text(entry.playerName(), NamedTextColor.YELLOW))
+            ).append(alerts.playerLink(entry.playerName()))
                 .append(Component.text(" » " + entry.check().displayName(), NamedTextColor.GRAY))
                 .append(Component.text(
                     " (VL " + Texts.decimal(entry.level(), 1) + ") ",
                     NamedTextColor.DARK_GRAY
                 ))
-                .append(Component.text(entry.detail(), NamedTextColor.GRAY)));
+                .append(Component.text(entry.detail(), NamedTextColor.GRAY));
+            if (entry.location() != null) {
+                line = line.append(Component.space()).append(alerts.locationLink(entry.location()));
+            }
+            sender.sendMessage(line);
         }
         return true;
     }

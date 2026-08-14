@@ -1,6 +1,7 @@
 package de.pumpecraft.anticheat.core;
 
 import de.pumpecraft.utils.Staff;
+import de.pumpecraft.utils.Teleports;
 import de.pumpecraft.utils.Texts;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -15,6 +16,7 @@ import java.util.Set;
 import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
@@ -63,6 +65,7 @@ public final class AlertDispatcher {
             level,
             detail,
             platform,
+            suspect.getLocation().clone(),
             System.currentTimeMillis()
         );
         remember(entry);
@@ -80,6 +83,7 @@ public final class AlertDispatcher {
         buffered.peakLevel = Math.max(buffered.peakLevel, level);
         buffered.detail = detail;
         buffered.platform = platform;
+        buffered.location = entry.location;
 
         if (!plugin.getConfig().getBoolean("alerts.aggregate", true)) {
             flush();
@@ -189,8 +193,8 @@ public final class AlertDispatcher {
         Component repeats = buffered.count > 1
             ? Component.text(" x" + buffered.count, NamedTextColor.RED)
             : Component.empty();
-        return Component.text("[AntiCheat] ", NamedTextColor.RED)
-            .append(Component.text(buffered.playerName, NamedTextColor.YELLOW))
+        Component line = Component.text("[AntiCheat] ", NamedTextColor.RED)
+            .append(playerLink(buffered.playerName))
             .append(Component.text(" » " + check.displayName(), NamedTextColor.GRAY))
             .append(repeats)
             .append(Component.text(
@@ -198,6 +202,31 @@ public final class AlertDispatcher {
                 NamedTextColor.DARK_GRAY
             ))
             .append(Component.text(" - " + buffered.detail, NamedTextColor.GRAY));
+        return buffered.location == null
+            ? line
+            : line.append(Component.space()).append(locationLink(buffered.location));
+    }
+
+    public Component playerLink(String playerName) {
+        return Teleports.playerLink(
+            playerName,
+            NamedTextColor.YELLOW,
+            plugin.getConfig().getString("alerts.teleport-command", Teleports.DEFAULT_PLAYER_COMMAND)
+        );
+    }
+
+    public Component locationLink(Location location) {
+        if (!plugin.getConfig().getBoolean("alerts.show-coordinates", true)) {
+            return Component.empty();
+        }
+        return Teleports.locationLink(
+            location,
+            NamedTextColor.DARK_AQUA,
+            plugin.getConfig().getString(
+                "alerts.teleport-coordinates-command",
+                Teleports.DEFAULT_LOCATION_COMMAND
+            )
+        );
     }
 
     public record Entry(
@@ -207,6 +236,7 @@ public final class AlertDispatcher {
         double level,
         String detail,
         String platform,
+        Location location,
         long createdAt
     ) {
     }
@@ -223,6 +253,7 @@ public final class AlertDispatcher {
         private double peakLevel;
         private String detail = "";
         private String platform = "Java";
+        private Location location;
 
         private Pending(String playerName) {
             this.playerName = playerName;

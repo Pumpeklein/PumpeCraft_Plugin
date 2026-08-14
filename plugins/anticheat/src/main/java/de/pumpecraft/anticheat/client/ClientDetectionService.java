@@ -4,6 +4,7 @@ import de.pumpecraft.anticheat.core.AlertDispatcher;
 import de.pumpecraft.anticheat.platform.BedrockDetector;
 import de.pumpecraft.anticheat.storage.PlayerPlatformRepository;
 import de.pumpecraft.utils.Staff;
+import de.pumpecraft.utils.Teleports;
 import de.pumpecraft.utils.Texts;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -110,7 +111,7 @@ public final class ClientDetectionService implements Listener, PluginMessageList
         Staff.broadcast(
             AlertDispatcher.PERMISSION,
             Component.text("[ClientCheck] ", NamedTextColor.DARK_AQUA)
-                .append(Component.text(event.getPlayer().getName(), NamedTextColor.YELLOW))
+                .append(playerLink(event.getPlayer()))
                 .append(Component.text(
                     " Server-Resourcepack: " + event.getStatus().name(),
                     NamedTextColor.GRAY
@@ -182,7 +183,7 @@ public final class ClientDetectionService implements Listener, PluginMessageList
         Staff.broadcast(
             AlertDispatcher.PERMISSION,
             Component.text("[ClientCheck] ", NamedTextColor.DARK_AQUA)
-                .append(Component.text(player.getName(), NamedTextColor.YELLOW))
+                .append(playerLink(player))
                 .append(Component.text(" ist beigetreten: ", NamedTextColor.GRAY))
                 .append(Component.text(
                     bedrock ? "Bedrock" : summarize(profile),
@@ -238,9 +239,11 @@ public final class ClientDetectionService implements Listener, PluginMessageList
             Staff.broadcast(
                 AlertDispatcher.PERMISSION,
                 Component.text("[ClientCheck] ", NamedTextColor.DARK_AQUA)
-                    .append(Component.text(player.getName(), NamedTextColor.YELLOW))
+                    .append(playerLink(player))
                     .append(Component.text(" erkannt: ", NamedTextColor.GRAY))
                     .append(Component.text(signature.label(), NamedTextColor.RED))
+                    .append(Component.space())
+                    .append(locationLink(player))
             );
         }
     }
@@ -299,6 +302,28 @@ public final class ClientDetectionService implements Listener, PluginMessageList
             );
         }
         return modHintCache;
+    }
+
+    private Component playerLink(Player player) {
+        return Teleports.playerLink(
+            player.getName(),
+            NamedTextColor.YELLOW,
+            plugin.getConfig().getString("alerts.teleport-command", Teleports.DEFAULT_PLAYER_COMMAND)
+        );
+    }
+
+    private Component locationLink(Player player) {
+        if (!plugin.getConfig().getBoolean("alerts.show-coordinates", true)) {
+            return Component.empty();
+        }
+        return Teleports.locationLink(
+            player.getLocation(),
+            NamedTextColor.DARK_AQUA,
+            plugin.getConfig().getString(
+                "alerts.teleport-coordinates-command",
+                Teleports.DEFAULT_LOCATION_COMMAND
+            )
+        );
     }
 
     private ClientProfile profile(Player player) {
