@@ -1,33 +1,249 @@
+# Belohnungen fuer Skill-Level.
+#
+# Diese Datei ist die einzige Quelle. Die Tabelle pc_skill_reward_definitions ist nur ein
+# Spiegel: sie wird bei jedem Serverstart geleert und aus dieser Config neu geschrieben,
+# und vom Plugin nie gelesen. Aenderungen dort gehen beim naechsten Start verloren.
+#
+# milestones gilt fuer jeden Skill. Unter skills.<skill> lassen sich einzelne Stufen
+# ersetzen oder zusaetzliche Stufen ergaenzen - der Skill bekommt dann beides.
+#
+# Items entweder kurz als "MATERIAL:Anzahl" oder ausfuehrlich mit material, amount,
+# name und enchantments. Verzauberungen bleiben im Vanilla-Rahmen; hoehere Stufen werden
+# abgelehnt, damit die Item-Pruefung des AntiCheats nicht anschlaegt.
 rewards:
   enabled: true
+
+  # Dichte Abstaende im frueheren Verlauf, danach groessere Spruenge.
   milestones:
+    "3":
+      label: "8 Eisenbarren"
+      items: ["IRON_INGOT:8"]
+    "5":
+      label: "16 Erfahrungsflaeschchen"
+      items: ["EXPERIENCE_BOTTLE:16"]
     "10":
-      label: "4 Smaragde"
-      items: ["EMERALD:4"]
-    "20":
-      label: "8 Smaragde"
-      items: ["EMERALD:8"]
-    "30":
-      label: "2 Diamanten"
-      items: ["DIAMOND:2"]
-    "40":
-      label: "8 Erfahrungsfläschchen"
-      items: ["EXPERIENCE_BOTTLE:8"]
-    "50":
       label: "4 Diamanten"
       items: ["DIAMOND:4"]
-    "60":
-      label: "16 Erfahrungsfläschchen"
-      items: ["EXPERIENCE_BOTTLE:16"]
-    "70":
+    "15":
+      label: "Buch: Haltbarkeit III"
+      items:
+        - material: ENCHANTED_BOOK
+          enchantments:
+            unbreaking: 3
+    "20":
+      label: "1 Diamantblock"
+      items: ["DIAMOND_BLOCK:1"]
+    "25":
+      label: "Buch: Reparatur"
+      items:
+        - material: ENCHANTED_BOOK
+          enchantments:
+            mending: 1
+    "30":
+      label: "32 Erfahrungsflaeschchen"
+      items: ["EXPERIENCE_BOTTLE:32"]
+    "35":
+      label: "2 Diamantbloecke"
+      items: ["DIAMOND_BLOCK:2"]
+    "40":
       label: "1 Netherit-Schrott"
       items: ["NETHERITE_SCRAP:1"]
-    "80":
+    "45":
       label: "1 verzauberter goldener Apfel"
       items: ["ENCHANTED_GOLDEN_APPLE:1"]
-    "90":
-      label: "2 Netherit-Schrott"
-      items: ["NETHERITE_SCRAP:2"]
-    "100":
+    "50":
+      label: "2 Netherit-Schrott und 4 Goldbarren"
+      items: ["NETHERITE_SCRAP:2", "GOLD_INGOT:4"]
+    "60":
       label: "1 Netheritbarren"
       items: ["NETHERITE_INGOT:1"]
+    "70":
+      label: "2 verzauberte goldene Aepfel"
+      items: ["ENCHANTED_GOLDEN_APPLE:2"]
+    "80":
+      label: "2 Netheritbarren"
+      items: ["NETHERITE_INGOT:2"]
+    "90":
+      label: "Shulkerkiste und 3 Netheritbarren"
+      items: ["SHULKER_BOX:1", "NETHERITE_INGOT:3"]
+    "100":
+      label: "1 Netheritblock"
+      items: ["NETHERITE_BLOCK:1"]
+
+  # Ersetzt die Standardstufe fuer diesen Skill. Alle nicht genannten Level bleiben wie oben.
+  skills:
+    miner:
+      "10":
+        label: "Spitzhacke: Effizienz IV"
+        items:
+          - material: DIAMOND_PICKAXE
+            name: "Erzsucher"
+            enchantments:
+              efficiency: 4
+              unbreaking: 2
+      "25":
+        label: "Buch: Glueck III"
+        items:
+          - material: ENCHANTED_BOOK
+            enchantments:
+              fortune: 3
+      "50":
+        label: "Aderschlag"
+        items:
+          - material: DIAMOND_PICKAXE
+            name: "Aderschlag"
+            enchantments:
+              efficiency: 5
+              fortune: 3
+              unbreaking: 3
+      "100":
+        label: "Netheritspitzhacke des Bergmeisters"
+        items:
+          - material: NETHERITE_PICKAXE
+            name: "Bergmeister"
+            enchantments:
+              efficiency: 5
+              fortune: 3
+              unbreaking: 3
+              mending: 1
+
+    fischer:
+      "10":
+        label: "Angel: Koeder III"
+        items:
+          - material: FISHING_ROD
+            name: "Glücksangel"
+            enchantments:
+              lure: 3
+              unbreaking: 2
+      "25":
+        label: "Buch: Glueck des Meeres III"
+        items:
+          - material: ENCHANTED_BOOK
+            enchantments:
+              luck_of_the_sea: 3
+      "50":
+        label: "Herz des Meeres und 8 Nautilusschnecken"
+        items: ["HEART_OF_THE_SEA:1", "NAUTILUS_SHELL:8"]
+      "100":
+        label: "Aufseher"
+        items: ["CONDUIT:1"]
+
+    mobs:
+      "10":
+        label: "Schwert: Schaerfe III"
+        items:
+          - material: DIAMOND_SWORD
+            name: "Kopfgeld"
+            enchantments:
+              sharpness: 3
+              unbreaking: 2
+      "25":
+        label: "Buch: Pluenderung III"
+        items:
+          - material: ENCHANTED_BOOK
+            enchantments:
+              looting: 3
+      "50":
+        label: "Monsterjaeger"
+        items:
+          - material: DIAMOND_SWORD
+            name: "Monsterjäger"
+            enchantments:
+              sharpness: 5
+              looting: 3
+              unbreaking: 3
+      "100":
+        label: "Netheritschwert des Jaegers"
+        items:
+          - material: NETHERITE_SWORD
+            name: "Jägerklinge"
+            enchantments:
+              sharpness: 5
+              looting: 3
+              unbreaking: 3
+              mending: 1
+
+    farmer:
+      "10":
+        label: "Hacke und 32 Knochenmehl"
+        items:
+          - material: DIAMOND_HOE
+            name: "Feldarbeit"
+            enchantments:
+              efficiency: 3
+              unbreaking: 2
+          - "BONE_MEAL:32"
+      "25":
+        label: "Buch: Glueck III"
+        items:
+          - material: ENCHANTED_BOOK
+            enchantments:
+              fortune: 3
+      "50":
+        label: "64 Knochenmehl und 16 Netherwarze"
+        items: ["BONE_MEAL:64", "NETHER_WART:16"]
+      "100":
+        label: "Netherithacke des Erntemeisters"
+        items:
+          - material: NETHERITE_HOE
+            name: "Erntemeister"
+            enchantments:
+              efficiency: 5
+              unbreaking: 3
+              mending: 1
+
+    builder:
+      "10":
+        label: "64 Geruest und 32 Leitern"
+        items: ["SCAFFOLDING:64", "LADDER:32"]
+      "25":
+        label: "Baumeisterspitzhacke"
+        items:
+          - material: DIAMOND_PICKAXE
+            name: "Baumeister"
+            enchantments:
+              silk_touch: 1
+              efficiency: 4
+              unbreaking: 3
+      "50":
+        label: "2 Shulkerkisten"
+        items: ["SHULKER_BOX:2"]
+      "100":
+        label: "Netheritspitzhacke mit Behutsamkeit"
+        items:
+          - material: NETHERITE_PICKAXE
+            name: "Architekt"
+            enchantments:
+              silk_touch: 1
+              efficiency: 5
+              unbreaking: 3
+              mending: 1
+
+    dorf:
+      "10":
+        label: "1 Smaragdblock"
+        items: ["EMERALD_BLOCK:1"]
+      "25":
+        label: "Glocke und 2 Smaragdbloecke"
+        items: ["BELL:1", "EMERALD_BLOCK:2"]
+      "50":
+        label: "4 Smaragdbloecke und 16 Buecherregale"
+        items: ["EMERALD_BLOCK:4", "BOOKSHELF:16"]
+      "100":
+        label: "16 Smaragdbloecke"
+        items: ["EMERALD_BLOCK:16"]
+
+    tierfreund:
+      "10":
+        label: "Sattel und 2 Namensschilder"
+        items: ["SADDLE:1", "NAME_TAG:2"]
+      "25":
+        label: "32 goldene Karotten und 4 Leinen"
+        items: ["GOLDEN_CARROT:32", "LEAD:4"]
+      "50":
+        label: "2 Sattel und Diamant-Pferderuestung"
+        items: ["SADDLE:2", "DIAMOND_HORSE_ARMOR:1"]
+      "100":
+        label: "8 Namensschilder und 2 Diamant-Pferderuestungen"
+        items: ["NAME_TAG:8", "DIAMOND_HORSE_ARMOR:2"]

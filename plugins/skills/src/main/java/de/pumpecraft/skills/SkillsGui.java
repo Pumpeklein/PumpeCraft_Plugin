@@ -168,7 +168,7 @@ final class SkillsGui implements Listener {
                 stats.getOrDefault(StatKey.score(skill), 0L)));
         }
         inventory.setItem(22, item(Material.CHEST,
-            text("Level-Rewards", NamedTextColor.GOLD), rewardOverviewLore()));
+            text("Level-Rewards", NamedTextColor.GOLD), rewardOverviewLore(stats)));
         inventory.setItem(26, item(Material.BARRIER,
             text("Schließen", NamedTextColor.RED), List.of()));
         return inventory;
@@ -228,7 +228,7 @@ final class SkillsGui implements Listener {
                 text(rank > 0 ? "Aktuelle Position im Skill" : "Noch nicht platziert",
                     rank > 0 ? NamedTextColor.WHITE : NamedTextColor.GRAY),
                 text("Klicken: Top 10 anzeigen", NamedTextColor.GREEN))));
-        inventory.setItem(31, rewardItem(level));
+        inventory.setItem(31, rewardItem(skill, level));
         inventory.setItem(33, statsItem(skill, stats));
         inventory.setItem(36, item(Material.ARROW,
             text("Zurück", NamedTextColor.YELLOW), List.of(text("Zur Skill-Übersicht", NamedTextColor.GRAY))));
@@ -259,30 +259,95 @@ final class SkillsGui implements Listener {
         return item(ICONS.get(skill), text(skill.displayName() + " · Lv " + level, skill.color()), lore);
     }
 
-    private ItemStack rewardItem(int currentLevel) {
-        int rewardLevel = rewards.nextRewardLevel(currentLevel);
+    private ItemStack rewardItem(Skill skill, int currentLevel) {
+        int rewardLevel = rewards.nextRewardLevel(skill, currentLevel);
         if (rewardLevel == 0) {
             return item(Material.CHEST,
                 text("Alle Rewards erreicht", NamedTextColor.GOLD),
-                List.of(text("Level 100 abgeschlossen", NamedTextColor.WHITE)));
+                List.of(text("Für diesen Skill gibt es nichts mehr", NamedTextColor.WHITE)));
+        }
+
+        List<Component> lore = new java.util.ArrayList<>();
+        lore.add(text(rewards.rewardLabel(skill, rewardLevel), NamedTextColor.YELLOW));
+        lore.add(text("Wird beim Erreichen automatisch vergeben.", NamedTextColor.GRAY));
+        List<Integer> upcoming = rewards.milestonesOf(skill).tailSet(rewardLevel, false)
+            .stream().limit(3).toList();
+        if (!upcoming.isEmpty()) {
+            lore.add(Component.empty());
+            lore.add(text("Danach", NamedTextColor.GRAY));
+            upcoming.forEach(level -> lore.add(lore(
+                "Lv " + level + " · ", rewards.rewardLabel(skill, level), NamedTextColor.DARK_GRAY)));
         }
         return item(Material.CHEST,
-            text("Nächster Reward · Level " + rewardLevel, NamedTextColor.GOLD),
-            List.of(
-                text(rewards.rewardLabel(rewardLevel), NamedTextColor.YELLOW),
-                text("Wird beim Erreichen automatisch vergeben.", NamedTextColor.GRAY)));
+            text("Nächster Reward · Level " + rewardLevel, NamedTextColor.GOLD), lore);
     }
 
-    private List<Component> rewardOverviewLore() {
+    /**
+     * Die Stufen sind für alle Skills gleich, solange niemand einen eigenen Level ergänzt -
+     * deshalb eine gemeinsame Liste statt einer Zeile je Skill. Persönlich wird es über den
+     * Skill, der seiner nächsten Belohnung am nächsten ist.
+     */
+    private List<Component> rewardOverviewLore(Map<StatKey, Long> stats) {
         List<Component> lore = new java.util.ArrayList<>();
-        lore.add(text("Jeder Skill vergibt eigene Rewards:", NamedTextColor.GRAY));
-        for (int level = 10; level <= SkillLevel.MAX_LEVEL; level += 10) {
-            String label = rewards.rewardLabel(level);
-            if (!label.isBlank()) {
-                lore.add(lore("Level " + level + ": ", label, NamedTextColor.YELLOW));
+        java.util.TreeSet<Integer> levels = new java.util.TreeSet<>();
+        Skill nearestSkill = null;
+        int nearestLevel = 0;
+        long nearestMissing = Long.MAX_VALUE;
+
+        for (Skill skill : Skill.LEVELED) {
+            levels.addAll(rewards.milestonesOf(skill));
+            long score = stats.getOrDefault(StatKey.score(skill), 0L);
+            int next = rewards.nextRewardLevel(skill, SkillLevel.levelOf(score));
+            if (next == 0) {
+                continue;
+            }
+            long missing = SkillLevel.scoreForLevel(next) - score;
+            if (missing < nearestMissing) {
+                nearestMissing = missing;
+                nearestSkill = skill;
+                nearestLevel = next;
             }
         }
+
+        if (levels.isEmpty()) {
+            lore.add(text("Aktuell sind keine Rewards eingerichtet.", NamedTextColor.GRAY));
+            return lore;
+        }
+
+        lore.add(text("Belohnungen auf Level", NamedTextColor.GRAY));
+        for (String row : levelRows(levels)) {
+            lore.add(text(row, NamedTextColor.WHITE));
+        }
+
+        if (nearestSkill != null) {
+            lore.add(Component.empty());
+            lore.add(text("Als Nächstes", NamedTextColor.GRAY));
+            lore.add(text(nearestSkill.displayName() + " · Level " + nearestLevel, nearestSkill.color()));
+            lore.add(text(rewards.rewardLabel(nearestSkill, nearestLevel), NamedTextColor.YELLOW));
+            lore.add(lore("Noch benötigt: ", number(nearestMissing), NamedTextColor.WHITE));
+        }
+
+        lore.add(Component.empty());
+        lore.add(text("Die Belohnung hängt vom Skill ab.", NamedTextColor.DARK_GRAY));
         return lore;
+    }
+
+    private List<String> levelRows(java.util.Collection<Integer> levels) {
+        List<String> rows = new java.util.ArrayList<>();
+        StringBuilder row = new StringBuilder();
+        int count = 0;
+        for (int level : levels) {
+            if (count > 0 && count % 8 == 0) {
+                rows.add(row.toString());
+                row.setLength(0);
+            }
+            row.append(row.isEmpty() ? "" : ", ").append(level);
+            count++;
+        }
+        if (!row.isEmpty()) {
+            rows.add(row.toString());
+        }
+        return rows;
     }
 
     private ItemStack statsItem(Skill skill, Map<StatKey, Long> stats) {

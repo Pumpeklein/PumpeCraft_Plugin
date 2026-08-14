@@ -122,11 +122,7 @@ final class SkillRepository {
         });
     }
 
-    List<RewardClaim> reserveReachedRewards(
-        UUID playerId,
-        Map<Skill, Integer> reachedLevels,
-        List<Integer> milestones
-    ) {
+    List<RewardClaim> reserveReachedRewards(UUID playerId, Map<Skill, List<Integer>> reached) {
         return database.inTransaction(connection -> {
             List<RewardClaim> candidates = new ArrayList<>();
             try (PreparedStatement statement = connection.prepareStatement(
@@ -137,11 +133,8 @@ final class SkillRepository {
                 """
             )) {
                 long now = Instant.now().toEpochMilli();
-                for (Map.Entry<Skill, Integer> entry : reachedLevels.entrySet()) {
-                    for (int milestone : milestones) {
-                        if (milestone > entry.getValue()) {
-                            continue;
-                        }
+                for (Map.Entry<Skill, List<Integer>> entry : reached.entrySet()) {
+                    for (int milestone : entry.getValue()) {
                         candidates.add(new RewardClaim(entry.getKey(), milestone));
                         statement.setString(1, playerId.toString());
                         statement.setString(2, entry.getKey().id());
@@ -207,7 +200,8 @@ final class SkillRepository {
         });
     }
 
-    void syncRewardDefinitions(Map<Integer, String> definitions) {
+    /** Schreibspiegel der Config; die Tabelle wird bei jedem Start vollständig ersetzt. */
+    void syncRewardDefinitions(List<RewardDefinition> definitions) {
         database.inTransaction(connection -> {
             try (PreparedStatement delete = connection.prepareStatement(
                 "DELETE FROM pc_skill_reward_definitions"
@@ -220,15 +214,17 @@ final class SkillRepository {
             try (PreparedStatement insert = connection.prepareStatement(
                 """
                 INSERT INTO pc_skill_reward_definitions
-                    (milestone_level, label, updated_at)
-                VALUES (?, ?, ?)
+                    (skill, milestone_level, label, items, updated_at)
+                VALUES (?, ?, ?, ?, ?)
                 """
             )) {
                 long now = Instant.now().toEpochMilli();
-                for (Map.Entry<Integer, String> entry : definitions.entrySet()) {
-                    insert.setInt(1, entry.getKey());
-                    insert.setString(2, entry.getValue());
-                    insert.setLong(3, now);
+                for (RewardDefinition definition : definitions) {
+                    insert.setString(1, definition.skill());
+                    insert.setInt(2, definition.milestoneLevel());
+                    insert.setString(3, definition.label());
+                    insert.setString(4, definition.items());
+                    insert.setLong(5, now);
                     insert.addBatch();
                 }
                 insert.executeBatch();
@@ -329,5 +325,8 @@ final class SkillRepository {
     }
 
     record RewardClaim(Skill skill, int milestoneLevel) {
+    }
+
+    record RewardDefinition(String skill, int milestoneLevel, String label, String items) {
     }
 }

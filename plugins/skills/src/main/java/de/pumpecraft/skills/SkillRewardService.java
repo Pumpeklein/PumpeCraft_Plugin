@@ -1,48 +1,76 @@
 package de.pumpecraft.skills;
 
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.NavigableSet;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import io.papermc.paper.registry.RegistryAccess;
+import io.papermc.paper.registry.RegistryKey;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.EnchantmentStorageMeta;
+import org.bukkit.inventory.meta.ItemMeta;
 
+/**
+ * Meilensteine dürfen auf jedem Level liegen und je Skill abweichen. Ein Skill ohne eigene
+ * Definition nutzt die Standardstufe, ein Skill mit eigener Definition ergänzt sie.
+ */
 final class SkillRewardService {
+    private static final String DEFAULT_TRACK = "*";
+
     private final PumpeSkillsPlugin plugin;
     private final SkillRepository repository;
-    private final Map<Integer, Reward> rewards;
+    private final Map<Integer, Reward> defaults;
+    private final Map<Skill, Map<Integer, Reward>> overrides;
+    private final Map<Skill, NavigableSet<Integer>> milestones = new EnumMap<>(Skill.class);
     private final Set<RewardKey> deliveriesInProgress = ConcurrentHashMap.newKeySet();
 
     SkillRewardService(PumpeSkillsPlugin plugin, SkillRepository repository) {
         this.plugin = plugin;
         this.repository = repository;
-        this.rewards = loadRewards();
-        repository.syncRewardDefinitions(this.rewards.entrySet().stream().collect(
-            java.util.stream.Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().label())
-        ));
+        boolean enabled = plugin.getConfig().getBoolean("rewards.enabled", true);
+        this.defaults = enabled
+            ? loadTrack(plugin.getConfig().getConfigurationSection("rewards.milestones"), "milestones")
+            : Map.of();
+        this.overrides = enabled ? loadOverrides() : Map.of();
+        for (Skill skill : Skill.LEVELED) {
+            NavigableSet<Integer> levels = new TreeSet<>(defaults.keySet());
+            levels.addAll(overrides.getOrDefault(skill, Map.of()).keySet());
+            milestones.put(skill, levels);
+        }
+        if (enabled && defaults.isEmpty() && overrides.isEmpty()) {
+            plugin.getLogger().warning("No skill reward milestones are configured.");
+        }
+        repository.syncRewardDefinitions(definitions());
     }
 
     void scoreChanged(UUID playerId, Skill skill, long previousScore, long currentScore) {
-        if (currentScore <= previousScore || rewards.isEmpty()) {
+        if (currentScore <= previousScore) {
             return;
         }
         int previousLevel = SkillLevel.levelOf(previousScore);
         int currentLevel = SkillLevel.levelOf(currentScore);
-        rewards.keySet().stream()
-            .filter(level -> level > previousLevel && level <= currentLevel)
-            .sorted()
-            .forEach(level -> reserve(playerId, skill, level, currentScore));
+        for (int level : milestonesOf(skill)) {
+            if (level > previousLevel && level <= currentLevel) {
+                reserve(playerId, skill, level, currentScore);
+            }
+        }
     }
 
     void deliverPending(Player player) {
@@ -60,19 +88,22 @@ final class SkillRewardService {
     }
 
     void reconcileReachedMilestones(UUID playerId, Map<StatKey, Long> stats) {
-        if (rewards.isEmpty()) {
+        Map<Skill, List<Integer>> reached = new EnumMap<>(Skill.class);
+        for (Skill skill : Skill.LEVELED) {
+            int level = SkillLevel.levelOf(stats.getOrDefault(StatKey.score(skill), 0L));
+            List<Integer> levels = milestonesOf(skill).headSet(level, true).stream().toList();
+            if (!levels.isEmpty()) {
+                reached.put(skill, levels);
+            }
+        }
+        if (reached.isEmpty()) {
             return;
         }
-        Map<Skill, Integer> levels = new HashMap<>();
-        for (Skill skill : Skill.LEVELED) {
-            long score = stats.getOrDefault(StatKey.score(skill), 0L);
-            levels.put(skill, SkillLevel.levelOf(score));
-        }
-        List<Integer> milestones = rewards.keySet().stream().sorted().toList();
+
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
                 for (SkillRepository.RewardClaim claim
-                    : repository.reserveReachedRewards(playerId, levels, milestones)) {
+                    : repository.reserveReachedRewards(playerId, reached)) {
                     scheduleDelivery(playerId, claim.skill(), claim.milestoneLevel());
                 }
             } catch (RuntimeException exception) {
@@ -82,16 +113,23 @@ final class SkillRewardService {
         });
     }
 
-    int nextRewardLevel(int currentLevel) {
-        return rewards.keySet().stream()
-            .filter(level -> level > currentLevel)
-            .min(Comparator.naturalOrder())
-            .orElse(0);
+    NavigableSet<Integer> milestonesOf(Skill skill) {
+        return milestones.getOrDefault(skill, new TreeSet<>());
     }
 
-    String rewardLabel(int level) {
-        Reward reward = rewards.get(level);
+    int nextRewardLevel(Skill skill, int currentLevel) {
+        Integer next = milestonesOf(skill).higher(currentLevel);
+        return next == null ? 0 : next;
+    }
+
+    String rewardLabel(Skill skill, int level) {
+        Reward reward = reward(skill, level);
         return reward == null ? "" : reward.label();
+    }
+
+    private Reward reward(Skill skill, int level) {
+        Reward override = overrides.getOrDefault(skill, Map.of()).get(level);
+        return override != null ? override : defaults.get(level);
     }
 
     private void reserve(UUID playerId, Skill skill, int level, long score) {
@@ -117,7 +155,7 @@ final class SkillRewardService {
 
     private void deliver(RewardKey key) {
         Player player = Bukkit.getPlayer(key.playerId());
-        Reward reward = rewards.get(key.level());
+        Reward reward = reward(key.skill(), key.level());
         if (player == null || !player.isOnline() || reward == null) {
             deliveriesInProgress.remove(key);
             return;
@@ -145,56 +183,161 @@ final class SkillRewardService {
         });
     }
 
-    private Map<Integer, Reward> loadRewards() {
-        if (!plugin.getConfig().getBoolean("rewards.enabled", true)) {
-            return Map.of();
-        }
-        ConfigurationSection section = plugin.getConfig().getConfigurationSection(
-            "rewards.milestones");
-        if (section == null) {
-            plugin.getLogger().warning("No skill reward milestones are configured.");
-            return Map.of();
-        }
+    private List<SkillRepository.RewardDefinition> definitions() {
+        List<SkillRepository.RewardDefinition> rows = new ArrayList<>();
+        defaults.forEach((level, reward) -> rows.add(new SkillRepository.RewardDefinition(
+            DEFAULT_TRACK, level, reward.label(), reward.summary())));
+        overrides.forEach((skill, track) -> track.forEach((level, reward) ->
+            rows.add(new SkillRepository.RewardDefinition(
+                skill.id(), level, reward.label(), reward.summary()))));
+        return rows;
+    }
 
+    private Map<Skill, Map<Integer, Reward>> loadOverrides() {
+        ConfigurationSection section = plugin.getConfig().getConfigurationSection("rewards.skills");
+        if (section == null) {
+            return Map.of();
+        }
+        Map<Skill, Map<Integer, Reward>> loaded = new EnumMap<>(Skill.class);
+        for (String key : section.getKeys(false)) {
+            Skill skill = Skill.byId(key);
+            if (skill == null || !skill.leveled()) {
+                plugin.getLogger().warning("Unknown skill in rewards.skills: " + key);
+                continue;
+            }
+            Map<Integer, Reward> track =
+                loadTrack(section.getConfigurationSection(key), "skills." + key);
+            if (!track.isEmpty()) {
+                loaded.put(skill, track);
+            }
+        }
+        return loaded;
+    }
+
+    private Map<Integer, Reward> loadTrack(ConfigurationSection section, String path) {
+        if (section == null) {
+            return Map.of();
+        }
         Map<Integer, Reward> loaded = new HashMap<>();
         for (String key : section.getKeys(false)) {
             try {
                 int level = Integer.parseInt(key);
-                if (level < 10 || level > SkillLevel.MAX_LEVEL || level % 10 != 0) {
-                    throw new IllegalArgumentException("level must be 10, 20, ..., 100");
+                if (level < 2 || level > SkillLevel.MAX_LEVEL) {
+                    throw new IllegalArgumentException(
+                        "level must be between 2 and " + SkillLevel.MAX_LEVEL);
                 }
-                List<ItemStack> items = parseItems(section.getStringList(key + ".items"));
-                String label = section.getString(key + ".label", "Level-Reward").trim();
+                List<ItemStack> items = parseItems(section.getList(key + ".items"));
                 if (items.isEmpty()) {
                     throw new IllegalArgumentException("at least one valid item is required");
                 }
-                loaded.put(level, new Reward(label, List.copyOf(items)));
+                loaded.put(level, new Reward(
+                    section.getString(key + ".label", "Level-Reward").trim(),
+                    List.copyOf(items)
+                ));
             } catch (IllegalArgumentException exception) {
-                plugin.getLogger().warning("Invalid skill reward '" + key + "': "
-                    + exception.getMessage());
+                plugin.getLogger().warning("Invalid skill reward 'rewards." + path + "." + key
+                    + "': " + exception.getMessage());
             }
         }
         return Map.copyOf(loaded);
     }
 
-    private List<ItemStack> parseItems(List<String> configuredItems) {
+    /** Kurzform {@code MATERIAL:Anzahl} oder ein Block mit material/amount/name/enchantments. */
+    private List<ItemStack> parseItems(List<?> configured) {
         List<ItemStack> items = new ArrayList<>();
-        for (String configured : configuredItems) {
-            String[] parts = configured.trim().split(":", 2);
-            Material material = Material.matchMaterial(parts[0]);
-            if (material == null || material.isAir() || !material.isItem()) {
-                throw new IllegalArgumentException("unknown item " + parts[0]);
+        if (configured == null) {
+            return items;
+        }
+        for (Object entry : configured) {
+            if (entry instanceof String shorthand) {
+                items.add(parseShorthand(shorthand));
+            } else if (entry instanceof Map<?, ?> detailed) {
+                items.add(parseDetailed(detailed));
+            } else {
+                throw new IllegalArgumentException("unsupported item entry " + entry);
             }
-            int amount = parts.length == 2 ? Integer.parseInt(parts[1]) : 1;
-            if (amount < 1 || amount > material.getMaxStackSize()) {
-                throw new IllegalArgumentException("invalid amount for " + material.name());
-            }
-            items.add(new ItemStack(material, amount));
         }
         return items;
     }
 
+    private ItemStack parseShorthand(String configured) {
+        String[] parts = configured.trim().split(":", 2);
+        Material material = material(parts[0]);
+        int amount = parts.length == 2 ? Integer.parseInt(parts[1].trim()) : 1;
+        return new ItemStack(material, checkedAmount(material, amount));
+    }
+
+    private ItemStack parseDetailed(Map<?, ?> configured) {
+        Material material = material(String.valueOf(configured.get("material")));
+        int amount = configured.get("amount") instanceof Number number ? number.intValue() : 1;
+        ItemStack item = new ItemStack(material, checkedAmount(material, amount));
+
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) {
+            return item;
+        }
+        Object name = configured.get("name");
+        if (name != null) {
+            meta.displayName(Component.text(String.valueOf(name))
+                .decoration(TextDecoration.ITALIC, false));
+        }
+        if (configured.get("enchantments") instanceof Map<?, ?> enchantments) {
+            applyEnchantments(meta, enchantments);
+        }
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    /**
+     * Ohne {@code ignoreLevelRestriction} - Rewards bleiben damit im Vanilla-Rahmen und
+     * lösen die Item-Prüfung des AntiCheats nicht aus.
+     */
+    private void applyEnchantments(ItemMeta meta, Map<?, ?> configured) {
+        for (Map.Entry<?, ?> entry : configured.entrySet()) {
+            String id = String.valueOf(entry.getKey()).trim().toLowerCase(Locale.ROOT);
+            Enchantment enchantment = RegistryAccess.registryAccess()
+                .getRegistry(RegistryKey.ENCHANTMENT)
+                .get(NamespacedKey.minecraft(id));
+            if (enchantment == null) {
+                throw new IllegalArgumentException("unknown enchantment " + id);
+            }
+            if (!(entry.getValue() instanceof Number level)) {
+                throw new IllegalArgumentException("enchantment " + id + " needs a level");
+            }
+            boolean applied = meta instanceof EnchantmentStorageMeta storage
+                ? storage.addStoredEnchant(enchantment, level.intValue(), false)
+                : meta.addEnchant(enchantment, level.intValue(), false);
+            if (!applied) {
+                throw new IllegalArgumentException(
+                    id + " level " + level.intValue() + " is not valid for this item");
+            }
+        }
+    }
+
+    private Material material(String name) {
+        Material material = Material.matchMaterial(name.trim());
+        if (material == null || material.isAir() || !material.isItem()) {
+            throw new IllegalArgumentException("unknown item " + name);
+        }
+        return material;
+    }
+
+    private int checkedAmount(Material material, int amount) {
+        if (amount < 1 || amount > material.getMaxStackSize()) {
+            throw new IllegalArgumentException("invalid amount for " + material.name());
+        }
+        return amount;
+    }
+
     private record Reward(String label, List<ItemStack> items) {
+        String summary() {
+            List<String> parts = new ArrayList<>();
+            for (ItemStack item : items) {
+                parts.add(item.getAmount() + "x " + item.getType().name());
+            }
+            String joined = String.join(", ", parts);
+            return joined.length() <= 255 ? joined : joined.substring(0, 255);
+        }
     }
 
     private record RewardKey(UUID playerId, Skill skill, int level) {

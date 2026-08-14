@@ -42,3 +42,23 @@ genauso.
 Belohnungen werden auch beim Setzen vergeben — `pc_skill_rewards` hat einen Unique-Key und
 `INSERT IGNORE`, ein bereits ausgeschütteter Meilenstein kommt also nicht doppelt. Wer
 Punkte senkt und wieder anhebt, löst deshalb keine erneute Ausschüttung aus.
+
+## Belohnungen
+
+Die **Config ist die einzige Quelle**. `rewards.milestones` gilt für jeden Skill,
+`rewards.skills.<skill>.<level>` ersetzt eine Stufe oder ergänzt eine zusätzliche; die
+Meilensteine eines Skills sind die Vereinigung beider Mengen. Stufen dürfen auf jedem Level
+zwischen 2 und `SkillLevel.MAX_LEVEL` liegen.
+
+Items entweder kurz als `MATERIAL:Anzahl` oder als Block mit `material`, `amount`, `name`
+und `enchantments`. Verzauberungen werden ohne `ignoreLevelRestriction` gesetzt: eine zu
+hohe Stufe wird beim Laden abgelehnt statt ein Item zu erzeugen, das die Item-Prüfung des
+AntiCheats auslöst.
+
+### pc_skill_reward_definitions
+
+Reiner **Schreibspiegel**, kein Zustand. `SkillRewardService` ruft im Konstruktor
+`repository.syncRewardDefinitions(...)` auf, das die Tabelle leert und aus der Config neu
+füllt. Weder das Plugin noch NGLive_Web liest sie je. Wer dort etwas ändert, verliert es
+beim nächsten Serverstart — die Config ist immer stärker. Die Tabelle existiert nur, damit
+externe Oberflächen die Reward-Stufen anzeigen können, ohne die Config zu parsen.
