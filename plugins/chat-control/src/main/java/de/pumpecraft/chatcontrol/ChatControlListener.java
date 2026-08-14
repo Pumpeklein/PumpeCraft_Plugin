@@ -64,7 +64,9 @@ final class ChatControlListener implements Listener {
             Component delete = Component.text("[DEL] ", NamedTextColor.RED)
                 .hoverEvent(HoverEvent.showText(Component.text("Nachricht löschen", NamedTextColor.RED)))
                 .clickEvent(ClickEvent.runCommand("/chatcontrol delete " + messageId));
-            return delete.append(rendered);
+            return Component.empty()
+                .append(delete)
+                .append(rendered);
         });
     }
 }

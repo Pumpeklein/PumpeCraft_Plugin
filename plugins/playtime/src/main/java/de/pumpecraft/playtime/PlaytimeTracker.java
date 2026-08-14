@@ -189,7 +189,10 @@ final class PlaytimeTracker implements Listener {
 
     private void startSession(Player player) {
         long now = System.currentTimeMillis();
-        sessions.put(player.getUniqueId(), new SessionState(now, false, player.playerListName()));
+        sessions.put(
+            player.getUniqueId(),
+            new SessionState(now, false, player.playerListName(), 0L)
+        );
     }
 
     private void tickOnlinePlayers() {
@@ -197,15 +200,31 @@ final class PlaytimeTracker implements Listener {
         for (Player player : Bukkit.getOnlinePlayers()) {
             SessionState session = sessions.computeIfAbsent(
                 player.getUniqueId(),
-                ignored -> new SessionState(now, false, player.playerListName())
+                ignored -> new SessionState(now, false, player.playerListName(), 0L)
             );
 
-            boolean countedAsAfk = session.afk();
-            if (!session.afk() && now - session.lastInteractionMillis() >= AFK_AFTER_MILLIS) {
-                enterAfk(player, session);
+            if (session.afk()) {
+                repository.addSecond(player.getUniqueId(), true);
+                continue;
             }
 
-            repository.addSecond(player.getUniqueId(), countedAsAfk);
+            long idleSeconds = session.idleSeconds() + 1L;
+            repository.addSecond(player.getUniqueId(), false);
+            if (now - session.lastInteractionMillis() >= AFK_AFTER_MILLIS) {
+                repository.reclassifyActiveAsAfk(player.getUniqueId(), idleSeconds);
+                enterAfk(player, session);
+                continue;
+            }
+
+            sessions.put(
+                player.getUniqueId(),
+                new SessionState(
+                    session.lastInteractionMillis(),
+                    false,
+                    session.originalTabName(),
+                    idleSeconds
+                )
+            );
         }
     }
 
@@ -223,7 +242,7 @@ final class PlaytimeTracker implements Listener {
 
         sessions.put(
             player.getUniqueId(),
-            new SessionState(System.currentTimeMillis(), false, session.originalTabName())
+            new SessionState(System.currentTimeMillis(), false, session.originalTabName(), 0L)
         );
     }
 
@@ -231,7 +250,7 @@ final class PlaytimeTracker implements Listener {
         Component currentTabName = player.playerListName();
         sessions.put(
             player.getUniqueId(),
-            new SessionState(session.lastInteractionMillis(), true, currentTabName)
+            new SessionState(session.lastInteractionMillis(), true, currentTabName, 0L)
         );
         player.playerListName(Component.text("[AFK] ", NamedTextColor.YELLOW).append(currentTabName));
         player.sendMessage(Component.text("Bye Bye, du bist nun afk", NamedTextColor.YELLOW));
@@ -256,7 +275,7 @@ final class PlaytimeTracker implements Listener {
             : session.lastInteractionMillis();
         sessions.put(
             player.getUniqueId(),
-            new SessionState(interactionTime, false, session.originalTabName())
+            new SessionState(interactionTime, false, session.originalTabName(), 0L)
         );
     }
 
@@ -270,6 +289,11 @@ final class PlaytimeTracker implements Listener {
             || Float.compare(from.getPitch(), to.getPitch()) != 0);
     }
 
-    private record SessionState(long lastInteractionMillis, boolean afk, Component originalTabName) {
+    private record SessionState(
+        long lastInteractionMillis,
+        boolean afk,
+        Component originalTabName,
+        long idleSeconds
+    ) {
     }
 }

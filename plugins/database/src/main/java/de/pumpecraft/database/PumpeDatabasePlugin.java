@@ -18,6 +18,7 @@ public final class PumpeDatabasePlugin extends JavaPlugin {
     private static final Pattern SQL_IDENTIFIER = Pattern.compile("[A-Za-z0-9_]+");
 
     private HikariDataSource dataSource;
+    private ServerMetricsCollector metricsCollector;
 
     @Override
     public void onEnable() {
@@ -42,6 +43,8 @@ public final class PumpeDatabasePlugin extends JavaPlugin {
                 this,
                 ServicePriority.Normal
             );
+            metricsCollector = new ServerMetricsCollector(this, service);
+            metricsCollector.start();
             getLogger().info(
                 "Database ready; schema version " + migration.targetSchemaVersion
                     + ", applied " + migration.migrationsExecuted + " migration(s)."
@@ -55,6 +58,10 @@ public final class PumpeDatabasePlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (metricsCollector != null) {
+            metricsCollector.shutdown();
+            metricsCollector = null;
+        }
         getServer().getServicesManager().unregisterAll(this);
         closePool();
     }

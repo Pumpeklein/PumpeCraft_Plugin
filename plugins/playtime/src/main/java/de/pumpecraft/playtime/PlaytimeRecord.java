@@ -12,4 +12,9 @@ record PlaytimeRecord(long activeSeconds, long afkSeconds) {
     PlaytimeRecord addAfk(long seconds) {
         return new PlaytimeRecord(activeSeconds, afkSeconds + seconds);
     }
+
+    PlaytimeRecord reclassifyActiveAsAfk(long seconds) {
+        long movedSeconds = Math.min(activeSeconds, Math.max(0L, seconds));
+        return new PlaytimeRecord(activeSeconds - movedSeconds, afkSeconds + movedSeconds);
+    }
 }

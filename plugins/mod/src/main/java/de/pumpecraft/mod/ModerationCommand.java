@@ -439,7 +439,7 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
         staff.sendMessage(success(
             target.name() + " wurde "
                 + (ban.permanent() ? "permanent" : "für " + Durations.format(ban.total()))
-                + " gebannt. Strafen-ID: " + ban.punishmentId()
+                + " gebannt. Punishment-ID: " + ban.punishmentId()
         ));
         return true;
     }
@@ -806,13 +806,13 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
         lines.add(Component.empty());
 
         // Kein Teammitglied auf dem Ban-Screen: der gebannte Spieler soll nicht sehen,
-        // wer ihn gebannt hat. Ueber die Strafen-ID bleibt der Fall im Ticket zuordenbar.
-        lines.add(field("Strafen-ID", ban.punishmentId(), NamedTextColor.LIGHT_PURPLE));
+        // wer ihn gebannt hat. Ueber die Punishment-ID bleibt der Fall im Ticket zuordenbar.
+        lines.add(field("Punishment-ID", ban.punishmentId(), NamedTextColor.LIGHT_PURPLE));
         lines.add(Component.empty());
 
         lines.add(SCREEN_DIVIDER);
         lines.add(Component.text("Einspruch? Öffne ein Ticket in unserem Discord", NamedTextColor.GREEN));
-        lines.add(Component.text("und nenne dort deine Strafen-ID.", NamedTextColor.GREEN));
+        lines.add(Component.text("und nenne dort deine Punishment-ID.", NamedTextColor.GREEN));
 
         return joinLines(lines);
     }

@@ -63,6 +63,19 @@ final class PlaytimeRepository {
         dirtyRecords.add(playerId);
     }
 
+    synchronized void reclassifyActiveAsAfk(UUID playerId, long seconds) {
+        if (seconds <= 0L) {
+            return;
+        }
+        PlaytimeRecord current = get(playerId);
+        PlaytimeRecord adjusted = current.reclassifyActiveAsAfk(seconds);
+        if (adjusted.equals(current)) {
+            return;
+        }
+        records.put(playerId, adjusted);
+        dirtyRecords.add(playerId);
+    }
+
     synchronized void save() {
         if (dirtyRecords.isEmpty()) {
             return;
