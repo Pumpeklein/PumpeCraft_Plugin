@@ -4,8 +4,10 @@ import de.pumpecraft.anticheat.core.CheckType;
 import de.pumpecraft.anticheat.core.PlayerState;
 import de.pumpecraft.anticheat.core.PlayerStateStore;
 import de.pumpecraft.anticheat.core.ViolationService;
+import de.pumpecraft.utils.Cooldowns;
 import de.pumpecraft.utils.Locations;
 import de.pumpecraft.utils.Texts;
+import java.util.UUID;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -25,8 +27,8 @@ import org.bukkit.potion.PotionEffectType;
 
 public final class MovementChecks extends AbstractCheck {
     private static final long MOVEMENT_WINDOW_MILLIS = 500L;
-    private static final long TELEPORT_GRACE_MILLIS = 2_000L;
-    private static final long VELOCITY_GRACE_MILLIS = 1_500L;
+
+    private final Cooldowns<UUID> exemptDebug = new Cooldowns<>();
 
     public MovementChecks(Plugin plugin, PlayerStateStore states, ViolationService violations) {
         super(plugin, states, violations);
@@ -50,16 +52,20 @@ public final class MovementChecks extends AbstractCheck {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onVelocity(PlayerVelocityEvent event) {
         PlayerState.Movement movement = state(event.getPlayer()).movement;
-        movement.velocityGraceUntil = System.currentTimeMillis() + VELOCITY_GRACE_MILLIS;
+        movement.velocityGraceUntil = System.currentTimeMillis()
+            + plugin.getConfig().getLong("movement.velocity-grace-millis", 1_500L);
         movement.airTicks = 0;
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onFallDamage(EntityDamageEvent event) {
-        if (event.getEntity() instanceof Player player
-            && event.getCause() == EntityDamageEvent.DamageCause.FALL) {
-            state(player).movement.fallDamageObserved = true;
+        if (!(event.getEntity() instanceof Player player)
+            || event.getCause() != EntityDamageEvent.DamageCause.FALL) {
+            return;
         }
+        PlayerState.Movement movement = state(player).movement;
+        movement.fallDamageObserved = true;
+        movement.lastFallDamage = event.getDamage();
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -82,7 +88,11 @@ public final class MovementChecks extends AbstractCheck {
         movement.recentHorizontal = Locations.horizontalDistance(event.getFrom(), to);
         boolean grounded = isGrounded(to);
 
-        if (movementExempt(player, to, now, state)) {
+        String exemptReason = movementExemptReason(player, to, now, state);
+        if (exemptReason != null) {
+            if (deltaY < -0.5 && exemptDebug.tryAcquire(player.getUniqueId(), 2_000L)) {
+                debug(CheckType.NO_FALL, player, "Bewegungsprüfung ausgesetzt: " + exemptReason);
+            }
             state.resetMovement(to);
             return;
         }
@@ -198,16 +208,18 @@ public final class MovementChecks extends AbstractCheck {
 
     private void checkNoFall(Player player, PlayerState state, boolean grounded, double deltaY) {
         PlayerState.Movement movement = state.movement;
-        if (deltaY < 0.0) {
-            movement.accumulatedFall += -deltaY;
-        }
-        if (!grounded || movement.wasOnGround) {
+        if (!grounded) {
+            if (deltaY < 0.0) {
+                movement.accumulatedFall += -deltaY;
+            }
             return;
         }
 
         double fallDistance = movement.accumulatedFall;
         movement.accumulatedFall = 0.0;
-        if (!violations.enabled(CheckType.NO_FALL) || hasNoFallExemption(player)) {
+        if (movement.wasOnGround
+            || !violations.enabled(CheckType.NO_FALL)
+            || hasNoFallExemption(player)) {
             return;
         }
 
@@ -217,27 +229,82 @@ public final class MovementChecks extends AbstractCheck {
         }
 
         movement.fallDamageObserved = false;
+        movement.lastFallDamage = 0.0;
         long sequence = ++movement.landingSequence;
-        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-            PlayerState current = states.find(player.getUniqueId());
-            if (current == null
-                || current.movement.landingSequence != sequence
-                || current.movement.fallDamageObserved) {
-                return;
-            }
+        double expected = expectedFallDamage(player, fallDistance);
+        debug(CheckType.NO_FALL, player, "Landung nach " + Texts.decimal(fallDistance)
+            + " Blöcken, erwarteter Basisschaden " + Texts.decimal(expected, 1));
+        plugin.getServer().getScheduler().runTaskLater(
+            plugin,
+            () -> evaluateFallDamage(player, sequence, fallDistance, expected),
+            3L
+        );
+    }
+
+    /**
+     * Checking only whether a fall damage event arrived is not enough: NoFall implementations
+     * let a token amount through precisely to satisfy that test. The received base damage has
+     * to match what the measured drop should have cost.
+     */
+    private void evaluateFallDamage(
+        Player player,
+        long sequence,
+        double fallDistance,
+        double expected
+    ) {
+        PlayerState current = states.find(player.getUniqueId());
+        if (current == null || current.movement.landingSequence != sequence) {
+            return;
+        }
+
+        PlayerState.Movement movement = current.movement;
+        double amount = settings.decimal(CheckType.NO_FALL, "violation-amount", 2.0);
+        if (!movement.fallDamageObserved) {
             violations.flag(
                 player,
                 CheckType.NO_FALL,
-                1.0,
+                amount,
                 "kein Fallschaden nach " + Texts.decimal(fallDistance) + " Blöcken"
             );
-        }, 3L);
+            return;
+        }
+
+        double minimumRatio = settings.decimal(CheckType.NO_FALL, "minimum-damage-ratio", 0.55);
+        debug(CheckType.NO_FALL, player, "Fallschaden " + Texts.decimal(movement.lastFallDamage, 1)
+            + " von erwarteten " + Texts.decimal(expected, 1)
+            + " (Grenze " + Texts.decimal(expected * minimumRatio, 1) + ")");
+        if (expected <= 0.0 || movement.lastFallDamage >= expected * minimumRatio) {
+            return;
+        }
+
+        violations.flag(
+            player,
+            CheckType.NO_FALL,
+            amount,
+            "nur " + Texts.decimal(movement.lastFallDamage, 1) + " statt "
+                + Texts.decimal(expected, 1) + " Schaden nach "
+                + Texts.decimal(fallDistance) + " Blöcken"
+        );
+    }
+
+    /**
+     * Vanilla base damage before armour and enchantments, which is what
+     * {@link EntityDamageEvent#getDamage()} reports. Jump Boost raises the safe drop height.
+     */
+    private double expectedFallDamage(Player player, double fallDistance) {
+        double safeDistance = settings.decimal(CheckType.NO_FALL, "safe-fall-distance", 3.0);
+        PotionEffect jumpBoost = player.getPotionEffect(PotionEffectType.JUMP_BOOST);
+        if (jumpBoost != null) {
+            safeDistance += jumpBoost.getAmplifier() + 1;
+        }
+        return Math.max(0.0, Math.ceil(fallDistance - safeDistance));
     }
 
     private void grantTeleportGrace(Player player) {
         PlayerState state = state(player);
         state.resetMovement(player.getLocation());
-        state.movement.teleportGraceUntil = System.currentTimeMillis() + TELEPORT_GRACE_MILLIS;
+        state.movement.teleportGraceUntil = System.currentTimeMillis()
+            + plugin.getConfig().getLong("movement.teleport-grace-millis", 2_000L);
     }
 
     private void resetFlySample(PlayerState.Movement movement, Location location, boolean grounded) {
@@ -249,20 +316,50 @@ public final class MovementChecks extends AbstractCheck {
     }
 
     private boolean movementExempt(Player player, Location location, long now, PlayerState state) {
-        GameMode mode = player.getGameMode();
-        return mode == GameMode.CREATIVE
-            || mode == GameMode.SPECTATOR
-            || player.hasPermission("pumpecraft.anticheat.bypass")
-            || player.isFlying()
-            || player.isGliding()
-            || player.isSwimming()
-            || player.isRiptiding()
-            || player.isInsideVehicle()
-            || player.getPotionEffect(PotionEffectType.LEVITATION) != null
-            || player.getPotionEffect(PotionEffectType.SLOW_FALLING) != null
-            || now < state.movement.teleportGraceUntil
-            || now < state.movement.velocityGraceUntil
-            || isLiquidOrClimbable(location);
+        return movementExemptReason(player, location, now, state) != null;
+    }
+
+    public static String movementExemptReason(
+        Player player,
+        Location location,
+        long now,
+        PlayerState state
+    ) {
+        String general = exemptReason(player);
+        if (general != null) {
+            return general;
+        }
+        if (player.isFlying()) {
+            return "Flugmodus";
+        }
+        if (player.isGliding()) {
+            return "Elytra";
+        }
+        if (player.isSwimming()) {
+            return "Schwimmen";
+        }
+        if (player.isRiptiding()) {
+            return "Riptide";
+        }
+        if (player.isInsideVehicle()) {
+            return "Fahrzeug";
+        }
+        if (player.getPotionEffect(PotionEffectType.LEVITATION) != null) {
+            return "Levitation";
+        }
+        if (player.getPotionEffect(PotionEffectType.SLOW_FALLING) != null) {
+            return "Slow Falling";
+        }
+        if (now < state.movement.teleportGraceUntil) {
+            return "Teleport-Schonzeit";
+        }
+        if (now < state.movement.velocityGraceUntil) {
+            return "Velocity-Schonzeit";
+        }
+        if (isLiquidOrClimbable(location)) {
+            return "Wasser oder Kletterblock";
+        }
+        return null;
     }
 
     private boolean hasNoFallExemption(Player player) {
@@ -292,7 +389,7 @@ public final class MovementChecks extends AbstractCheck {
         return false;
     }
 
-    private boolean isLiquidOrClimbable(Location location) {
+    private static boolean isLiquidOrClimbable(Location location) {
         Material feet = location.getBlock().getType();
         Material head = location.clone().add(0.0, 1.0, 0.0).getBlock().getType();
         return feet == Material.WATER

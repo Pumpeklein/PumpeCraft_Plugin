@@ -3,6 +3,7 @@ package de.pumpecraft.anticheat.client;
 import de.pumpecraft.anticheat.core.AlertDispatcher;
 import de.pumpecraft.anticheat.platform.BedrockDetector;
 import de.pumpecraft.anticheat.storage.PlayerPlatformRepository;
+import de.pumpecraft.utils.Configs;
 import de.pumpecraft.utils.Staff;
 import de.pumpecraft.utils.Teleports;
 import de.pumpecraft.utils.Texts;
@@ -10,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -246,6 +248,62 @@ public final class ClientDetectionService implements Listener, PluginMessageList
                     .append(locationLink(player))
             );
         }
+        checkBrandSpoof(player, profile);
+    }
+
+    /**
+     * A real vanilla client registers no plugin channel at all. Claiming the vanilla brand while
+     * registering some is a contradiction no client-side spoofer can hide, which makes this the
+     * one reliable signal against clients that fake their brand.
+     */
+    private void checkBrandSpoof(Player player, ClientProfile profile) {
+        if (profile.spoofReported()
+            || profile.brand() == null
+            || !plugin.getConfig().getBoolean("client-detection.spoof-detection.enabled", true)
+            || bedrockDetector.isBedrock(player.getUniqueId())) {
+            return;
+        }
+
+        List<String> vanillaBrands = Configs.lowerStringList(
+            plugin.getConfig().getStringList("client-detection.spoof-detection.vanilla-brands")
+        );
+        if (!Configs.matchesAny(vanillaBrands, profile.brandTokens())) {
+            return;
+        }
+
+        List<String> ignored = Configs.lowerStringList(
+            plugin.getConfig().getStringList("client-detection.spoof-detection.ignored-channels")
+        );
+        List<String> suspicious = new ArrayList<>();
+        for (String channel : profile.channels()) {
+            Set<String> tokens = Set.of(
+                channel.toLowerCase(Locale.ROOT),
+                channel.contains(":")
+                    ? channel.substring(0, channel.indexOf(':')).toLowerCase(Locale.ROOT)
+                    : channel.toLowerCase(Locale.ROOT)
+            );
+            if (!Configs.matchesAny(ignored, tokens)) {
+                suspicious.add(channel);
+            }
+        }
+        if (suspicious.isEmpty()) {
+            return;
+        }
+
+        profile.markSpoofReported();
+        Staff.broadcast(
+            AlertDispatcher.PERMISSION,
+            Component.text("[ClientCheck] ", NamedTextColor.DARK_AQUA)
+                .append(playerLink(player))
+                .append(Component.text(" meldet \"" + profile.brand() + "\", registriert aber "
+                    + suspicious.size() + " Kanäle: ", NamedTextColor.RED))
+                .append(Component.text(
+                    Texts.joinLimited(suspicious, 5, "(+{count})"),
+                    NamedTextColor.GRAY
+                ))
+                .append(Component.space())
+                .append(locationLink(player))
+        );
     }
 
     /**

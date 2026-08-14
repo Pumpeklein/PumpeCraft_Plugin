@@ -19,7 +19,7 @@ de.pumpecraft.anticheat
 │  └─ AlertDispatcher       Bündelung der Team-Meldungen
 ├─ check/
 │  ├─ AbstractCheck         gemeinsame Basis, Gamemode- und Bypass-Ausnahme
-│  ├─ MovementChecks        Speed, Fly, NoFall
+│  ├─ MovementChecks        Speed, Fly, NoFall (Schadenshöhe, nicht nur Vorhandensein)
 │  ├─ CombatChecks          Reach, AutoClicker, KillAura
 │  ├─ BlockChecks           FastPlace, FastBreak, Nuker, BlockReach, Scaffold
 │  ├─ XrayChecks            Xray
@@ -48,6 +48,31 @@ de.pumpecraft.anticheat
 
 Grenzwerte niemals direkt über `plugin.getConfig()` lesen — `CheckSettings` ist der einzige
 Zugriffspunkt, sonst weichen die Pfade auseinander.
+
+### alert-level richtig setzen
+
+`ViolationService.flag(...)` verwirft alles unterhalb von `alert-level` — keine Meldung, kein
+Datenbankeintrag, keine Konsolenzeile. Ein Check mit `alert-level: 3.0`, der pro Treffer `1.0`
+vergibt, braucht also drei Treffer, bevor überhaupt etwas sichtbar wird; bei `decay-per-second`
+ist der erste nach gut zwölf Sekunden schon wieder abgebaut. Bei eindeutigen Checks (NoFall,
+Item, BlockReach) gehört `alert-level` deshalb auf die Höhe eines einzelnen Treffers —
+gegen Wiederholungen hilft der `alerts`-Block, nicht eine hohe Schwelle. Nur bei Checks mit
+echter Grauzone (Speed, Scaffold, AutoClicker) ist eine Schwelle über einem Treffer sinnvoll.
+
+`checks.<key>.debug: true` schreibt die Messwerte eines Checks in die Konsole, auch wenn
+nichts gemeldet wird — über `debug(check, player, message)` aus `AbstractCheck`. Ohne das
+ist ein stiller Check nicht von einem zu unterscheiden, der gar nicht läuft.
+
+### Ausnahmen zuerst prüfen
+
+Meldet ein Check gar nichts, liegt es meist an einer Ausnahme, nicht an der Logik.
+`AbstractCheck.exemptReason(player)` nennt den Grund, `/anticheat status <Spieler>` zeigt ihn
+als `Prüfung: ausgesetzt (...)`. Häufigster Fall: `pumpecraft.anticheat.bypass` über eine
+Wildcard-Gruppe im Rechte-Plugin — das setzt für Admins sämtliche Checks still aus.
+
+Bei Bewegungschecks kommt `movementExemptReason` dazu (Flug, Elytra, Wasser, Teleport- und
+Velocity-Schonzeit). Die Schonzeiten stehen unter `movement:` und sind beim Testen per `/tp`
+relevant: ein Sturz, der komplett in die Schonzeit fällt, wird nie gemessen.
 
 ## Meldungen
 
@@ -104,9 +129,14 @@ nicht: ein Fabric-Client mit Forge-Kompatibilitätsmods registriert `fml:*` und 
 zusätzlich als Forge gelten. Abgeglichen wird gegen exakte Brand-Tokens beziehungsweise
 Channel-Namespaces, nie als Teilstring.
 
-Launcher (Modrinth App, Prism, CurseForge, MultiMC) senden nichts an den Server und sind
-grundsätzlich nicht erkennbar. `/anticheat client <Spieler>` zeigt die Rohdaten und ist der
-Ausgangspunkt für neue Signaturen.
+Launcher (Modrinth App, Prism, CurseForge, MultiMC, LiquidLauncher) senden nichts an den
+Server und sind grundsätzlich nicht erkennbar. `/anticheat client <Spieler>` zeigt die
+Rohdaten und ist der Ausgangspunkt für neue Signaturen.
+
+`spoof-detection` ist das einzige Signal, das gegen einen gefälschten Brand hält: ein echter
+Vanilla-Client registriert keinen einzigen Plugin-Channel, die Kombination aus
+Vanilla-Brand und vorhandenen Channels ist also ein Widerspruch. Bedrock-Spieler sind
+ausgenommen, weil Geyser ihre Kanäle serverseitig verwaltet.
 
 ## Nicht abgedeckt
 

@@ -1,5 +1,6 @@
 package de.pumpecraft.anticheat;
 
+import de.pumpecraft.anticheat.check.AbstractCheck;
 import de.pumpecraft.anticheat.client.ClientDetectionService;
 import de.pumpecraft.anticheat.client.ClientReport;
 import de.pumpecraft.anticheat.core.AlertDispatcher;
@@ -132,6 +133,16 @@ public final class AntiCheatCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(Component.text(
             " - " + Players.displayName(target.get()) + ": " + (bedrock ? "Bedrock" : "Java"),
             bedrock ? NamedTextColor.YELLOW : NamedTextColor.GRAY
+        ));
+
+        Player online = target.get().getPlayer();
+        if (online == null) {
+            return true;
+        }
+        String reason = AbstractCheck.exemptReason(online);
+        sender.sendMessage(Component.text(
+            " - Prüfung: " + (reason == null ? "aktiv" : "ausgesetzt (" + reason + ")"),
+            reason == null ? NamedTextColor.GREEN : NamedTextColor.RED
         ));
         return true;
     }

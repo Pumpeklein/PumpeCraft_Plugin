@@ -9,6 +9,7 @@ public final class ClientProfile {
     private final Set<String> detections = new LinkedHashSet<>();
     private String brand;
     private boolean joinAnnounced;
+    private boolean spoofReported;
 
     public String brand() {
         return brand;
@@ -32,6 +33,14 @@ public final class ClientProfile {
 
     public void markAnnounced() {
         joinAnnounced = true;
+    }
+
+    public boolean spoofReported() {
+        return spoofReported;
+    }
+
+    public void markSpoofReported() {
+        spoofReported = true;
     }
 
     public Set<String> brandTokens() {

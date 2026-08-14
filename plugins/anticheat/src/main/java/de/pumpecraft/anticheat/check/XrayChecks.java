@@ -6,6 +6,7 @@ import de.pumpecraft.anticheat.core.PlayerStateStore;
 import de.pumpecraft.anticheat.core.ViolationService;
 import de.pumpecraft.utils.Texts;
 import java.util.EnumSet;
+import java.util.Locale;
 import java.util.Set;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -24,32 +25,16 @@ public final class XrayChecks extends AbstractCheck {
         BlockFace.UP, BlockFace.DOWN, BlockFace.NORTH,
         BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST
     };
-    private static final Set<Material> VALUABLE_BLOCKS = EnumSet.of(
-        Material.DIAMOND_ORE,
-        Material.DEEPSLATE_DIAMOND_ORE,
-        Material.EMERALD_ORE,
-        Material.DEEPSLATE_EMERALD_ORE,
-        Material.ANCIENT_DEBRIS
-    );
-    private static final Set<Material> NATURAL_MINING_BLOCKS = EnumSet.of(
-        Material.STONE,
-        Material.DEEPSLATE,
-        Material.TUFF,
-        Material.GRANITE,
-        Material.DIORITE,
-        Material.ANDESITE,
-        Material.NETHERRACK,
-        Material.BASALT,
-        Material.BLACKSTONE,
-        Material.DIAMOND_ORE,
-        Material.DEEPSLATE_DIAMOND_ORE,
-        Material.EMERALD_ORE,
-        Material.DEEPSLATE_EMERALD_ORE,
-        Material.ANCIENT_DEBRIS
-    );
+    private Set<Material> valuableBlocks;
+    private Set<Material> naturalBlocks;
 
     public XrayChecks(Plugin plugin, PlayerStateStore states, ViolationService violations) {
         super(plugin, states, violations);
+    }
+
+    public void reload() {
+        valuableBlocks = null;
+        naturalBlocks = null;
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -61,7 +46,7 @@ public final class XrayChecks extends AbstractCheck {
 
         Block block = event.getBlock();
         Material material = block.getType();
-        if (!NATURAL_MINING_BLOCKS.contains(material)) {
+        if (!naturalBlocks().contains(material) && !valuableBlocks().contains(material)) {
             return;
         }
 
@@ -70,7 +55,7 @@ public final class XrayChecks extends AbstractCheck {
         resetExpiredWindow(mining, now);
         mining.naturalBreaks++;
 
-        if (!VALUABLE_BLOCKS.contains(material)) {
+        if (!valuableBlocks().contains(material)) {
             if (mining.blocksSinceVein < Integer.MAX_VALUE) {
                 mining.blocksSinceVein++;
             }
@@ -100,14 +85,51 @@ public final class XrayChecks extends AbstractCheck {
         evaluate(player, mining);
     }
 
+    private Set<Material> valuableBlocks() {
+        if (valuableBlocks == null) {
+            valuableBlocks = materials("valuable-blocks");
+        }
+        return valuableBlocks;
+    }
+
+    private Set<Material> naturalBlocks() {
+        if (naturalBlocks == null) {
+            naturalBlocks = materials("natural-blocks");
+        }
+        return naturalBlocks;
+    }
+
+    private Set<Material> materials(String setting) {
+        Set<Material> materials = EnumSet.noneOf(Material.class);
+        for (String value : settings.strings(CheckType.XRAY, setting)) {
+            Material material = Material.matchMaterial(value.trim().toUpperCase(Locale.ROOT));
+            if (material != null) {
+                materials.add(material);
+            } else {
+                plugin.getLogger().warning(
+                    "Unknown material in checks.xray." + setting + ": " + value
+                );
+            }
+        }
+        return materials;
+    }
+
     private void evaluate(Player player, PlayerState.Mining mining) {
         int minimumBreaks = settings.platformInteger(player, CheckType.XRAY, "minimum-natural-breaks", 40);
         int minimumVeins = settings.platformInteger(player, CheckType.XRAY, "minimum-vein-discoveries", 5);
         double maximumRatio = settings.platformDecimal(player, CheckType.XRAY, "maximum-vein-ratio", 0.12);
         int suspiciousPaths = settings.platformInteger(player, CheckType.XRAY, "suspicious-direct-paths", 3);
 
+        double currentRatio = mining.naturalBreaks == 0
+            ? 0.0
+            : (double) mining.veinDiscoveries / mining.naturalBreaks;
+        debug(CheckType.XRAY, player, mining.naturalBreaks + "/" + minimumBreaks + " Blöcke, "
+            + mining.veinDiscoveries + "/" + minimumVeins + " Adern, Quote "
+            + Texts.percent(currentRatio) + " (max " + Texts.percent(maximumRatio) + "), "
+            + mining.directPaths + "/" + suspiciousPaths + " direkte Wege");
+
         if (mining.naturalBreaks >= minimumBreaks && mining.veinDiscoveries >= minimumVeins) {
-            double ratio = (double) mining.veinDiscoveries / mining.naturalBreaks;
+            double ratio = currentRatio;
             if (ratio > maximumRatio) {
                 violations.flag(
                     player,
@@ -125,7 +147,7 @@ public final class XrayChecks extends AbstractCheck {
             violations.flag(
                 player,
                 CheckType.XRAY,
-                1.0,
+                settings.decimal(CheckType.XRAY, "violation-amount", 2.0),
                 mining.directPaths + " auffällig direkte Wege zu seltenen Erzen"
             );
             mining.directPaths = Math.max(0, suspiciousPaths - 1);

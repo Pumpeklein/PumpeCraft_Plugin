@@ -25,13 +25,14 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class PumpeAntiCheatPlugin extends JavaPlugin implements Listener {
-    private static final int CONFIG_VERSION = 5;
+    private static final int CONFIG_VERSION = 7;
 
     private PlayerStateStore states;
     private AlertDispatcher alerts;
     private ClientDetectionService clientDetection;
     private ItemChecks itemChecks;
     private EffectChecks effectChecks;
+    private XrayChecks xrayChecks;
 
     @Override
     public void onEnable() {
@@ -49,6 +50,7 @@ public final class PumpeAntiCheatPlugin extends JavaPlugin implements Listener {
         MovementChecks movementChecks = new MovementChecks(this, states, violations);
         itemChecks = new ItemChecks(this, states, violations);
         effectChecks = new EffectChecks(this, states, violations);
+        xrayChecks = new XrayChecks(this, states, violations);
         clientDetection = new ClientDetectionService(this, bedrockDetector, platforms);
 
         register(
@@ -56,7 +58,7 @@ public final class PumpeAntiCheatPlugin extends JavaPlugin implements Listener {
             movementChecks,
             new BlockChecks(this, states, violations),
             new CombatChecks(this, states, violations),
-            new XrayChecks(this, states, violations),
+            xrayChecks,
             itemChecks,
             effectChecks,
             clientDetection
@@ -121,6 +123,9 @@ public final class PumpeAntiCheatPlugin extends JavaPlugin implements Listener {
         if (clientDetection != null) {
             clientDetection.reload();
         }
+        if (xrayChecks != null) {
+            xrayChecks.reload();
+        }
     }
 
     private void register(Listener... listeners) {
@@ -159,6 +164,15 @@ public final class PumpeAntiCheatPlugin extends JavaPlugin implements Listener {
         }
         if (version < 5) {
             getConfig().set("violations.alert-cooldown-millis", null);
+        }
+        if (version < 6) {
+            replaceDoubleDefault("checks.nofall.alert-level", 3.0, 1.0);
+        }
+        if (version < 7) {
+            replaceDoubleDefault("checks.nuker.alert-level", 3.0, 1.0);
+            replaceDoubleDefault("checks.killaura.alert-level", 3.0, 1.0);
+            replaceDoubleDefault("checks.xray.alert-level", 3.0, 1.0);
+            replaceDoubleDefault("checks.blockreach.alert-level", 2.0, 1.0);
         }
         getConfig().options().copyDefaults(true);
         getConfig().set("config-version", CONFIG_VERSION);

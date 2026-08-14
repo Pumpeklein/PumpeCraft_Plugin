@@ -40,6 +40,7 @@ public final class PlayerState {
         public double accumulatedFall;
         public boolean wasOnGround = true;
         public boolean fallDamageObserved;
+        public double lastFallDamage;
         public long landingSequence;
 
         void reset(Location location) {

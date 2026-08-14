@@ -8,6 +8,7 @@ import de.pumpecraft.utils.Locations;
 import de.pumpecraft.utils.Rates;
 import de.pumpecraft.utils.Texts;
 import io.papermc.paper.event.player.PrePlayerAttackEntityEvent;
+import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -138,26 +139,40 @@ public final class CombatChecks extends AbstractCheck {
             combat.recentTargets.clear();
         }
         combat.recentTargets.add(target.getUniqueId());
+        double amount = settings.decimal(CheckType.KILL_AURA, "violation-amount", 2.0);
 
         int maximumTargets = settings.integer(CheckType.KILL_AURA, "maximum-targets", 3);
         if (combat.recentTargets.size() > maximumTargets) {
             violations.flag(
                 player,
                 CheckType.KILL_AURA,
-                1.0,
+                amount,
                 combat.recentTargets.size() + " Ziele in " + window + "ms"
             );
             combat.recentTargets.clear();
         }
 
-        double minimumAimDot = settings.platformDecimal(player, CheckType.KILL_AURA, "minimum-aim-dot", 0.55);
-        double aim = Locations.aimDot(player.getEyeLocation(), target.getLocation().add(0.0, 0.9, 0.0));
-        if (aim < minimumAimDot) {
+        Location eye = player.getEyeLocation();
+        Location center = target.getBoundingBox().getCenter().toLocation(target.getWorld());
+        double distance = eye.distance(center);
+        double minimumDistance = settings.decimal(CheckType.KILL_AURA, "minimum-aim-distance", 2.0);
+        double minimumAimDot = settings.platformDecimal(
+            player, CheckType.KILL_AURA, "minimum-aim-dot", 0.55
+        );
+        double aim = Locations.aimDot(eye, center);
+        debug(CheckType.KILL_AURA, player, combat.recentTargets.size() + " Ziele, Aim "
+            + Texts.decimal(aim) + " (ab " + Texts.decimal(minimumAimDot) + ") auf "
+            + Texts.decimal(distance) + " Blöcken");
+
+        // Ein Ziel direkt am Spieler steht fast senkrecht unter der Blickachse; der Aim-Wert
+        // ist dann auch bei einem sauberen Treffer niedrig und taugt nicht als Merkmal.
+        if (distance >= minimumDistance && aim < minimumAimDot) {
             violations.flag(
                 player,
                 CheckType.KILL_AURA,
-                1.0,
-                "Treffer außerhalb der Blickrichtung (dot " + Texts.decimal(aim) + ")"
+                amount,
+                "Treffer außerhalb der Blickrichtung (Aim " + Texts.decimal(aim)
+                    + " auf " + Texts.decimal(distance) + " Blöcken)"
             );
         }
     }

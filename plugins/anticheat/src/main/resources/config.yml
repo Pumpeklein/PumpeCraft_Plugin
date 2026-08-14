@@ -22,6 +22,13 @@ violations:
   decay-per-second: 0.08
   maximum-level: 40.0
 
+# Nach einem Teleport oder einem Knockback ist die Bewegung fuer diese Zeit nicht
+# bewertbar. Zum Testen per /tp niedriger setzen: sonst faellt ein kurzer Sturz
+# komplett in die Schonzeit und wird nie gemessen.
+movement:
+  teleport-grace-millis: 2000
+  velocity-grace-millis: 1500
+
 bedrock:
   use-floodgate: true
   use-geyser: true
@@ -44,7 +51,18 @@ checks:
     enabled: true
     minimum-fall-java: 4.0
     minimum-fall-bedrock: 6.0
-    alert-level: 3.0
+    # Manche NoFall-Module lassen absichtlich einen Bruchteil Schaden durch, damit ein
+    # reines "kam ueberhaupt Schaden?" nicht anschlaegt. Verglichen wird deshalb der
+    # Basisschaden vor Ruestung und Verzauberung gegen die gemessene Fallhoehe.
+    minimum-damage-ratio: 0.55
+    safe-fall-distance: 3.0
+    # Ein fehlender oder zu kleiner Fallschaden ist eindeutig, deshalb meldet schon der
+    # erste bestaetigte Treffer. Wiederholungen bremst der alerts-Block, nicht dieser Wert.
+    violation-amount: 2.0
+    alert-level: 1.0
+    # Schreibt die gemessene Fallhoehe und den erhaltenen Schaden in die Konsole,
+    # auch wenn nichts gemeldet wird. Zum Einstellen von minimum-damage-ratio.
+    debug: false
   reach:
     enabled: true
     maximum-java: 3.35
@@ -67,7 +85,12 @@ checks:
     maximum-targets: 3
     minimum-aim-dot-java: 0.55
     minimum-aim-dot-bedrock: 0.35
-    alert-level: 3.0
+    # Ein Ziel direkt am Spieler steht fast senkrecht unter der Blickachse. Der Aim-Wert
+    # ist dann auch bei einem sauberen Treffer niedrig, deshalb greift er erst ab hier.
+    minimum-aim-distance: 2.0
+    violation-amount: 2.0
+    alert-level: 1.0
+    debug: false
   fastplace:
     enabled: true
     max-places-per-second-java: 8
@@ -86,13 +109,17 @@ checks:
     window-millis: 400
     minimum-breaks-java: 4
     minimum-breaks-bedrock: 5
+    # Streuung trennt Nuker von einem schnellen Miner, der auf derselben Stelle bleibt.
     minimum-spread: 2.5
-    alert-level: 3.0
+    violation-amount: 3.0
+    alert-level: 1.0
+    debug: false
   blockreach:
     enabled: true
     maximum-java: 6.0
     maximum-bedrock: 7.0
-    alert-level: 2.0
+    violation-amount: 2.0
+    alert-level: 1.0
     cancel-level: 3.0
   scaffold:
     enabled: true
@@ -116,7 +143,29 @@ checks:
     maximum-direct-blocks-bedrock: 10
     suspicious-direct-paths-java: 3
     suspicious-direct-paths-bedrock: 4
-    alert-level: 3.0
+    violation-amount: 2.0
+    alert-level: 1.0
+    debug: false
+    # Xray ist ein statistischer Check: er wertet erst aus, wenn minimum-natural-breaks
+    # und minimum-vein-discoveries im Zeitfenster erreicht sind. Ein kurzer Test schlaegt
+    # daher nie an - mit debug: true den Zaehlerstand mitlesen.
+    # valuable-blocks sind die gesuchten Erze, natural-blocks das erwartete Umfeld.
+    valuable-blocks:
+      - DIAMOND_ORE
+      - DEEPSLATE_DIAMOND_ORE
+      - EMERALD_ORE
+      - DEEPSLATE_EMERALD_ORE
+      - ANCIENT_DEBRIS
+    natural-blocks:
+      - STONE
+      - DEEPSLATE
+      - TUFF
+      - GRANITE
+      - DIORITE
+      - ANDESITE
+      - NETHERRACK
+      - BASALT
+      - BLACKSTONE
 
   # Prueft Items auf Werte, die im Survival nicht entstehen koennen.
   # action: alert (nur melden) | sanitize (Item reparieren) | remove (Item loeschen)
@@ -195,6 +244,14 @@ client-detection:
   server-resource-pack-status: true
   announce-mod-hints: true
   max-announced-mod-hints: 4
+  # Ein echter Vanilla-Client registriert keinen einzigen Plugin-Channel. Wer den
+  # Vanilla-Brand meldet und trotzdem Channels registriert, faelscht ihn - das bekommt
+  # kein clientseitiger Spoofer weg. Bedrock-Spieler sind ausgenommen.
+  # ignored-channels nur fuellen, wenn ein Proxy nachweislich Channels beisteuert.
+  spoof-detection:
+    enabled: true
+    vanilla-brands: ["vanilla"]
+    ignored-channels: []
   # Der Mod-Loader wird ausschliesslich am Client-Brand erkannt. Plugin-Channels
   # taugen dafuer nicht: ein Fabric-Client mit Forge-Kompatibilitaetsmods
   # registriert fml:*-Channels und waere sonst zusaetzlich "Forge".

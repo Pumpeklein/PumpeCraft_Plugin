@@ -116,7 +116,7 @@ public final class BlockChecks extends AbstractCheck {
         double level = violations.flag(
             player,
             CheckType.BLOCK_REACH,
-            Math.min(2.0, distance - maximum),
+            settings.decimal(CheckType.BLOCK_REACH, "violation-amount", 2.0),
             "Block " + action + " auf " + Texts.decimal(distance) + " Blöcken > " + Texts.decimal(maximum)
         );
         return violations.shouldCancel(player, CheckType.BLOCK_REACH, level);
@@ -148,6 +148,9 @@ public final class BlockChecks extends AbstractCheck {
 
         int minimumBreaks = settings.platformInteger(player, CheckType.NUKER, "minimum-breaks", 4);
         double minimumSpread = settings.decimal(CheckType.NUKER, "minimum-spread", 2.5);
+        debug(CheckType.NUKER, player, blocks.nukerBreaks + " Blöcke (ab " + minimumBreaks
+            + ") mit " + Texts.decimal(blocks.nukerSpread) + " Streuung (ab "
+            + Texts.decimal(minimumSpread) + ") in " + window + "ms");
         if (blocks.nukerBreaks < minimumBreaks || blocks.nukerSpread < minimumSpread) {
             return;
         }
@@ -155,7 +158,7 @@ public final class BlockChecks extends AbstractCheck {
         violations.flag(
             player,
             CheckType.NUKER,
-            1.5,
+            settings.decimal(CheckType.NUKER, "violation-amount", 3.0),
             blocks.nukerBreaks + " Blöcke in " + window + "ms über "
                 + Texts.decimal(blocks.nukerSpread) + " Blöcke Reichweite"
         );
