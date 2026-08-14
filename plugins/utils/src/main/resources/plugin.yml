@@ -1,0 +1,7 @@
+name: PumpeUtils
+version: ${version}
+main: de.pumpecraft.utils.PumpeUtilsPlugin
+api-version: '1.21'
+author: PumpeCraft
+description: Shared helper library for the PumpeCraft plugins.
+load: STARTUP
