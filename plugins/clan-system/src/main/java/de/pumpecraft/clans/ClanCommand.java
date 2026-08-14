@@ -68,7 +68,7 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(error("Dafür fehlt dir die Berechtigung."));
             return true;
         }
-        if (args.length == 0 || matches(args[0], "hilfe", "help")) {
+        if (args.length == 0 || matches(args[0], "help", "hilfe")) {
             sendHelp(player, label);
             return true;
         }
@@ -103,16 +103,16 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length == 1) {
             List<String> options = new ArrayList<>(List.of(
-                "info", "annehmen", "verlassen", "hilfe"
+                "info", "accept", "leave", "help"
             ));
             if (sender.hasPermission(plugin.permission("clan-create"))) {
-                options.add("erstellen");
+                options.add("create");
             }
             if (sender.hasPermission(plugin.permission("clan-manage"))) {
-                options.addAll(List.of("einladen", "kicken", "löschen"));
+                options.addAll(List.of("invite", "kick", "delete"));
             }
             if (sender.hasPermission(plugin.permission("clan-color"))) {
-                options.add("tagfarbe");
+                options.add("color");
             }
             return filter(options, args[0]);
         }
@@ -131,7 +131,7 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
                 return filter(plugin.directory().memberNames(), args[1]);
             }
             if (matches(subcommand, "löschen", "loeschen", "delete")) {
-                return filter(List.of("bestätigen"), args[1]);
+                return filter(List.of("confirm"), args[1]);
             }
         }
         return List.of();
@@ -142,7 +142,7 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
             return;
         }
         if (args.length != 3) {
-            player.sendMessage(error("Nutzung: /" + label + " erstellen <Name> <Tag>"));
+            player.sendMessage(error("Nutzung: /" + label + " create <Name> <Tag>"));
             return;
         }
         String clanName = args[1];
@@ -182,7 +182,7 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length != 2 || !matches(args[1], "bestätigen", "bestaetigen", "confirm")) {
             player.sendMessage(error(
-                "Nutzung: /" + label + " löschen bestätigen"));
+                "Nutzung: /" + label + " delete confirm"));
             player.sendMessage(Component.text(
                 "Dabei werden der Clan, alle Mitglieder und Einladungen endgültig gelöscht.",
                 NamedTextColor.GRAY
@@ -219,7 +219,7 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
             return;
         }
         if (args.length != 2) {
-            player.sendMessage(error("Nutzung: /" + label + " tagfarbe <Farbe>"));
+            player.sendMessage(error("Nutzung: /" + label + " color <Farbe>"));
             return;
         }
         ColorChoice choice = ClanColors.byInput(args[1]);
@@ -275,7 +275,7 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
             return;
         }
         if (args.length != 2) {
-            player.sendMessage(error("Nutzung: /" + label + " einladen <Spieler>"));
+            player.sendMessage(error("Nutzung: /" + label + " invite <Spieler>"));
             return;
         }
         Player onlineTarget = Bukkit.getPlayerExact(args[1]);
@@ -315,7 +315,7 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
 
     private void accept(Player player, String label, String[] args) {
         if (args.length != 2) {
-            player.sendMessage(error("Nutzung: /" + label + " annehmen <Clanname|Tag>"));
+            player.sendMessage(error("Nutzung: /" + label + " accept <Clanname|Tag>"));
             return;
         }
         PlayerIdentity identity = identity(player);
@@ -360,7 +360,7 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
             return;
         }
         if (args.length != 2) {
-            player.sendMessage(error("Nutzung: /" + label + " kicken <Spieler>"));
+            player.sendMessage(error("Nutzung: /" + label + " kick <Spieler>"));
             return;
         }
         UUID playerId = player.getUniqueId();
@@ -445,9 +445,9 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
                     target.sendMessage(Component.text(
                         "Du wurdest in den Clan " + outcome.clan().name() + " eingeladen. ",
                         NamedTextColor.GOLD
-                    ).append(Component.text("[ANNEHMEN]", NamedTextColor.GREEN)
+                    ).append(Component.text("[ACCEPT]", NamedTextColor.GREEN)
                         .clickEvent(ClickEvent.runCommand(
-                            "/clan annehmen " + outcome.clan().name()
+                            "/clan accept " + outcome.clan().name()
                         ))
                         .hoverEvent(HoverEvent.showText(Component.text(
                             "Einladung annehmen", NamedTextColor.GREEN
@@ -461,21 +461,21 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(DIVIDER);
         player.sendMessage(Component.text("Clan-System", NamedTextColor.GOLD, TextDecoration.BOLD));
         player.sendMessage(Component.text("/" + label + " info [Clan]", NamedTextColor.GRAY));
-        player.sendMessage(Component.text("/" + label + " annehmen <Clan>", NamedTextColor.GRAY));
-        player.sendMessage(Component.text("/" + label + " verlassen", NamedTextColor.GRAY));
+        player.sendMessage(Component.text("/" + label + " accept <Clan>", NamedTextColor.GRAY));
+        player.sendMessage(Component.text("/" + label + " leave", NamedTextColor.GRAY));
         if (player.hasPermission(plugin.permission("clan-create"))) {
             player.sendMessage(Component.text(
-                "/" + label + " erstellen <Name> <Tag>", NamedTextColor.GRAY));
+                "/" + label + " create <Name> <Tag>", NamedTextColor.GRAY));
         }
         if (player.hasPermission(plugin.permission("clan-manage"))) {
             player.sendMessage(Component.text(
-                "/" + label + " einladen|kicken <Spieler>", NamedTextColor.GRAY));
+                "/" + label + " invite|kick <Spieler>", NamedTextColor.GRAY));
             player.sendMessage(Component.text(
-                "/" + label + " löschen bestätigen", NamedTextColor.GRAY));
+                "/" + label + " delete confirm", NamedTextColor.GRAY));
         }
         if (player.hasPermission(plugin.permission("clan-color"))) {
             player.sendMessage(Component.text(
-                "/" + label + " tagfarbe <Farbe>", NamedTextColor.GRAY));
+                "/" + label + " color <Farbe>", NamedTextColor.GRAY));
         }
         player.sendMessage(DIVIDER);
     }

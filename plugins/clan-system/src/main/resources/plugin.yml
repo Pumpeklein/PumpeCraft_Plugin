@@ -8,7 +8,7 @@ depend: [PumpeDatabase]
 commands:
   clan:
     description: Manages clans, memberships and clan tags.
-    usage: /clan <erstellen|info|einladen|annehmen|verlassen|kicken|tagfarbe|löschen>
+    usage: /clan <create|info|invite|accept|leave|kick|color|delete>
   base:
     description: Manages and visits public or private player bases.
-    usage: /base <setzen|besuchen|liken|info|öffentlich|privat|löschen>
+    usage: /base <set|visit|like|info|public|private|delete>

@@ -7,6 +7,10 @@ import java.nio.file.Files;
 import java.sql.PreparedStatement;
 import java.sql.Types;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import org.bukkit.Bukkit;
@@ -75,9 +79,33 @@ final class ServerMetricsCollector {
         long memoryMax = Math.max(0L, runtime.maxMemory());
         int loadedChunks = 0;
         int entityCount = 0;
+        Map<String, int[]> dimensionCounts = new LinkedHashMap<>();
+        dimensionCounts.put("OVERWORLD", new int[3]);
+        dimensionCounts.put("NETHER", new int[3]);
+        dimensionCounts.put("END", new int[3]);
         for (World world : Bukkit.getWorlds()) {
-            loadedChunks += world.getLoadedChunks().length;
-            entityCount += world.getEntityCount();
+            int worldChunks = world.getLoadedChunks().length;
+            int worldEntities = world.getEntityCount();
+            loadedChunks += worldChunks;
+            entityCount += worldEntities;
+            int[] counts = dimensionCounts.get(dimensionKey(world));
+            if (counts != null) {
+                counts[1] += worldChunks;
+                counts[2] += worldEntities;
+            }
+        }
+        Bukkit.getOnlinePlayers().forEach(player -> {
+            int[] counts = dimensionCounts.get(dimensionKey(player.getWorld()));
+            if (counts != null) {
+                counts[0]++;
+            }
+        });
+        List<DimensionSnapshot> dimensions = new ArrayList<>(dimensionCounts.size());
+        for (Map.Entry<String, int[]> entry : dimensionCounts.entrySet()) {
+            int[] counts = entry.getValue();
+            dimensions.add(new DimensionSnapshot(
+                entry.getKey(), counts[0], counts[1], counts[2]
+            ));
         }
 
         CpuLoad cpuLoad = cpuLoad();
@@ -112,7 +140,8 @@ final class ServerMetricsCollector {
             System.getProperty("os.name", "Unknown"),
             System.getProperty("os.version", "Unknown"),
             System.getProperty("os.arch", "Unknown"),
-            runtime.availableProcessors()
+            runtime.availableProcessors(),
+            dimensions
         );
     }
 
@@ -178,14 +207,45 @@ final class ServerMetricsCollector {
                 statement.executeUpdate();
             }
 
+            try (PreparedStatement statement = connection.prepareStatement("""
+                INSERT INTO pc_dimension_server_metrics
+                    (captured_at, dimension, online_players, loaded_chunks, entity_count)
+                VALUES (?, ?, ?, ?, ?)
+                """)) {
+                for (DimensionSnapshot dimension : snapshot.dimensions()) {
+                    statement.setLong(1, snapshot.capturedAt());
+                    statement.setString(2, dimension.dimension());
+                    statement.setInt(3, dimension.onlinePlayers());
+                    statement.setInt(4, dimension.loadedChunks());
+                    statement.setInt(5, dimension.entityCount());
+                    statement.addBatch();
+                }
+                statement.executeBatch();
+            }
+
             try (PreparedStatement statement = connection.prepareStatement(
                 "DELETE FROM pc_server_metrics WHERE captured_at < ?"
             )) {
                 statement.setLong(1, snapshot.capturedAt() - RETENTION_MILLIS);
                 statement.executeUpdate();
             }
+            try (PreparedStatement statement = connection.prepareStatement(
+                "DELETE FROM pc_dimension_server_metrics WHERE captured_at < ?"
+            )) {
+                statement.setLong(1, snapshot.capturedAt() - RETENTION_MILLIS);
+                statement.executeUpdate();
+            }
             return null;
         });
+    }
+
+    private static String dimensionKey(World world) {
+        return switch (world.getEnvironment()) {
+            case NORMAL -> "OVERWORLD";
+            case NETHER -> "NETHER";
+            case THE_END -> "END";
+            default -> null;
+        };
     }
 
     private CpuLoad cpuLoad() {
@@ -239,6 +299,14 @@ final class ServerMetricsCollector {
     private record DiskSpace(long usedBytes, long totalBytes) {
     }
 
+    private record DimensionSnapshot(
+        String dimension,
+        int onlinePlayers,
+        int loadedChunks,
+        int entityCount
+    ) {
+    }
+
     private record Snapshot(
         long capturedAt,
         double tps1m,
@@ -264,7 +332,8 @@ final class ServerMetricsCollector {
         String osName,
         String osVersion,
         String osArch,
-        int processors
+        int processors,
+        List<DimensionSnapshot> dimensions
     ) {
     }
 }

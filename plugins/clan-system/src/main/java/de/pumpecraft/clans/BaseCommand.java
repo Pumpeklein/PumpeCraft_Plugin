@@ -46,7 +46,7 @@ final class BaseCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(error("Dafür fehlt dir die Berechtigung."));
             return true;
         }
-        if (args.length == 0 || matches(args[0], "hilfe", "help")) {
+        if (args.length == 0 || matches(args[0], "help", "hilfe")) {
             sendHelp(player, label);
             return true;
         }
@@ -78,28 +78,28 @@ final class BaseCommand implements CommandExecutor, TabCompleter {
             return List.of();
         }
         if (args.length == 1) {
-            List<String> options = new ArrayList<>(List.of("info", "hilfe"));
+            List<String> options = new ArrayList<>(List.of("info", "help"));
             if (sender.hasPermission(plugin.permission("base-set"))) {
-                options.addAll(List.of("setzen", "öffentlich", "privat", "löschen"));
+                options.addAll(List.of("set", "public", "private", "delete"));
             }
             if (sender.hasPermission(plugin.permission("base-visit"))) {
-                options.add("besuchen");
+                options.add("visit");
             }
             if (sender.hasPermission(plugin.permission("base-like"))) {
-                options.add("liken");
+                options.add("like");
             }
             return filter(options, args[0]);
         }
         if (args.length == 2) {
             String subcommand = args[0].toLowerCase(Locale.ROOT);
             if (matches(subcommand, "setzen", "set")) {
-                return filter(List.of("öffentlich", "privat"), args[1]);
+                return filter(List.of("public", "private"), args[1]);
             }
             if (matches(subcommand, "besuchen", "visit", "liken", "like", "info")) {
                 return filter(plugin.directory().baseOwnerNames(), args[1]);
             }
             if (matches(subcommand, "löschen", "loeschen", "delete")) {
-                return filter(List.of("bestätigen"), args[1]);
+                return filter(List.of("confirm"), args[1]);
             }
         }
         return List.of();
@@ -111,12 +111,12 @@ final class BaseCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length > 2) {
             player.sendMessage(error(
-                "Nutzung: /" + label + " setzen [öffentlich|privat]"));
+                "Nutzung: /" + label + " set [public|private]"));
             return;
         }
         Boolean publicBase = args.length == 2 ? visibilityValue(args[1]) : defaultPublic;
         if (publicBase == null) {
-            player.sendMessage(error("Wähle öffentlich oder privat."));
+            player.sendMessage(error("Wähle public oder private."));
             return;
         }
 
@@ -161,7 +161,7 @@ final class BaseCommand implements CommandExecutor, TabCompleter {
             return;
         }
         if (args.length > 2) {
-            player.sendMessage(error("Nutzung: /" + label + " besuchen [Spieler]"));
+            player.sendMessage(error("Nutzung: /" + label + " visit [Spieler]"));
             return;
         }
         String targetName = args.length == 2 ? args[1] : player.getName();
@@ -206,7 +206,7 @@ final class BaseCommand implements CommandExecutor, TabCompleter {
             return;
         }
         if (args.length != 2) {
-            player.sendMessage(error("Nutzung: /" + label + " liken <Spieler>"));
+            player.sendMessage(error("Nutzung: /" + label + " like <Spieler>"));
             return;
         }
         PlayerIdentity liker = identity(player);
@@ -259,7 +259,7 @@ final class BaseCommand implements CommandExecutor, TabCompleter {
             return;
         }
         if (args.length != 2 || !matches(args[1], "bestätigen", "bestaetigen", "confirm")) {
-            player.sendMessage(error("Nutzung: /" + label + " löschen bestätigen"));
+            player.sendMessage(error("Nutzung: /" + label + " delete confirm"));
             return;
         }
         plugin.runAsync(
@@ -317,19 +317,19 @@ final class BaseCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(Component.text("/" + label + " info [Spieler]", NamedTextColor.GRAY));
         if (player.hasPermission(plugin.permission("base-set"))) {
             player.sendMessage(Component.text(
-                "/" + label + " setzen [öffentlich|privat]", NamedTextColor.GRAY));
+                "/" + label + " set [public|private]", NamedTextColor.GRAY));
             player.sendMessage(Component.text(
-                "/" + label + " öffentlich|privat", NamedTextColor.GRAY));
+                "/" + label + " public|private", NamedTextColor.GRAY));
             player.sendMessage(Component.text(
-                "/" + label + " löschen bestätigen", NamedTextColor.GRAY));
+                "/" + label + " delete confirm", NamedTextColor.GRAY));
         }
         if (player.hasPermission(plugin.permission("base-visit"))) {
             player.sendMessage(Component.text(
-                "/" + label + " besuchen [Spieler]", NamedTextColor.GRAY));
+                "/" + label + " visit [Spieler]", NamedTextColor.GRAY));
         }
         if (player.hasPermission(plugin.permission("base-like"))) {
             player.sendMessage(Component.text(
-                "/" + label + " liken <Spieler>", NamedTextColor.GRAY));
+                "/" + label + " like <Spieler>", NamedTextColor.GRAY));
         }
         player.sendMessage(DIVIDER);
     }
