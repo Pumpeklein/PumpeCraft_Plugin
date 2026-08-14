@@ -1,22 +1,25 @@
-package de.pumpecraft.anticheat;
+package de.pumpecraft.anticheat.storage;
 
+import de.pumpecraft.anticheat.core.CheckType;
 import de.pumpecraft.database.DatabaseService;
+import de.pumpecraft.utils.Texts;
 import java.sql.PreparedStatement;
 import java.util.logging.Level;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 
-final class AntiCheatEventRepository {
+public final class AntiCheatEventRepository {
     private static final int MAX_DETAIL_LENGTH = 500;
 
-    private final PumpeAntiCheatPlugin plugin;
+    private final Plugin plugin;
     private final DatabaseService database;
 
-    AntiCheatEventRepository(PumpeAntiCheatPlugin plugin, DatabaseService database) {
+    public AntiCheatEventRepository(Plugin plugin, DatabaseService database) {
         this.plugin = plugin;
         this.database = database;
     }
 
-    void record(
+    public void record(
         Player player,
         CheckType check,
         double violationLevel,
@@ -26,7 +29,7 @@ final class AntiCheatEventRepository {
         String playerId = player.getUniqueId().toString();
         String playerName = player.getName();
         String checkType = check.displayName();
-        String storedDetail = detail.substring(0, Math.min(detail.length(), MAX_DETAIL_LENGTH));
+        String storedDetail = Texts.truncate(detail, MAX_DETAIL_LENGTH);
         long createdAt = System.currentTimeMillis();
 
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {

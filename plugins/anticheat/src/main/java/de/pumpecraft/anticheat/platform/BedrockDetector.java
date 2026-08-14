@@ -1,40 +1,45 @@
-package de.pumpecraft.anticheat;
+package de.pumpecraft.anticheat.platform;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.UUID;
 import java.util.logging.Level;
+import org.bukkit.plugin.Plugin;
 
-final class BedrockDetector {
-    private final PumpeAntiCheatPlugin plugin;
+public final class BedrockDetector {
+    private final Plugin plugin;
     private Object platformApi;
     private Method isBedrockPlayer;
     private String providerName;
 
-    BedrockDetector(PumpeAntiCheatPlugin plugin) {
+    public BedrockDetector(Plugin plugin) {
         this.plugin = plugin;
         initialize();
     }
 
-    boolean isBedrock(UUID playerId) {
+    public boolean isBedrock(UUID playerId) {
         if (platformApi == null || isBedrockPlayer == null) {
             return false;
         }
         try {
             return Boolean.TRUE.equals(isBedrockPlayer.invoke(platformApi, playerId));
         } catch (IllegalAccessException | InvocationTargetException exception) {
-            plugin.getLogger().log(Level.WARNING, "Could not query " + providerName + " player status.", exception);
+            plugin.getLogger().log(
+                Level.WARNING,
+                "Could not query " + providerName + " player status.",
+                exception
+            );
             platformApi = null;
             isBedrockPlayer = null;
             return false;
         }
     }
 
-    boolean isAvailable() {
+    public boolean isAvailable() {
         return platformApi != null;
     }
 
-    String providerName() {
+    public String providerName() {
         return providerName == null ? "keiner" : providerName;
     }
 

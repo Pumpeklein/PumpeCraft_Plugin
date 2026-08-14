@@ -1,20 +1,21 @@
-package de.pumpecraft.anticheat;
+package de.pumpecraft.anticheat.storage;
 
 import de.pumpecraft.database.DatabaseService;
 import java.sql.PreparedStatement;
 import java.util.logging.Level;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 
-final class PlayerPlatformRepository {
-    private final PumpeAntiCheatPlugin plugin;
+public final class PlayerPlatformRepository {
+    private final Plugin plugin;
     private final DatabaseService database;
 
-    PlayerPlatformRepository(PumpeAntiCheatPlugin plugin, DatabaseService database) {
+    public PlayerPlatformRepository(Plugin plugin, DatabaseService database) {
         this.plugin = plugin;
         this.database = database;
     }
 
-    void record(Player player, boolean bedrock) {
+    public void record(Player player, boolean bedrock) {
         String playerId = player.getUniqueId().toString();
         String playerName = player.getName();
         String platform = bedrock ? "BEDROCK" : "JAVA";

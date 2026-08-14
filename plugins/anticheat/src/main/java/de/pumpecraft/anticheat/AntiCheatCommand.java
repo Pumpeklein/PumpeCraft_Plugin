@@ -1,14 +1,24 @@
 package de.pumpecraft.anticheat;
 
+import de.pumpecraft.anticheat.client.ClientDetectionService;
+import de.pumpecraft.anticheat.client.ClientReport;
+import de.pumpecraft.anticheat.core.AlertDispatcher;
+import de.pumpecraft.anticheat.core.CheckSettings;
+import de.pumpecraft.anticheat.core.CheckType;
+import de.pumpecraft.anticheat.core.PlayerState;
+import de.pumpecraft.anticheat.core.PlayerStateStore;
+import de.pumpecraft.anticheat.core.ViolationService;
+import de.pumpecraft.anticheat.platform.BedrockDetector;
+import de.pumpecraft.utils.Players;
+import de.pumpecraft.utils.Texts;
+import java.time.Duration;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
+import java.util.EnumMap;
 import java.util.List;
-import java.util.Locale;
-import java.util.Set;
-import java.util.UUID;
+import java.util.Map;
+import java.util.Optional;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -16,89 +26,55 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 
-final class AntiCheatCommand implements CommandExecutor, TabCompleter {
-    private static final List<String> ACTIONS =
-        List.of("status", "violations", "client", "reset", "reload");
+public final class AntiCheatCommand implements CommandExecutor, TabCompleter {
+    private static final List<String> ACTIONS = List.of(
+        "status", "violations", "client", "recent", "alerts", "checks", "reset", "reload"
+    );
     private static final int MAX_LISTED_CHANNELS = 20;
+    private static final int MAX_RECENT_ENTRIES = 10;
 
     private final PumpeAntiCheatPlugin plugin;
     private final PlayerStateStore states;
     private final ViolationService violations;
-    private final BedrockDetector bedrockDetector;
+    private final CheckSettings settings;
+    private final AlertDispatcher alerts;
     private final ClientDetectionService clientDetection;
+    private final BedrockDetector bedrockDetector;
 
-    AntiCheatCommand(
+    public AntiCheatCommand(
         PumpeAntiCheatPlugin plugin,
         PlayerStateStore states,
         ViolationService violations,
-        BedrockDetector bedrockDetector,
-        ClientDetectionService clientDetection
+        CheckSettings settings,
+        AlertDispatcher alerts,
+        ClientDetectionService clientDetection,
+        BedrockDetector bedrockDetector
     ) {
         this.plugin = plugin;
         this.states = states;
         this.violations = violations;
-        this.bedrockDetector = bedrockDetector;
+        this.settings = settings;
+        this.alerts = alerts;
         this.clientDetection = clientDetection;
+        this.bedrockDetector = bedrockDetector;
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (args.length == 0 || args[0].equalsIgnoreCase("status")) {
-            showStatus(sender, args.length >= 2 ? findKnownPlayer(args[1]) : null);
-            return true;
-        }
+        String action = args.length == 0 ? "status" : args[0].toLowerCase(java.util.Locale.ROOT);
+        String argument = args.length >= 2 ? args[1] : null;
 
-        if (args[0].equalsIgnoreCase("reload")) {
-            plugin.reloadSettings();
-            sender.sendMessage(Component.text("AntiCheat-Konfiguration neu geladen.", NamedTextColor.GREEN));
-            return true;
-        }
-
-        if (args[0].equalsIgnoreCase("violations")) {
-            OfflinePlayer target = args.length >= 2 ? findKnownPlayer(args[1]) : ownPlayer(sender);
-            if (target == null) {
-                sender.sendMessage(Component.text("Spieler nicht gefunden.", NamedTextColor.RED));
-                return true;
-            }
-            showViolations(sender, target);
-            return true;
-        }
-
-        if (args[0].equalsIgnoreCase("client")) {
-            Player target = args.length >= 2
-                ? Bukkit.getPlayerExact(args[1].startsWith("@") ? args[1].substring(1) : args[1])
-                : (sender instanceof Player self ? self : null);
-            if (target == null) {
-                sender.sendMessage(Component.text("Spieler ist nicht online.", NamedTextColor.RED));
-                return true;
-            }
-            showClient(sender, target);
-            return true;
-        }
-
-        if (args[0].equalsIgnoreCase("reset")) {
-            if (args.length < 2) {
-                sender.sendMessage(Component.text("Verwendung: /anticheat reset <Spieler>", NamedTextColor.RED));
-                return true;
-            }
-            OfflinePlayer target = findKnownPlayer(args[1]);
-            if (target == null) {
-                sender.sendMessage(Component.text("Spieler nicht gefunden.", NamedTextColor.RED));
-                return true;
-            }
-            violations.reset(target.getUniqueId());
-            sender.sendMessage(Component.text(
-                "Violations von " + displayName(target) + " zurückgesetzt.",
-                NamedTextColor.GREEN
-            ));
-            return true;
-        }
-
-        sender.sendMessage(Component.text(
-            "Verwendung: /anticheat <status|violations|client|reset|reload> [Spieler]",
-            NamedTextColor.RED
-        ));
-        return true;
+        return switch (action) {
+            case "status" -> status(sender, argument);
+            case "violations" -> violations(sender, argument);
+            case "client" -> client(sender, argument);
+            case "recent" -> recent(sender, argument);
+            case "alerts" -> alerts(sender);
+            case "checks" -> checks(sender);
+            case "reset" -> reset(sender, argument);
+            case "reload" -> reload(sender);
+            default -> usage(sender);
+        };
     }
 
     @Override
@@ -112,59 +88,98 @@ final class AntiCheatCommand implements CommandExecutor, TabCompleter {
             return List.of();
         }
         if (args.length == 1) {
-            return filter(ACTIONS, args[0]);
+            return Players.filterPrefix(ACTIONS, args[0]);
         }
-        if (args.length == 2 && !args[0].equalsIgnoreCase("reload")) {
-            return completeKnownPlayers(args[1]);
+        if (args.length == 2 && args[0].equalsIgnoreCase("client")) {
+            return Players.completeOnlineNames(args[1], 40);
+        }
+        if (args.length == 2 && !args[0].equalsIgnoreCase("reload")
+            && !args[0].equalsIgnoreCase("alerts")
+            && !args[0].equalsIgnoreCase("checks")) {
+            return Players.completeKnownNames(args[1], 40);
         }
         return List.of();
     }
 
-    private void showStatus(CommandSender sender, OfflinePlayer target) {
+    private boolean status(CommandSender sender, String argument) {
         sender.sendMessage(Component.text("PumpeAntiCheat", NamedTextColor.GOLD));
         sender.sendMessage(Component.text(
             " - Bedrock-Erkennung: " + bedrockDetector.providerName(),
             bedrockDetector.isAvailable() ? NamedTextColor.GREEN : NamedTextColor.YELLOW
         ));
-        long enabledChecks = java.util.Arrays.stream(CheckType.values()).filter(violations::enabled).count();
+
+        long enabled = java.util.Arrays.stream(CheckType.values()).filter(settings::enabled).count();
         sender.sendMessage(Component.text(
-            " - Checks: " + enabledChecks + "/" + CheckType.values().length + " aktiv",
+            " - Checks: " + enabled + "/" + CheckType.values().length + " aktiv",
             NamedTextColor.AQUA
         ));
-        if (target != null) {
-            boolean bedrock = bedrockDetector.isBedrock(target.getUniqueId());
-            sender.sendMessage(Component.text(
-                " - " + displayName(target) + ": " + (bedrock ? "Bedrock" : "Java"),
-                bedrock ? NamedTextColor.YELLOW : NamedTextColor.GRAY
-            ));
+        sender.sendMessage(Component.text(
+            " - Alerts: " + (plugin.getConfig().getBoolean("alerts.aggregate", true)
+                ? "gebündelt alle "
+                    + plugin.getConfig().getLong("alerts.flush-interval-ticks", 100L) / 20L + "s"
+                : "sofort"),
+            NamedTextColor.AQUA
+        ));
+
+        if (argument == null) {
+            return true;
         }
+        Optional<OfflinePlayer> target = Players.known(argument);
+        if (target.isEmpty()) {
+            return notFound(sender);
+        }
+        boolean bedrock = bedrockDetector.isBedrock(target.get().getUniqueId());
+        sender.sendMessage(Component.text(
+            " - " + Players.displayName(target.get()) + ": " + (bedrock ? "Bedrock" : "Java"),
+            bedrock ? NamedTextColor.YELLOW : NamedTextColor.GRAY
+        ));
+        return true;
     }
 
-    private void showViolations(CommandSender sender, OfflinePlayer target) {
+    private boolean violations(CommandSender sender, String argument) {
+        Optional<OfflinePlayer> target = argument == null
+            ? Players.self(sender).map(OfflinePlayer.class::cast)
+            : Players.known(argument);
+        if (target.isEmpty()) {
+            return notFound(sender);
+        }
+
         sender.sendMessage(Component.text(
-            "Violations von " + displayName(target),
+            "Violations von " + Players.displayName(target.get()),
             NamedTextColor.GOLD
         ));
-        PlayerState state = states.find(target.getUniqueId());
+        PlayerState state = states.find(target.get().getUniqueId());
         if (state == null || state.violations.values().stream().noneMatch(level -> level > 0.0)) {
             sender.sendMessage(Component.text(" - Keine aktuellen Violations", NamedTextColor.GREEN));
-            return;
+            return true;
         }
+
+        Map<CheckType.Category, List<String>> grouped = new EnumMap<>(CheckType.Category.class);
         for (CheckType check : CheckType.values()) {
             double level = state.violation(check);
-            if (level <= 0.0) {
-                continue;
+            if (level > 0.0) {
+                grouped.computeIfAbsent(check.category(), ignored -> new ArrayList<>())
+                    .add(check.displayName() + " " + Texts.decimal(level, 1));
             }
-            sender.sendMessage(Component.text(
-                " - " + check.displayName() + ": " + String.format(Locale.ROOT, "%.1f", level),
-                NamedTextColor.YELLOW
-            ));
         }
+        grouped.forEach((category, entries) -> sender.sendMessage(Component.text(
+            " " + category.displayName() + ": " + String.join(", ", entries),
+            NamedTextColor.YELLOW
+        )));
+        return true;
     }
 
-    private void showClient(CommandSender sender, Player target) {
-        ClientDetectionService.ClientReport report = clientDetection.report(target);
-        sender.sendMessage(Component.text("ClientCheck: " + target.getName(), NamedTextColor.GOLD));
+    private boolean client(CommandSender sender, String argument) {
+        Optional<Player> target = argument == null
+            ? Players.self(sender)
+            : Players.online(argument);
+        if (target.isEmpty()) {
+            sender.sendMessage(Component.text("Spieler ist nicht online.", NamedTextColor.RED));
+            return true;
+        }
+
+        ClientReport report = clientDetection.report(target.get());
+        sender.sendMessage(Component.text("ClientCheck: " + target.get().getName(), NamedTextColor.GOLD));
         sender.sendMessage(Component.text(
             " - Plattform: " + (report.bedrock() ? "Bedrock" : "Java"),
             report.bedrock() ? NamedTextColor.YELLOW : NamedTextColor.GRAY
@@ -184,78 +199,126 @@ final class AntiCheatCommand implements CommandExecutor, TabCompleter {
         ));
 
         List<String> channels = report.channels();
+        sender.sendMessage(Component.text(" - Kanäle (" + channels.size() + "):", NamedTextColor.GRAY));
         sender.sendMessage(Component.text(
-            " - Kanäle (" + channels.size() + "):",
-            NamedTextColor.GRAY
-        ));
-        if (channels.isEmpty()) {
-            sender.sendMessage(Component.text("   keine", NamedTextColor.DARK_GRAY));
-            return;
-        }
-        sender.sendMessage(Component.text(
-            "   " + String.join(", ", channels.subList(0, Math.min(MAX_LISTED_CHANNELS, channels.size()))),
+            "   " + (channels.isEmpty()
+                ? "keine"
+                : Texts.joinLimited(channels, MAX_LISTED_CHANNELS, "... und {count} weitere")),
             NamedTextColor.DARK_GRAY
         ));
-        if (channels.size() > MAX_LISTED_CHANNELS) {
+        return true;
+    }
+
+    private boolean recent(CommandSender sender, String argument) {
+        Optional<OfflinePlayer> filter = argument == null ? Optional.empty() : Players.known(argument);
+        if (argument != null && filter.isEmpty()) {
+            return notFound(sender);
+        }
+
+        List<AlertDispatcher.Entry> entries = alerts.recent(
+            filter.map(OfflinePlayer::getUniqueId).orElse(null),
+            MAX_RECENT_ENTRIES
+        );
+        sender.sendMessage(Component.text(
+            "Letzte Meldungen" + (argument == null ? "" : " von " + argument),
+            NamedTextColor.GOLD
+        ));
+        if (entries.isEmpty()) {
+            sender.sendMessage(Component.text(" - keine", NamedTextColor.GREEN));
+            return true;
+        }
+        long now = System.currentTimeMillis();
+        for (AlertDispatcher.Entry entry : entries) {
             sender.sendMessage(Component.text(
-                "   ... und " + (channels.size() - MAX_LISTED_CHANNELS) + " weitere",
+                " " + Duration.ofMillis(now - entry.createdAt()).toSeconds() + "s her  ",
                 NamedTextColor.DARK_GRAY
+            ).append(Component.text(entry.playerName(), NamedTextColor.YELLOW))
+                .append(Component.text(" » " + entry.check().displayName(), NamedTextColor.GRAY))
+                .append(Component.text(
+                    " (VL " + Texts.decimal(entry.level(), 1) + ") ",
+                    NamedTextColor.DARK_GRAY
+                ))
+                .append(Component.text(entry.detail(), NamedTextColor.GRAY)));
+        }
+        return true;
+    }
+
+    private boolean alerts(CommandSender sender) {
+        Optional<Player> staff = Players.self(sender);
+        if (staff.isEmpty()) {
+            sender.sendMessage(Component.text("Nur für Spieler.", NamedTextColor.RED));
+            return true;
+        }
+        boolean muted = alerts.toggleMute(staff.get());
+        sender.sendMessage(Component.text(
+            muted ? "AntiCheat-Meldungen stummgeschaltet." : "AntiCheat-Meldungen aktiviert.",
+            muted ? NamedTextColor.YELLOW : NamedTextColor.GREEN
+        ));
+        return true;
+    }
+
+    private boolean checks(CommandSender sender) {
+        sender.sendMessage(Component.text("Checks", NamedTextColor.GOLD));
+        for (CheckType.Category category : CheckType.Category.values()) {
+            Component line = Component.text(" " + category.displayName() + ": ", NamedTextColor.GRAY);
+            boolean first = true;
+            for (CheckType check : CheckType.values()) {
+                if (check.category() != category) {
+                    continue;
+                }
+                if (!first) {
+                    line = line.append(Component.text(", ", NamedTextColor.DARK_GRAY));
+                }
+                line = line.append(Component.text(
+                    check.displayName(),
+                    settings.enabled(check) ? NamedTextColor.GREEN : NamedTextColor.RED
+                ));
+                first = false;
+            }
+            sender.sendMessage(line);
+        }
+        return true;
+    }
+
+    private boolean reset(CommandSender sender, String argument) {
+        if (argument == null) {
+            sender.sendMessage(Component.text(
+                "Verwendung: /anticheat reset <Spieler>",
+                NamedTextColor.RED
             ));
+            return true;
         }
+        Optional<OfflinePlayer> target = Players.known(argument);
+        if (target.isEmpty()) {
+            return notFound(sender);
+        }
+        violations.reset(target.get().getUniqueId());
+        sender.sendMessage(Component.text(
+            "Violations von " + Players.displayName(target.get()) + " zurückgesetzt.",
+            NamedTextColor.GREEN
+        ));
+        return true;
     }
 
-    private OfflinePlayer ownPlayer(CommandSender sender) {
-        return sender instanceof Player player ? player : null;
+    private boolean reload(CommandSender sender) {
+        plugin.reloadSettings();
+        sender.sendMessage(Component.text(
+            "AntiCheat-Konfiguration neu geladen.",
+            NamedTextColor.GREEN
+        ));
+        return true;
     }
 
-    private OfflinePlayer findKnownPlayer(String input) {
-        String name = input.startsWith("@") ? input.substring(1) : input;
-        Player online = Bukkit.getPlayerExact(name);
-        if (online != null) {
-            return online;
-        }
-        for (OfflinePlayer player : Bukkit.getOfflinePlayers()) {
-            if (player.getName() != null && player.getName().equalsIgnoreCase(name)) {
-                return player;
-            }
-        }
-        return null;
+    private boolean usage(CommandSender sender) {
+        sender.sendMessage(Component.text(
+            "Verwendung: /anticheat <" + String.join("|", ACTIONS) + "> [Spieler]",
+            NamedTextColor.RED
+        ));
+        return true;
     }
 
-    private List<String> completeKnownPlayers(String input) {
-        boolean atPrefix = input.startsWith("@");
-        String prefix = (atPrefix ? input.substring(1) : input).toLowerCase(Locale.ROOT);
-        Set<String> names = new LinkedHashSet<>();
-        for (Player player : Bukkit.getOnlinePlayers()) {
-            names.add(player.getName());
-        }
-        for (OfflinePlayer player : Bukkit.getOfflinePlayers()) {
-            if (player.getName() != null) {
-                names.add(player.getName());
-            }
-        }
-        return names.stream()
-            .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(prefix))
-            .sorted(String.CASE_INSENSITIVE_ORDER)
-            .limit(40)
-            .map(name -> atPrefix ? "@" + name : name)
-            .toList();
-    }
-
-    private List<String> filter(List<String> values, String input) {
-        String prefix = input.toLowerCase(Locale.ROOT);
-        List<String> matches = new ArrayList<>();
-        for (String value : values) {
-            if (value.startsWith(prefix)) {
-                matches.add(value);
-            }
-        }
-        return matches;
-    }
-
-    private String displayName(OfflinePlayer player) {
-        String name = player.getName();
-        UUID playerId = player.getUniqueId();
-        return name == null ? playerId.toString().substring(0, 8) : name;
+    private boolean notFound(CommandSender sender) {
+        sender.sendMessage(Component.text("Spieler nicht gefunden.", NamedTextColor.RED));
+        return true;
     }
 }

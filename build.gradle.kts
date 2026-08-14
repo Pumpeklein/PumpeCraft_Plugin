@@ -13,6 +13,7 @@ plugins {
 val paperApiVersion = providers.gradleProperty("paperApiVersion").get()
 val pluginModulePaths = listOf(
     ":plugins:database",
+    ":plugins:utils",
     ":plugins:essentials",
     ":plugins:mod",
     ":plugins:clan-system",
@@ -70,11 +71,13 @@ configure(pluginProjects) {
     }
 }
 
-configure(pluginProjects.filter { it.path != ":plugins:database" }) {
+val libraryModulePaths = listOf(":plugins:database", ":plugins:utils")
+
+configure(pluginProjects.filter { it.path !in libraryModulePaths }) {
     apply(plugin = "eclipse")
 
     dependencies {
-        add("compileOnly", project(":plugins:database"))
+        libraryModulePaths.forEach { add("compileOnly", project(it)) }
     }
 
     // Gradle's Eclipse model drops compileOnly project dependencies, so IDEs that build on
@@ -86,7 +89,7 @@ configure(pluginProjects.filter { it.path != ":plugins:database" }) {
         isCanBeResolved = true
     }
     dependencies {
-        add(ideClasspath.name, project(":plugins:database"))
+        libraryModulePaths.forEach { add(ideClasspath.name, project(it)) }
     }
     extensions.configure<EclipseModel> {
         classpath.plusConfigurations.add(ideClasspath)
