@@ -3,6 +3,7 @@ package de.pumpecraft.anticheat;
 import de.pumpecraft.database.Databases;
 import java.util.Objects;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class PumpeAntiCheatPlugin extends JavaPlugin {
@@ -56,7 +57,8 @@ public final class PumpeAntiCheatPlugin extends JavaPlugin {
             this,
             states,
             violations,
-            bedrockDetector
+            bedrockDetector,
+            clientDetectionService
         );
         PluginCommand command = Objects.requireNonNull(
             getCommand("anticheat"),
@@ -89,9 +91,15 @@ public final class PumpeAntiCheatPlugin extends JavaPlugin {
         if (configVersion < 3) {
             migrateVersionThreeDefaults();
         }
+        if (configVersion < 4) {
+            migrateVersionFourDefaults();
+        }
         getConfig().options().copyDefaults(true);
-        getConfig().set("config-version", 3);
+        getConfig().set("config-version", 4);
         saveConfig();
+        if (clientDetectionService != null) {
+            clientDetectionService.reload();
+        }
     }
 
     private void migrateVersionTwoDefaults() {
@@ -114,6 +122,25 @@ public final class PumpeAntiCheatPlugin extends JavaPlugin {
         replaceDoubleDefault("checks.autoclicker.minimum-consistent-cps-bedrock", 13.0, 11.0);
         replaceDoubleDefault("checks.autoclicker.maximum-interval-variation-java", 0.075, 0.22);
         replaceDoubleDefault("checks.autoclicker.maximum-interval-variation-bedrock", 0.05, 0.30);
+    }
+
+    /**
+     * The old client detection matched one flat list per client against brand and channels at once,
+     * which reported mod loaders as clients. Drop that section so the split brands/channels defaults
+     * are copied in.
+     */
+    private void migrateVersionFourDefaults() {
+        getConfig().set("client-detection.join-message-delay-ticks", null);
+        ConfigurationSection signatures = getConfig()
+            .getConfigurationSection("client-detection.known-signatures");
+        if (signatures == null) {
+            return;
+        }
+        boolean legacyFormat = signatures.getKeys(false).stream()
+            .anyMatch(key -> signatures.getConfigurationSection(key) == null);
+        if (legacyFormat) {
+            getConfig().set("client-detection.known-signatures", null);
+        }
     }
 
     private void replaceIntDefault(String path, int previousDefault, int newDefault) {

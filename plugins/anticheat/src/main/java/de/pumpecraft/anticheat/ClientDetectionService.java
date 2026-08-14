@@ -3,7 +3,6 @@ package de.pumpecraft.anticheat;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -26,13 +25,18 @@ import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.bukkit.scheduler.BukkitTask;
 
 final class ClientDetectionService implements Listener, PluginMessageListener {
+    static final String ALERT_PERMISSION = "pumpecraft.anticheat.command";
     private static final String BRAND_CHANNEL = "minecraft:brand";
     private static final int MAX_BRAND_LENGTH = 80;
+    private static final String UNKNOWN_LABEL = "unbekannt";
 
     private final PumpeAntiCheatPlugin plugin;
     private final BedrockDetector bedrockDetector;
     private final PlayerPlatformRepository platformRepository;
     private final Map<UUID, ClientProfile> profiles = new HashMap<>();
+    private List<Signature> signatureCache;
+    private List<Signature> loaderCache;
+    private List<Signature> modHintCache;
     private BukkitTask scanTask;
 
     ClientDetectionService(
@@ -68,15 +72,17 @@ final class ClientDetectionService implements Listener, PluginMessageListener {
         profiles.clear();
     }
 
+    void reload() {
+        signatureCache = null;
+        loaderCache = null;
+        modHintCache = null;
+    }
+
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         refreshProfile(player, profile(player));
-        long delay = Math.max(
-            20L,
-            plugin.getConfig().getLong("client-detection.join-message-delay-ticks", 60L)
-        );
-        plugin.getServer().getScheduler().runTaskLater(plugin, () -> announceJoin(player), delay);
+        scheduleAnnounce(player, 0);
     }
 
     @EventHandler
@@ -124,27 +130,94 @@ final class ClientDetectionService implements Listener, PluginMessageListener {
         scanSignatures(player, profile);
     }
 
-    private void announceJoin(Player player) {
-        if (!player.isOnline()
+    /** Snapshot of everything the server knows about a player's client, for {@code /anticheat client}. */
+    ClientReport report(Player player) {
+        ClientProfile profile = profile(player);
+        refreshProfile(player, profile);
+        scanSignatures(player, profile);
+        return new ClientReport(
+            bedrockDetector.isBedrock(player.getUniqueId()),
+            profile.brand,
+            loaderName(profile),
+            clientName(profile),
+            modHints(profile),
+            List.copyOf(profile.channels)
+        );
+    }
+
+    /**
+     * The brand only arrives once the client has finished logging in, so the join message waits for
+     * it instead of firing after a fixed delay and reporting "unbekannt".
+     */
+    private void scheduleAnnounce(Player player, int attempt) {
+        long step = Math.max(
+            5L,
+            plugin.getConfig().getLong("client-detection.announce-poll-ticks", 10L)
+        );
+        long maxWait = Math.max(
+            step,
+            plugin.getConfig().getLong("client-detection.brand-wait-ticks", 100L)
+        );
+        int maxAttempts = (int) Math.max(1L, maxWait / step);
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            if (!player.isOnline()) {
+                return;
+            }
+            ClientProfile profile = profile(player);
+            refreshProfile(player, profile);
+            if (profile.brand == null && attempt + 1 < maxAttempts) {
+                scheduleAnnounce(player, attempt + 1);
+                return;
+            }
+            announceJoin(player, profile);
+        }, step);
+    }
+
+    private void announceJoin(Player player, ClientProfile profile) {
+        if (profile.joinAnnounced
             || !plugin.getConfig().getBoolean("client-detection.announce-joins", true)) {
             return;
         }
 
-        ClientProfile profile = profile(player);
-        refreshProfile(player, profile);
         scanSignatures(player, profile);
         profile.joinAnnounced = true;
 
         boolean bedrock = bedrockDetector.isBedrock(player.getUniqueId());
         platformRepository.record(player, bedrock);
-        String client = bedrock
-            ? "Bedrock"
-            : "Java | Client: " + identifyJavaClient(profile);
+
         Component message = Component.text("[ClientCheck] ", NamedTextColor.DARK_AQUA)
             .append(Component.text(player.getName(), NamedTextColor.YELLOW))
             .append(Component.text(" ist beigetreten: ", NamedTextColor.GRAY))
-            .append(Component.text(client, bedrock ? NamedTextColor.GOLD : NamedTextColor.AQUA));
+            .append(Component.text(
+                bedrock ? "Bedrock" : summarize(profile),
+                bedrock ? NamedTextColor.GOLD : NamedTextColor.AQUA
+            ));
         notifyStaff(message);
+    }
+
+    /** Builds e.g. {@code Java | Fabric | Lunar Client | Xaero's Minimap, JourneyMap}. */
+    private String summarize(ClientProfile profile) {
+        List<String> parts = new ArrayList<>();
+        parts.add("Java");
+        parts.add(loaderName(profile));
+        String client = clientName(profile);
+        if (client != null) {
+            parts.add(client);
+        }
+        if (plugin.getConfig().getBoolean("client-detection.announce-mod-hints", true)) {
+            List<String> mods = modHints(profile);
+            int limit = Math.max(
+                1,
+                plugin.getConfig().getInt("client-detection.max-announced-mod-hints", 4)
+            );
+            if (mods.size() > limit) {
+                parts.add(String.join(", ", mods.subList(0, limit))
+                    + " (+" + (mods.size() - limit) + ")");
+            } else if (!mods.isEmpty()) {
+                parts.add(String.join(", ", mods));
+            }
+        }
+        return String.join(" | ", parts);
     }
 
     private void scanOnlinePlayers() {
@@ -163,47 +236,171 @@ final class ClientDetectionService implements Listener, PluginMessageListener {
             return;
         }
 
-        String brand = profile.brand == null ? "" : profile.brand;
-        String observable = (brand + " " + String.join(" ", profile.channels))
-            .toLowerCase(Locale.ROOT);
-        for (Map.Entry<String, List<String>> entry : configuredSignatures().entrySet()) {
-            boolean matched = entry.getValue().stream().anyMatch(observable::contains);
-            if (!matched || !profile.detections.add(entry.getKey()) || !profile.joinAnnounced) {
+        Set<String> brandTokens = brandTokens(profile);
+        Set<String> channelTokens = channelTokens(profile);
+        for (Signature signature : signatures()) {
+            boolean matched = matches(signature.brands(), brandTokens)
+                || matches(signature.channels(), channelTokens);
+            if (!matched || !profile.detections.add(signature.label()) || !profile.joinAnnounced) {
                 continue;
             }
             notifyStaff(
                 Component.text("[ClientCheck] ", NamedTextColor.DARK_AQUA)
                     .append(Component.text(player.getName(), NamedTextColor.YELLOW))
                     .append(Component.text(" erkannt: ", NamedTextColor.GRAY))
-                    .append(Component.text(entry.getKey(), NamedTextColor.RED))
+                    .append(Component.text(signature.label(), NamedTextColor.RED))
             );
         }
     }
 
-    private Map<String, List<String>> configuredSignatures() {
-        Map<String, List<String>> signatures = new LinkedHashMap<>();
-        ConfigurationSection section = plugin.getConfig()
-            .getConfigurationSection("client-detection.known-signatures");
+    /**
+     * The mod loader is decided by the client brand alone. Plugin channels are unreliable here:
+     * a Fabric client running a Forge compat layer registers {@code fml:*} channels and would
+     * otherwise be reported as Forge as well.
+     */
+    private String loaderName(ClientProfile profile) {
+        if (profile.brand == null) {
+            return UNKNOWN_LABEL;
+        }
+        Set<String> brandTokens = brandTokens(profile);
+        for (Signature loader : loaders()) {
+            if (matches(loader.brands(), brandTokens)) {
+                return loader.label();
+            }
+        }
+        return profile.brand;
+    }
+
+    private String clientName(ClientProfile profile) {
+        return profile.detections.isEmpty() ? null : String.join(", ", profile.detections);
+    }
+
+    /**
+     * Mods the client gave away by registering their plugin channels. Informational only -
+     * no staff alert is raised for these, unlike {@code known-signatures}.
+     */
+    private List<String> modHints(ClientProfile profile) {
+        Set<String> brandTokens = brandTokens(profile);
+        Set<String> channelTokens = channelTokens(profile);
+        List<String> hints = new ArrayList<>();
+        for (Signature hint : modHints()) {
+            if (matches(hint.brands(), brandTokens) || matches(hint.channels(), channelTokens)) {
+                hints.add(hint.label());
+            }
+        }
+        return hints;
+    }
+
+    private Set<String> brandTokens(ClientProfile profile) {
+        Set<String> tokens = new LinkedHashSet<>();
+        if (profile.brand == null) {
+            return tokens;
+        }
+        String brand = profile.brand.toLowerCase(Locale.ROOT);
+        tokens.add(brand);
+        for (String part : brand.split("[^a-z0-9_-]+")) {
+            if (!part.isBlank()) {
+                tokens.add(part);
+            }
+        }
+        return tokens;
+    }
+
+    private Set<String> channelTokens(ClientProfile profile) {
+        Set<String> tokens = new LinkedHashSet<>();
+        for (String channel : profile.channels) {
+            String lower = channel.toLowerCase(Locale.ROOT);
+            tokens.add(lower);
+            int colon = lower.indexOf(':');
+            if (colon > 0) {
+                tokens.add(lower.substring(0, colon));
+            }
+        }
+        return tokens;
+    }
+
+    /** Exact token match, with an optional trailing {@code *} for prefixes such as {@code labymod*}. */
+    private boolean matches(List<String> patterns, Set<String> tokens) {
+        for (String pattern : patterns) {
+            if (!pattern.endsWith("*")) {
+                if (tokens.contains(pattern)) {
+                    return true;
+                }
+                continue;
+            }
+            String prefix = pattern.substring(0, pattern.length() - 1);
+            if (prefix.isEmpty()) {
+                continue;
+            }
+            for (String token : tokens) {
+                if (token.startsWith(prefix)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private List<Signature> signatures() {
+        if (signatureCache == null) {
+            signatureCache = readSignatures("client-detection.known-signatures");
+        }
+        return signatureCache;
+    }
+
+    private List<Signature> loaders() {
+        if (loaderCache == null) {
+            loaderCache = readSignatures("client-detection.loaders");
+        }
+        return loaderCache;
+    }
+
+    private List<Signature> modHints() {
+        if (modHintCache == null) {
+            modHintCache = readSignatures("client-detection.mod-hints");
+        }
+        return modHintCache;
+    }
+
+    private List<Signature> readSignatures(String path) {
+        List<Signature> signatures = new ArrayList<>();
+        ConfigurationSection section = plugin.getConfig().getConfigurationSection(path);
         if (section == null) {
             return signatures;
         }
         for (String label : section.getKeys(false)) {
-            List<String> values = new ArrayList<>();
-            for (String value : section.getStringList(label)) {
-                if (!value.isBlank()) {
-                    values.add(value.toLowerCase(Locale.ROOT));
-                }
+            ConfigurationSection entry = section.getConfigurationSection(label);
+            List<String> brands;
+            List<String> channels;
+            if (entry == null) {
+                // Legacy flat form: one list that may hold brands as well as channel namespaces.
+                List<String> legacy = normalize(section.getStringList(label));
+                brands = legacy;
+                channels = legacy;
+            } else {
+                brands = normalize(entry.getStringList("brands"));
+                channels = normalize(entry.getStringList("channels"));
             }
-            if (!values.isEmpty()) {
-                signatures.put(label, values);
+            if (!brands.isEmpty() || !channels.isEmpty()) {
+                signatures.add(new Signature(label, brands, channels));
             }
         }
         return signatures;
     }
 
+    private List<String> normalize(List<String> values) {
+        List<String> normalized = new ArrayList<>();
+        for (String value : values) {
+            if (!value.isBlank()) {
+                normalized.add(value.trim().toLowerCase(Locale.ROOT));
+            }
+        }
+        return normalized;
+    }
+
     private void notifyStaff(Component message) {
         for (Player staff : Bukkit.getOnlinePlayers()) {
-            if (plugin.getCommand("anticheat").testPermissionSilent(staff)) {
+            if (staff.hasPermission(ALERT_PERMISSION)) {
                 staff.sendMessage(message);
             }
         }
@@ -219,27 +416,6 @@ final class ClientDetectionService implements Listener, PluginMessageListener {
             profile.brand = paperBrand;
         }
         profile.channels.addAll(player.getListeningPluginChannels());
-    }
-
-    private String identifyJavaClient(ClientProfile profile) {
-        if (!profile.detections.isEmpty()) {
-            return String.join(", ", profile.detections);
-        }
-        if (profile.brand != null) {
-            return friendlyBrand(profile.brand);
-        }
-        return "Standard";
-    }
-
-    private String friendlyBrand(String brand) {
-        return switch (brand.toLowerCase(Locale.ROOT)) {
-            case "vanilla" -> "Vanilla";
-            case "fabric" -> "Fabric";
-            case "forge" -> "Forge";
-            case "neoforge" -> "NeoForge";
-            case "quilt" -> "Quilt";
-            default -> brand;
-        };
     }
 
     private String decodeBrand(byte[] message) {
@@ -264,14 +440,31 @@ final class ClientDetectionService implements Listener, PluginMessageListener {
         return sanitizeBrand(decoded);
     }
 
+    /**
+     * Control characters become spaces rather than being dropped, so Forge's legacy
+     * {@code forge\0FML\0} brand still splits into the tokens {@code forge} and {@code fml}.
+     */
     private String sanitizeBrand(String brand) {
         if (brand == null) {
             return null;
         }
-        String sanitized = brand.replaceAll("[\\p{Cntrl}&&[^\\t]]", "").trim();
+        String sanitized = brand.replaceAll("\\p{Cntrl}", " ").replaceAll("\\s+", " ").trim();
         return sanitized.isEmpty()
             ? null
             : sanitized.substring(0, Math.min(MAX_BRAND_LENGTH, sanitized.length()));
+    }
+
+    record ClientReport(
+        boolean bedrock,
+        String brand,
+        String loader,
+        String client,
+        List<String> mods,
+        List<String> channels
+    ) {
+    }
+
+    private record Signature(String label, List<String> brands, List<String> channels) {
     }
 
     private static final class ClientProfile {

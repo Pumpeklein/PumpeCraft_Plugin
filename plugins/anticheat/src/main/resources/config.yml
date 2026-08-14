@@ -67,21 +67,96 @@ bedrock:
 client-detection:
   enabled: true
   announce-joins: true
-  join-message-delay-ticks: 60
+  # Der Brand trifft erst nach dem Login ein. Die Join-Meldung wartet darauf,
+  # statt nach fester Zeit "unbekannt" zu melden.
+  brand-wait-ticks: 100
+  announce-poll-ticks: 10
   scan-interval-ticks: 100
   server-resource-pack-status: true
-  known-signatures:
-    Fabric: ["fabric", "fabric-api"]
-    Forge: ["forge", "fml"]
-    NeoForge: ["neoforge"]
+  announce-mod-hints: true
+  max-announced-mod-hints: 4
+  # Der Mod-Loader wird ausschliesslich am Client-Brand erkannt. Plugin-Channels
+  # taugen dafuer nicht: ein Fabric-Client mit Forge-Kompatibilitaetsmods
+  # registriert fml:*-Channels und waere sonst zusaetzlich "Forge".
+  loaders:
+    Vanilla: ["vanilla"]
+    Fabric: ["fabric"]
     Quilt: ["quilt"]
-    Lunar-Client: ["lunarclient", "lunar"]
-    Badlion-Client: ["badlion", "badlionclient"]
-    Feather-Client: ["feather"]
-    LabyMod: ["labymod"]
-    Meteor-Client: ["meteor"]
-    Wurst-Client: ["wurst"]
-    LiquidBounce: ["liquidbounce"]
-    Impact-Client: ["impact"]
-    Aristois: ["aristois"]
-    NoRiskClient: ["noriskclient"]
+    NeoForge: ["neoforge"]
+    Forge: ["forge", "fml"]
+  # Eintraege werden exakt gegen Brand-Tokens bzw. Channel-Namespaces geprueft,
+  # nicht als Teilstring. "labymod*" erlaubt Praefix-Treffer (labymod3, labymod4).
+  # Hinweis: Cheat-Clients wie Wurst oder Meteor melden sich als "fabric" und
+  # registrieren keine eigenen Channels - sie sind so nicht erkennbar.
+  known-signatures:
+    Lunar Client:
+      brands: ["lunarclient"]
+      channels: ["lunar", "lunarclient", "lunar-client"]
+    Badlion Client:
+      brands: ["badlion", "badlionclient"]
+      channels: ["badlion"]
+    Feather Client:
+      brands: ["feather"]
+      channels: ["feather"]
+    LabyMod:
+      brands: ["labymod"]
+      channels: ["labymod*"]
+    Salwyrr Client:
+      brands: ["salwyrr"]
+      channels: ["salwyrr"]
+    PvPLounge:
+      channels: ["pvplounge"]
+    5zig:
+      channels: ["5zig_set", "the5zigmod"]
+    CheatBreaker:
+      channels: ["cb-client"]
+    Vivecraft (VR):
+      brands: ["vivecraft"]
+      channels: ["vivecraft"]
+    Meteor Client:
+      brands: ["meteor", "meteor-client"]
+      channels: ["meteor-client"]
+    Wurst Client:
+      brands: ["wurst", "wurstclient"]
+    LiquidBounce:
+      brands: ["liquidbounce"]
+    Impact Client:
+      brands: ["impact"]
+    Aristois:
+      brands: ["aristois"]
+      channels: ["aristois"]
+    NoRiskClient:
+      brands: ["noriskclient", "norisk"]
+      channels: ["noriskclient"]
+  # Rein informativ, loest keine Staff-Warnung aus. Launcher (Modrinth App, Prism,
+  # CurseForge, MultiMC) senden nichts an den Server und sind hier nicht erfassbar -
+  # sichtbar sind nur Mods, die selbst einen Plugin-Channel registrieren.
+  # Startliste; mit "/anticheat client <Spieler>" die echten Channels ablesen
+  # und hier ergaenzen.
+  mod-hints:
+    Xaero's Minimap:
+      channels: ["xaerominimap", "xaeroworldmap"]
+    JourneyMap:
+      channels: ["journeymap"]
+    VoxelMap:
+      channels: ["voxelmap", "worldinfo"]
+    Wynntils:
+      channels: ["wynntils"]
+    WorldEdit CUI:
+      channels: ["worldedit:cui"]
+    Carpet:
+      channels: ["carpet"]
+    Jade:
+      channels: ["jade"]
+    WTHIT:
+      channels: ["wthit"]
+    JEI:
+      channels: ["jei"]
+    REI:
+      channels: ["roughlyenoughitems"]
+    AppleSkin:
+      channels: ["appleskin"]
+    Better Sprinting:
+      channels: ["bsm"]
+    Distant Horizons:
+      channels: ["distant_horizons", "distanthorizons"]

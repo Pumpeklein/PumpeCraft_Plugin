@@ -10,7 +10,7 @@ commands:
   anticheat:
     aliases: [ac]
     description: Manages and inspects the anticheat.
-    usage: /anticheat <status|violations|reset|reload> [Spieler]
+    usage: /anticheat <status|violations|client|reset|reload> [Spieler]
     permission: pumpecraft.anticheat.command
 permissions:
   pumpecraft.anticheat.*:

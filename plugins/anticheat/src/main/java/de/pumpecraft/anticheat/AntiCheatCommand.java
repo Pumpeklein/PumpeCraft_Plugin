@@ -17,23 +17,28 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 
 final class AntiCheatCommand implements CommandExecutor, TabCompleter {
-    private static final List<String> ACTIONS = List.of("status", "violations", "reset", "reload");
+    private static final List<String> ACTIONS =
+        List.of("status", "violations", "client", "reset", "reload");
+    private static final int MAX_LISTED_CHANNELS = 20;
 
     private final PumpeAntiCheatPlugin plugin;
     private final PlayerStateStore states;
     private final ViolationService violations;
     private final BedrockDetector bedrockDetector;
+    private final ClientDetectionService clientDetection;
 
     AntiCheatCommand(
         PumpeAntiCheatPlugin plugin,
         PlayerStateStore states,
         ViolationService violations,
-        BedrockDetector bedrockDetector
+        BedrockDetector bedrockDetector,
+        ClientDetectionService clientDetection
     ) {
         this.plugin = plugin;
         this.states = states;
         this.violations = violations;
         this.bedrockDetector = bedrockDetector;
+        this.clientDetection = clientDetection;
     }
 
     @Override
@@ -59,6 +64,18 @@ final class AntiCheatCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        if (args[0].equalsIgnoreCase("client")) {
+            Player target = args.length >= 2
+                ? Bukkit.getPlayerExact(args[1].startsWith("@") ? args[1].substring(1) : args[1])
+                : (sender instanceof Player self ? self : null);
+            if (target == null) {
+                sender.sendMessage(Component.text("Spieler ist nicht online.", NamedTextColor.RED));
+                return true;
+            }
+            showClient(sender, target);
+            return true;
+        }
+
         if (args[0].equalsIgnoreCase("reset")) {
             if (args.length < 2) {
                 sender.sendMessage(Component.text("Verwendung: /anticheat reset <Spieler>", NamedTextColor.RED));
@@ -78,7 +95,7 @@ final class AntiCheatCommand implements CommandExecutor, TabCompleter {
         }
 
         sender.sendMessage(Component.text(
-            "Verwendung: /anticheat <status|violations|reset|reload> [Spieler]",
+            "Verwendung: /anticheat <status|violations|client|reset|reload> [Spieler]",
             NamedTextColor.RED
         ));
         return true;
@@ -141,6 +158,48 @@ final class AntiCheatCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(Component.text(
                 " - " + check.displayName() + ": " + String.format(Locale.ROOT, "%.1f", level),
                 NamedTextColor.YELLOW
+            ));
+        }
+    }
+
+    private void showClient(CommandSender sender, Player target) {
+        ClientDetectionService.ClientReport report = clientDetection.report(target);
+        sender.sendMessage(Component.text("ClientCheck: " + target.getName(), NamedTextColor.GOLD));
+        sender.sendMessage(Component.text(
+            " - Plattform: " + (report.bedrock() ? "Bedrock" : "Java"),
+            report.bedrock() ? NamedTextColor.YELLOW : NamedTextColor.GRAY
+        ));
+        sender.sendMessage(Component.text(
+            " - Brand: " + (report.brand() == null ? "noch nicht empfangen" : report.brand()),
+            report.brand() == null ? NamedTextColor.RED : NamedTextColor.AQUA
+        ));
+        sender.sendMessage(Component.text(" - Loader: " + report.loader(), NamedTextColor.AQUA));
+        sender.sendMessage(Component.text(
+            " - Client: " + (report.client() == null ? "keine Signatur" : report.client()),
+            report.client() == null ? NamedTextColor.GRAY : NamedTextColor.RED
+        ));
+        sender.sendMessage(Component.text(
+            " - Mods: " + (report.mods().isEmpty() ? "keine erkannt" : String.join(", ", report.mods())),
+            report.mods().isEmpty() ? NamedTextColor.GRAY : NamedTextColor.YELLOW
+        ));
+
+        List<String> channels = report.channels();
+        sender.sendMessage(Component.text(
+            " - Kanäle (" + channels.size() + "):",
+            NamedTextColor.GRAY
+        ));
+        if (channels.isEmpty()) {
+            sender.sendMessage(Component.text("   keine", NamedTextColor.DARK_GRAY));
+            return;
+        }
+        sender.sendMessage(Component.text(
+            "   " + String.join(", ", channels.subList(0, Math.min(MAX_LISTED_CHANNELS, channels.size()))),
+            NamedTextColor.DARK_GRAY
+        ));
+        if (channels.size() > MAX_LISTED_CHANNELS) {
+            sender.sendMessage(Component.text(
+                "   ... und " + (channels.size() - MAX_LISTED_CHANNELS) + " weitere",
+                NamedTextColor.DARK_GRAY
             ));
         }
     }
