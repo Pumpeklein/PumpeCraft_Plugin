@@ -33,6 +33,7 @@ import org.bukkit.inventory.meta.ItemMeta;
  */
 final class SkillRewardService {
     private static final String DEFAULT_TRACK = "*";
+    private static final int MAX_REWARD_AMOUNT = 576;
 
     private final PumpeSkillsPlugin plugin;
     private final SkillRepository repository;
@@ -250,9 +251,9 @@ final class SkillRewardService {
         }
         for (Object entry : configured) {
             if (entry instanceof String shorthand) {
-                items.add(parseShorthand(shorthand));
+                items.addAll(parseShorthand(shorthand));
             } else if (entry instanceof Map<?, ?> detailed) {
-                items.add(parseDetailed(detailed));
+                items.addAll(parseDetailed(detailed));
             } else {
                 throw new IllegalArgumentException("unsupported item entry " + entry);
             }
@@ -260,32 +261,49 @@ final class SkillRewardService {
         return items;
     }
 
-    private ItemStack parseShorthand(String configured) {
+    private List<ItemStack> parseShorthand(String configured) {
         String[] parts = configured.trim().split(":", 2);
         Material material = material(parts[0]);
         int amount = parts.length == 2 ? Integer.parseInt(parts[1].trim()) : 1;
-        return new ItemStack(material, checkedAmount(material, amount));
+        return split(new ItemStack(material), checkedAmount(amount));
     }
 
-    private ItemStack parseDetailed(Map<?, ?> configured) {
+    private List<ItemStack> parseDetailed(Map<?, ?> configured) {
         Material material = material(String.valueOf(configured.get("material")));
         int amount = configured.get("amount") instanceof Number number ? number.intValue() : 1;
-        ItemStack item = new ItemStack(material, checkedAmount(material, amount));
+        ItemStack prototype = new ItemStack(material);
 
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null) {
-            return item;
+        ItemMeta meta = prototype.getItemMeta();
+        if (meta != null) {
+            Object name = configured.get("name");
+            if (name != null) {
+                meta.displayName(Component.text(String.valueOf(name))
+                    .decoration(TextDecoration.ITALIC, false));
+            }
+            if (configured.get("enchantments") instanceof Map<?, ?> enchantments) {
+                applyEnchantments(meta, enchantments);
+            }
+            prototype.setItemMeta(meta);
         }
-        Object name = configured.get("name");
-        if (name != null) {
-            meta.displayName(Component.text(String.valueOf(name))
-                .decoration(TextDecoration.ITALIC, false));
+        return split(prototype, checkedAmount(amount));
+    }
+
+    /**
+     * Sattel, Shulkerkiste und Pferderüstung stapeln nicht. Eine Menge darüber wird auf
+     * mehrere Stapel verteilt, statt die Definition abzulehnen - ein Stapel über der
+     * Vanilla-Grenze würde die Item-Prüfung des AntiCheats auslösen.
+     */
+    private List<ItemStack> split(ItemStack prototype, int amount) {
+        List<ItemStack> stacks = new ArrayList<>();
+        int maximum = prototype.getType().getMaxStackSize();
+        int remaining = amount;
+        while (remaining > 0) {
+            ItemStack stack = prototype.clone();
+            stack.setAmount(Math.min(maximum, remaining));
+            stacks.add(stack);
+            remaining -= stack.getAmount();
         }
-        if (configured.get("enchantments") instanceof Map<?, ?> enchantments) {
-            applyEnchantments(meta, enchantments);
-        }
-        item.setItemMeta(meta);
-        return item;
+        return stacks;
     }
 
     /**
@@ -322,9 +340,10 @@ final class SkillRewardService {
         return material;
     }
 
-    private int checkedAmount(Material material, int amount) {
-        if (amount < 1 || amount > material.getMaxStackSize()) {
-            throw new IllegalArgumentException("invalid amount for " + material.name());
+    private int checkedAmount(int amount) {
+        if (amount < 1 || amount > MAX_REWARD_AMOUNT) {
+            throw new IllegalArgumentException(
+                "amount must be between 1 and " + MAX_REWARD_AMOUNT + ", got " + amount);
         }
         return amount;
     }

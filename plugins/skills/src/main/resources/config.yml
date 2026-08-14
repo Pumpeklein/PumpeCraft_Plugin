@@ -10,6 +10,8 @@
 # Items entweder kurz als "MATERIAL:Anzahl" oder ausfuehrlich mit material, amount,
 # name und enchantments. Verzauberungen bleiben im Vanilla-Rahmen; hoehere Stufen werden
 # abgelehnt, damit die Item-Pruefung des AntiCheats nicht anschlaegt.
+# Mengen ueber der Stapelgroesse werden auf mehrere Stapel verteilt - "SADDLE:2" ergibt
+# also zwei einzelne Saettel.
 rewards:
   enabled: true
 
