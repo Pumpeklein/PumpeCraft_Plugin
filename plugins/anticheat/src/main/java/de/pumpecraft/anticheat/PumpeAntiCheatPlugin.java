@@ -19,6 +19,10 @@ public final class PumpeAntiCheatPlugin extends JavaPlugin {
             this,
             Databases.require(this)
         );
+        PlayerPlatformRepository platformRepository = new PlayerPlatformRepository(
+            this,
+            Databases.require(this)
+        );
         ViolationService violations = new ViolationService(
             this,
             states,
@@ -40,7 +44,11 @@ public final class PumpeAntiCheatPlugin extends JavaPlugin {
             new XrayChecks(this, states, violations, bedrockDetector),
             this
         );
-        clientDetectionService = new ClientDetectionService(this, bedrockDetector);
+        clientDetectionService = new ClientDetectionService(
+            this,
+            bedrockDetector,
+            platformRepository
+        );
         getServer().getPluginManager().registerEvents(clientDetectionService, this);
         clientDetectionService.start();
 

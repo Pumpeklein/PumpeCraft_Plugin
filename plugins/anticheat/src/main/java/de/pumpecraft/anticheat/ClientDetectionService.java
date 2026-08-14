@@ -31,12 +31,18 @@ final class ClientDetectionService implements Listener, PluginMessageListener {
 
     private final PumpeAntiCheatPlugin plugin;
     private final BedrockDetector bedrockDetector;
+    private final PlayerPlatformRepository platformRepository;
     private final Map<UUID, ClientProfile> profiles = new HashMap<>();
     private BukkitTask scanTask;
 
-    ClientDetectionService(PumpeAntiCheatPlugin plugin, BedrockDetector bedrockDetector) {
+    ClientDetectionService(
+        PumpeAntiCheatPlugin plugin,
+        BedrockDetector bedrockDetector,
+        PlayerPlatformRepository platformRepository
+    ) {
         this.plugin = plugin;
         this.bedrockDetector = bedrockDetector;
+        this.platformRepository = platformRepository;
     }
 
     void start() {
@@ -130,6 +136,7 @@ final class ClientDetectionService implements Listener, PluginMessageListener {
         profile.joinAnnounced = true;
 
         boolean bedrock = bedrockDetector.isBedrock(player.getUniqueId());
+        platformRepository.record(player, bedrock);
         String client = bedrock
             ? "Bedrock"
             : "Java | Client: " + identifyJavaClient(profile);

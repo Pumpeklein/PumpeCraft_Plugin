@@ -95,6 +95,31 @@ final class PlaytimeRepository {
                 }
                 statement.executeBatch();
             }
+            try (PreparedStatement statement = connection.prepareStatement(
+                """
+                INSERT INTO pc_playtime_history
+                    (player_uuid, snapshot_date, total_seconds, active_seconds,
+                     afk_seconds, captured_at)
+                VALUES (?, CURRENT_DATE, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                    total_seconds = VALUES(total_seconds),
+                    active_seconds = VALUES(active_seconds),
+                    afk_seconds = VALUES(afk_seconds),
+                    captured_at = VALUES(captured_at)
+                """
+            )) {
+                long capturedAt = System.currentTimeMillis();
+                for (Map.Entry<UUID, PlaytimeRecord> entry : snapshot.entrySet()) {
+                    PlaytimeRecord record = entry.getValue();
+                    statement.setString(1, entry.getKey().toString());
+                    statement.setLong(2, record.totalSeconds());
+                    statement.setLong(3, record.activeSeconds());
+                    statement.setLong(4, record.afkSeconds());
+                    statement.setLong(5, capturedAt);
+                    statement.addBatch();
+                }
+                statement.executeBatch();
+            }
             return null;
         });
         dirtyRecords.removeAll(snapshot.keySet());
