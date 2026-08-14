@@ -25,7 +25,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class PumpeAntiCheatPlugin extends JavaPlugin implements Listener {
-    private static final int CONFIG_VERSION = 7;
+    private static final int CONFIG_VERSION = 8;
 
     private PlayerStateStore states;
     private AlertDispatcher alerts;
@@ -174,6 +174,13 @@ public final class PumpeAntiCheatPlugin extends JavaPlugin implements Listener {
             replaceDoubleDefault("checks.xray.alert-level", 3.0, 1.0);
             replaceDoubleDefault("checks.blockreach.alert-level", 2.0, 1.0);
         }
+        if (version < 8) {
+            // Der Nuker-Check wertet nicht mehr Streuung, sondern die Blickrichtung aus.
+            getConfig().set("checks.nuker.minimum-spread", null);
+            replaceLongDefault("checks.nuker.window-millis", 400L, 1_000L);
+            replaceIntDefault("checks.nuker.minimum-breaks-java", 4, 6);
+            replaceIntDefault("checks.nuker.minimum-breaks-bedrock", 5, 8);
+        }
         getConfig().options().copyDefaults(true);
         getConfig().set("config-version", CONFIG_VERSION);
         saveConfig();
@@ -194,6 +201,12 @@ public final class PumpeAntiCheatPlugin extends JavaPlugin implements Listener {
             .anyMatch(key -> signatures.getConfigurationSection(key) == null);
         if (legacyFormat) {
             getConfig().set("client-detection.known-signatures", null);
+        }
+    }
+
+    private void replaceLongDefault(String path, long previousDefault, long newDefault) {
+        if (getConfig().getLong(path) == previousDefault) {
+            getConfig().set(path, newDefault);
         }
     }
 

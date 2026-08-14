@@ -106,11 +106,17 @@ checks:
     cancel-level: 5.0
   nuker:
     enabled: true
-    window-millis: 400
-    minimum-breaks-java: 4
-    minimum-breaks-bedrock: 5
-    # Streuung trennt Nuker von einem schnellen Miner, der auf derselben Stelle bleibt.
-    minimum-spread: 2.5
+    window-millis: 1000
+    # Abbaurate allein sagt nichts - ein 3x3-Aushub mit der Schaufel ist genauso schnell
+    # und genauso weit gestreut wie ein Nuker. Gewertet wird, wie viele Bloecke der Spieler
+    # abgebaut hat, ohne sie anzusehen; legitim geht das nicht.
+    minimum-breaks-java: 6
+    minimum-breaks-bedrock: 8
+    minimum-outside-view: 3
+    minimum-aim-dot: 0.4
+    # Sehr nahe Bloecke bleiben ausgenommen: dort erzeugen kleine Positionsfehler
+    # grosse Winkelfehler.
+    minimum-aim-distance: 1.5
     violation-amount: 3.0
     alert-level: 1.0
     debug: false

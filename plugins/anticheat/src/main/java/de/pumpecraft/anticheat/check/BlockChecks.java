@@ -122,7 +122,11 @@ public final class BlockChecks extends AbstractCheck {
         return violations.shouldCancel(player, CheckType.BLOCK_REACH, level);
     }
 
-    /** Spread separates nuker from a fast miner, who keeps hitting the same spot. */
+    /**
+     * Abbaugeschwindigkeit und Streuung trennen einen Nuker nicht von normalem Graben - ein
+     * 3x3-Aushub ist beides. Unterscheidend ist die Blickrichtung: legitim lässt sich nur
+     * abbauen, was der Spieler anvisiert, ein Nuker räumt auch hinter sich ab.
+     */
     private void checkNuker(Player player, Block block) {
         if (!violations.enabled(CheckType.NUKER)) {
             return;
@@ -130,28 +134,28 @@ public final class BlockChecks extends AbstractCheck {
 
         PlayerState.Blocks blocks = state(player).blocks;
         long now = System.currentTimeMillis();
-        long window = settings.duration(CheckType.NUKER, "window-millis", 400L);
-        Location location = block.getLocation();
+        long window = settings.duration(CheckType.NUKER, "window-millis", 1_000L);
+        int breaks = Rates.record(blocks.nukerBreaks, now, window);
+        Rates.trim(blocks.nukerOutsideView, now, window);
 
-        if (blocks.nukerAnchor == null
-            || blocks.nukerAnchor.getWorld() != location.getWorld()
-            || now - blocks.nukerWindowStarted > window) {
-            blocks.nukerWindowStarted = now;
-            blocks.nukerAnchor = location;
-            blocks.nukerBreaks = 1;
-            blocks.nukerSpread = 0.0;
-            return;
+        Location eye = player.getEyeLocation();
+        Location center = block.getLocation().add(0.5, 0.5, 0.5);
+        double distance = eye.distance(center);
+        double aim = Locations.aimDot(eye, center);
+        double minimumDistance = settings.decimal(CheckType.NUKER, "minimum-aim-distance", 1.5);
+        double minimumAim = settings.decimal(CheckType.NUKER, "minimum-aim-dot", 0.4);
+        if (distance >= minimumDistance && aim < minimumAim) {
+            blocks.nukerOutsideView.addLast(now);
         }
 
-        blocks.nukerBreaks++;
-        blocks.nukerSpread = Math.max(blocks.nukerSpread, blocks.nukerAnchor.distance(location));
+        int minimumBreaks = settings.platformInteger(player, CheckType.NUKER, "minimum-breaks", 6);
+        int minimumOutside = settings.integer(CheckType.NUKER, "minimum-outside-view", 3);
+        int outside = blocks.nukerOutsideView.size();
+        debug(CheckType.NUKER, player, breaks + "/" + minimumBreaks + " Blöcke, "
+            + outside + "/" + minimumOutside + " außerhalb der Blickrichtung, Aim "
+            + Texts.decimal(aim) + " auf " + Texts.decimal(distance) + " Blöcken");
 
-        int minimumBreaks = settings.platformInteger(player, CheckType.NUKER, "minimum-breaks", 4);
-        double minimumSpread = settings.decimal(CheckType.NUKER, "minimum-spread", 2.5);
-        debug(CheckType.NUKER, player, blocks.nukerBreaks + " Blöcke (ab " + minimumBreaks
-            + ") mit " + Texts.decimal(blocks.nukerSpread) + " Streuung (ab "
-            + Texts.decimal(minimumSpread) + ") in " + window + "ms");
-        if (blocks.nukerBreaks < minimumBreaks || blocks.nukerSpread < minimumSpread) {
+        if (breaks < minimumBreaks || outside < minimumOutside) {
             return;
         }
 
@@ -159,13 +163,11 @@ public final class BlockChecks extends AbstractCheck {
             player,
             CheckType.NUKER,
             settings.decimal(CheckType.NUKER, "violation-amount", 3.0),
-            blocks.nukerBreaks + " Blöcke in " + window + "ms über "
-                + Texts.decimal(blocks.nukerSpread) + " Blöcke Reichweite"
+            outside + " von " + breaks + " Blöcken in " + window
+                + "ms außerhalb der Blickrichtung"
         );
-        blocks.nukerWindowStarted = now;
-        blocks.nukerAnchor = location;
-        blocks.nukerBreaks = 0;
-        blocks.nukerSpread = 0.0;
+        blocks.nukerBreaks.clear();
+        blocks.nukerOutsideView.clear();
     }
 
     private void checkScaffold(

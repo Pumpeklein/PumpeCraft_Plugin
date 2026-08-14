@@ -74,10 +74,8 @@ public final class PlayerState {
         public final Deque<Long> breakTimes = new ArrayDeque<>();
         public long lastPlaceMillis;
         public int scaffoldStreak;
-        public long nukerWindowStarted;
-        public int nukerBreaks;
-        public Location nukerAnchor;
-        public double nukerSpread;
+        public final Deque<Long> nukerBreaks = new ArrayDeque<>();
+        public final Deque<Long> nukerOutsideView = new ArrayDeque<>();
     }
 
     public static final class Mining {

@@ -63,6 +63,16 @@ echter Grauzone (Speed, Scaffold, AutoClicker) ist eine Schwelle über einem Tre
 nichts gemeldet wird — über `debug(check, player, message)` aus `AbstractCheck`. Ohne das
 ist ein stiller Check nicht von einem zu unterscheiden, der gar nicht läuft.
 
+### Merkmale müssen trennen, nicht nur messen
+
+Ein Schwellenwert auf einer Größe, die legitimes Spiel genauso erzeugt, ist kein Check.
+Nuker wertete anfangs Abbaurate und Streuung — beides beschreibt einen 3×3-Aushub mit der
+Schaufel exakt so gut wie einen Nuker, entsprechend fiel er dauerhaft falsch an. Tragfähig
+war erst die Blickrichtung: abbauen lässt sich legitim nur, was der Spieler anvisiert.
+
+Vor einem neuen Check deshalb die Gegenprobe: welcher normale Spielzug erzeugt denselben
+Messwert? Findet sich einer, misst der Check das Falsche.
+
 ### Ausnahmen zuerst prüfen
 
 Meldet ein Check gar nichts, liegt es meist an einer Ausnahme, nicht an der Logik.
