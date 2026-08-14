@@ -1,5 +1,3 @@
-config-version: 3
-
 checks:
   speed:
     enabled: true
@@ -18,9 +16,9 @@ checks:
     alert-level: 3.0
   fastplace:
     enabled: true
-    max-places-per-second-java: 8
-    max-places-per-second-bedrock: 11
-    cancel-level: 4.0
+    max-places-per-second-java: 12
+    max-places-per-second-bedrock: 16
+    cancel-level: 5.0
   fastbreak:
     enabled: true
     max-breaks-per-second-java: 14
@@ -33,23 +31,15 @@ checks:
     cancel-level: 4.0
   autoclicker:
     enabled: true
-    maximum-cps-java: 15
-    maximum-cps-bedrock: 18
-    minimum-samples: 10
-    minimum-consistent-cps-java: 9.0
-    minimum-consistent-cps-bedrock: 11.0
-    maximum-interval-variation-java: 0.22
-    maximum-interval-variation-bedrock: 0.30
-    alert-level: 2.0
+    maximum-cps-java: 20
+    maximum-cps-bedrock: 25
+    minimum-samples: 12
+    alert-level: 4.0
   scaffold:
     enabled: true
-    suspicious-placements-java: 6
-    suspicious-placements-bedrock: 10
-    maximum-delay-millis-java: 350
-    maximum-delay-millis-bedrock: 450
-    minimum-aim-dot-java: 0.65
-    minimum-aim-dot-bedrock: 0.50
-    alert-level: 2.0
+    suspicious-placements-java: 5
+    suspicious-placements-bedrock: 8
+    alert-level: 4.0
   xray:
     enabled: true
     window-seconds: 600
@@ -81,15 +71,10 @@ client-detection:
   scan-interval-ticks: 100
   server-resource-pack-status: true
   known-signatures:
-    Vanilla: ["vanilla"]
     Fabric: ["fabric", "fabric-api"]
     Forge: ["forge", "fml"]
     NeoForge: ["neoforge"]
     Quilt: ["quilt"]
-    OptiFine: ["optifine", "optifabric"]
-    Sodium: ["sodium"]
-    Essential-Mod: ["essential"]
-    Vivecraft: ["vivecraft"]
     Lunar-Client: ["lunarclient", "lunar"]
     Badlion-Client: ["badlion", "badlionclient"]
     Feather-Client: ["feather"]
@@ -99,3 +84,4 @@ client-detection:
     LiquidBounce: ["liquidbounce"]
     Impact-Client: ["impact"]
     Aristois: ["aristois"]
+    NoRiskClient: ["noriskclient"]
