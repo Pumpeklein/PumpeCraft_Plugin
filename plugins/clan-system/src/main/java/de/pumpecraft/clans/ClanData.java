@@ -57,12 +57,13 @@ final class ClanData {
     }
 
     record Directory(
-        List<String> clanNames,
+        List<String> clanTags,
+        List<String> knownPlayerNames,
         List<String> memberNames,
         List<String> baseOwnerNames
     ) {
         static Directory empty() {
-            return new Directory(List.of(), List.of(), List.of());
+            return new Directory(List.of(), List.of(), List.of(), List.of());
         }
     }
 

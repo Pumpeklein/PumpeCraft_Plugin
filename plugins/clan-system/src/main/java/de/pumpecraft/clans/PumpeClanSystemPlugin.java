@@ -76,6 +76,34 @@ public final class PumpeClanSystemPlugin extends JavaPlugin {
         runAsync(this::refreshDirectoryNow);
     }
 
+    void notifyClanJoined(Player joinedPlayer) {
+        runAsync(
+            joinedPlayer,
+            () -> repository.clanDetailsForPlayer(joinedPlayer.getUniqueId()),
+            details -> {
+                if (details.isEmpty()) {
+                    return;
+                }
+                ClanData.Clan clan = details.get().clan();
+                Component message = Component.text(
+                    "[" + clan.tag() + "] ", ClanColors.color(clan.tagColor())
+                ).append(Component.text(
+                    joinedPlayer.getName() + " ist dem Clan beigetreten.",
+                    NamedTextColor.GREEN
+                ));
+                for (ClanData.Member member : details.get().members()) {
+                    if (member.playerId().equals(joinedPlayer.getUniqueId())) {
+                        continue;
+                    }
+                    Player onlineMember = getServer().getPlayer(member.playerId());
+                    if (onlineMember != null && onlineMember.isOnline()) {
+                        onlineMember.sendMessage(message);
+                    }
+                }
+            }
+        );
+    }
+
     <T> void runAsync(Player recipient, Supplier<T> work, Consumer<T> callback) {
         String recipientName = recipient.getName();
         getServer().getScheduler().runTaskAsynchronously(this, () -> {

@@ -62,7 +62,7 @@ final class ClanListener implements Listener {
                     .append(Component.text(" · noch " + minutes + " Min. ", NamedTextColor.GRAY))
                     .append(Component.text("[ACCEPT]", NamedTextColor.GREEN)
                         .clickEvent(ClickEvent.runCommand(
-                            "/clan accept " + invitation.clanName()
+                            "/clan accept " + invitation.clanTag()
                         ))
                         .hoverEvent(HoverEvent.showText(Component.text(
                             "Clan-Einladung annehmen", NamedTextColor.GREEN

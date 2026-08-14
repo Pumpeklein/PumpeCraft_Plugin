@@ -343,15 +343,12 @@ final class ClanRepository {
         return database.withConnection(connection -> new Directory(
             strings(
                 connection,
-                """
-                SELECT value
-                  FROM (
-                    SELECT clan_name AS value FROM pc_clans
-                    UNION
-                    SELECT clan_tag AS value FROM pc_clans
-                  ) clan_values
-                 ORDER BY value
-                """,
+                "SELECT clan_tag AS value FROM pc_clans ORDER BY clan_tag",
+                "value"
+            ),
+            strings(
+                connection,
+                "SELECT player_name AS value FROM pc_players ORDER BY player_name",
                 "value"
             ),
             strings(connection, "SELECT player_name FROM pc_clan_members ORDER BY player_name", "player_name"),

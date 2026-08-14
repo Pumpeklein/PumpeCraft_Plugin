@@ -119,13 +119,13 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
         if (args.length == 2) {
             String subcommand = args[0].toLowerCase(Locale.ROOT);
             if (matches(subcommand, "info", "annehmen", "accept")) {
-                return filter(plugin.directory().clanNames(), args[1]);
+                return filter(plugin.directory().clanTags(), args[1]);
             }
             if (matches(subcommand, "tagfarbe", "farbe", "color")) {
                 return filter(ClanColors.suggestions(), args[1]);
             }
             if (matches(subcommand, "einladen", "invite")) {
-                return filter(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), args[1]);
+                return filter(plugin.directory().knownPlayerNames(), args[1]);
             }
             if (matches(subcommand, "kicken", "kick")) {
                 return filter(plugin.directory().memberNames(), args[1]);
@@ -315,7 +315,7 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
 
     private void accept(Player player, String label, String[] args) {
         if (args.length != 2) {
-            player.sendMessage(error("Nutzung: /" + label + " accept <Clanname|Tag>"));
+            player.sendMessage(error("Nutzung: /" + label + " accept <ClanTag>"));
             return;
         }
         PlayerIdentity identity = identity(player);
@@ -327,6 +327,7 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
                 switch (result) {
                     case ACCEPTED -> {
                         player.sendMessage(success("Du bist dem Clan beigetreten."));
+                        plugin.notifyClanJoined(player);
                         changed();
                     }
                     case ALREADY_MEMBER -> player.sendMessage(error(
@@ -447,7 +448,7 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
                         NamedTextColor.GOLD
                     ).append(Component.text("[ACCEPT]", NamedTextColor.GREEN)
                         .clickEvent(ClickEvent.runCommand(
-                            "/clan accept " + outcome.clan().name()
+                            "/clan accept " + outcome.clan().tag()
                         ))
                         .hoverEvent(HoverEvent.showText(Component.text(
                             "Einladung annehmen", NamedTextColor.GREEN
