@@ -1,0 +1,33 @@
+rewards:
+  enabled: true
+  milestones:
+    "10":
+      label: "4 Smaragde"
+      items: ["EMERALD:4"]
+    "20":
+      label: "8 Smaragde"
+      items: ["EMERALD:8"]
+    "30":
+      label: "2 Diamanten"
+      items: ["DIAMOND:2"]
+    "40":
+      label: "8 Erfahrungsfläschchen"
+      items: ["EXPERIENCE_BOTTLE:8"]
+    "50":
+      label: "4 Diamanten"
+      items: ["DIAMOND:4"]
+    "60":
+      label: "16 Erfahrungsfläschchen"
+      items: ["EXPERIENCE_BOTTLE:16"]
+    "70":
+      label: "1 Netherit-Schrott"
+      items: ["NETHERITE_SCRAP:1"]
+    "80":
+      label: "1 verzauberter goldener Apfel"
+      items: ["ENCHANTED_GOLDEN_APPLE:1"]
+    "90":
+      label: "2 Netherit-Schrott"
+      items: ["NETHERITE_SCRAP:2"]
+    "100":
+      label: "1 Netheritbarren"
+      items: ["NETHERITE_INGOT:1"]

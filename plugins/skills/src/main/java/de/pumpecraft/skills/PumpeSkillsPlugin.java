@@ -11,22 +11,28 @@ public final class PumpeSkillsPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        saveDefaultConfig();
+        getConfig().options().copyDefaults(true);
+        saveConfig();
         if (!databaseAvailable()) {
             return;
         }
 
         SkillRepository repository = new SkillRepository(this);
-        service = new SkillService(this, repository);
+        SkillRewardService rewards = new SkillRewardService(this, repository);
+        service = new SkillService(this, repository, rewards);
         placedBlocks = new PlacedBlockTracker();
 
         getServer().getPluginManager().registerEvents(
-            new SkillSessionListener(this, service, repository), this);
+            new SkillSessionListener(this, service, repository, rewards), this);
         getServer().getPluginManager().registerEvents(
             new WorldSkillListener(this, service, placedBlocks), this);
         getServer().getPluginManager().registerEvents(new EntitySkillListener(service), this);
         getServer().getPluginManager().registerEvents(new FishingSkillListener(service), this);
 
-        SkillsCommand skillsCommand = new SkillsCommand(service, repository);
+        SkillsGui skillsGui = new SkillsGui(service, repository, rewards);
+        getServer().getPluginManager().registerEvents(skillsGui, this);
+        SkillsCommand skillsCommand = new SkillsCommand(service, repository, skillsGui);
         PluginCommand command = Objects.requireNonNull(getCommand("skills"), "Missing command: skills");
         command.setExecutor(skillsCommand);
         command.setTabCompleter(skillsCommand);
@@ -38,6 +44,7 @@ public final class PumpeSkillsPlugin extends JavaPlugin {
             try {
                 service.load(player.getUniqueId());
                 repository.touchPlayer(player.getUniqueId(), player.getName());
+                rewards.deliverPending(player);
             } catch (RuntimeException exception) {
                 getLogger().warning("Could not load skill stats for " + player.getName() + ".");
             }

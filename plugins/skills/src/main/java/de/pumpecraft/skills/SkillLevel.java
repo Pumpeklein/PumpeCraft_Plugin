@@ -33,6 +33,22 @@ final class SkillLevel {
         return Math.max(0L, scoreForLevel(level + 1) - score);
     }
 
+    static long scoreIntoLevel(long score) {
+        int level = levelOf(score);
+        if (level >= MAX_LEVEL) {
+            return 0L;
+        }
+        return Math.max(0L, score - scoreForLevel(level));
+    }
+
+    static long scoreNeededInLevel(long score) {
+        int level = levelOf(score);
+        if (level >= MAX_LEVEL) {
+            return 0L;
+        }
+        return scoreForLevel(level + 1) - scoreForLevel(level);
+    }
+
     /** Fortschritt im aktuellen Level als 0.0 bis 1.0. */
     static double progress(long score) {
         int level = levelOf(score);

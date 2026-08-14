@@ -3,11 +3,11 @@ version: ${version}
 main: de.pumpecraft.skills.PumpeSkillsPlugin
 api-version: '1.21'
 author: PumpeCraft
-description: Skills plugin for PumpeCraft.
+description: Skill levels, rewards, progress GUIs and leaderboards for PumpeCraft.
 depend: [PumpeDatabase]
 commands:
   skills:
-    description: Shows skill levels, details and leaderboards.
+    description: Opens skill GUIs and shows leaderboards.
     usage: /skills [Skill|Spieler|top <Skill>]
     permission: pumpecraft.skills.use
 permissions:

@@ -5,6 +5,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
 /**
@@ -15,11 +16,23 @@ final class SkillSessionListener implements Listener {
     private final PumpeSkillsPlugin plugin;
     private final SkillService service;
     private final SkillRepository repository;
+    private final SkillRewardService rewards;
 
-    SkillSessionListener(PumpeSkillsPlugin plugin, SkillService service, SkillRepository repository) {
+    SkillSessionListener(
+        PumpeSkillsPlugin plugin,
+        SkillService service,
+        SkillRepository repository,
+        SkillRewardService rewards
+    ) {
         this.plugin = plugin;
         this.service = service;
         this.repository = repository;
+        this.rewards = rewards;
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        rewards.deliverPending(event.getPlayer());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

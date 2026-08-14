@@ -18,11 +18,16 @@ final class PlayerSkillData {
     }
 
     synchronized void add(StatKey key, long delta) {
+        addAndGet(key, delta);
+    }
+
+    synchronized long addAndGet(StatKey key, long delta) {
         if (delta == 0L) {
-            return;
+            return values.getOrDefault(key, 0L);
         }
         values.merge(key, delta, Long::sum);
         dirty.add(key);
+        return values.get(key);
     }
 
     /** Setzt den Wert nur, wenn er kleiner als der bisherige ist (z. B. günstigster Trade). */

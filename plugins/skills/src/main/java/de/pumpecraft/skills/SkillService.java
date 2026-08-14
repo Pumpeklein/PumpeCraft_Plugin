@@ -18,12 +18,18 @@ final class SkillService {
 
     private final PumpeSkillsPlugin plugin;
     private final SkillRepository repository;
+    private final SkillRewardService rewards;
     private final Map<UUID, PlayerSkillData> cache = new ConcurrentHashMap<>();
     private BukkitTask saveTask;
 
-    SkillService(PumpeSkillsPlugin plugin, SkillRepository repository) {
+    SkillService(
+        PumpeSkillsPlugin plugin,
+        SkillRepository repository,
+        SkillRewardService rewards
+    ) {
         this.plugin = plugin;
         this.repository = repository;
+        this.rewards = rewards;
     }
 
     void start() {
@@ -50,7 +56,9 @@ final class SkillService {
 
     /** Wird im AsyncPlayerPreLogin aufgerufen, damit die Daten beim Join bereitstehen. */
     void load(UUID playerId) {
-        cache.put(playerId, new PlayerSkillData(repository.loadPlayer(playerId)));
+        PlayerSkillData data = new PlayerSkillData(repository.loadPlayer(playerId));
+        cache.put(playerId, data);
+        rewards.reconcileReachedMilestones(playerId, data.allValues());
     }
 
     void unload(UUID playerId) {
@@ -89,7 +97,9 @@ final class SkillService {
             return;
         }
         data.add(new StatKey(skill, statKey), delta);
-        data.add(StatKey.score(skill), points);
+        StatKey scoreKey = StatKey.score(skill);
+        long updatedScore = data.addAndGet(scoreKey, points);
+        rewards.scoreChanged(player.getUniqueId(), skill, updatedScore - points, updatedScore);
     }
 
     /**
@@ -102,7 +112,9 @@ final class SkillService {
             return;
         }
         data.add(new StatKey(skill, statKey), delta);
-        data.add(StatKey.score(skill), points);
+        StatKey scoreKey = StatKey.score(skill);
+        long updatedScore = data.addAndGet(scoreKey, points);
+        rewards.scoreChanged(playerId, skill, updatedScore - points, updatedScore);
     }
 
     void keepMinimum(Player player, Skill skill, String statKey, long value) {

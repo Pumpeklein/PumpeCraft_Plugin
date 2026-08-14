@@ -4,6 +4,7 @@ import de.pumpecraft.database.DatabaseService;
 import de.pumpecraft.database.Databases;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Statement;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -85,6 +86,152 @@ final class SkillRepository {
                     statement.addBatch();
                 }
                 statement.executeBatch();
+            }
+            return null;
+        });
+    }
+
+    boolean reserveReward(UUID playerId, Skill skill, int milestoneLevel, long score) {
+        return database.inTransaction(connection -> {
+            try (PreparedStatement scoreStatement = connection.prepareStatement(
+                """
+                INSERT INTO pc_skill_stats (player_uuid, skill, stat_key, amount)
+                VALUES (?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE amount = GREATEST(amount, VALUES(amount))
+                """
+            )) {
+                scoreStatement.setString(1, playerId.toString());
+                scoreStatement.setString(2, skill.id());
+                scoreStatement.setString(3, Skill.SCORE);
+                scoreStatement.setLong(4, score);
+                scoreStatement.executeUpdate();
+            }
+            try (PreparedStatement rewardStatement = connection.prepareStatement(
+                """
+                INSERT IGNORE INTO pc_skill_rewards
+                    (player_uuid, skill, milestone_level, earned_at, delivered_at)
+                VALUES (?, ?, ?, ?, NULL)
+                """
+            )) {
+                rewardStatement.setString(1, playerId.toString());
+                rewardStatement.setString(2, skill.id());
+                rewardStatement.setInt(3, milestoneLevel);
+                rewardStatement.setLong(4, Instant.now().toEpochMilli());
+                return rewardStatement.executeUpdate() > 0;
+            }
+        });
+    }
+
+    List<RewardClaim> reserveReachedRewards(
+        UUID playerId,
+        Map<Skill, Integer> reachedLevels,
+        List<Integer> milestones
+    ) {
+        return database.inTransaction(connection -> {
+            List<RewardClaim> candidates = new ArrayList<>();
+            try (PreparedStatement statement = connection.prepareStatement(
+                """
+                INSERT IGNORE INTO pc_skill_rewards
+                    (player_uuid, skill, milestone_level, earned_at, delivered_at)
+                VALUES (?, ?, ?, ?, NULL)
+                """
+            )) {
+                long now = Instant.now().toEpochMilli();
+                for (Map.Entry<Skill, Integer> entry : reachedLevels.entrySet()) {
+                    for (int milestone : milestones) {
+                        if (milestone > entry.getValue()) {
+                            continue;
+                        }
+                        candidates.add(new RewardClaim(entry.getKey(), milestone));
+                        statement.setString(1, playerId.toString());
+                        statement.setString(2, entry.getKey().id());
+                        statement.setInt(3, milestone);
+                        statement.setLong(4, now);
+                        statement.addBatch();
+                    }
+                }
+                int[] results = statement.executeBatch();
+                List<RewardClaim> inserted = new ArrayList<>();
+                for (int index = 0; index < results.length; index++) {
+                    if (results[index] != 0 && results[index] != Statement.EXECUTE_FAILED) {
+                        inserted.add(candidates.get(index));
+                    }
+                }
+                return inserted;
+            }
+        });
+    }
+
+    List<RewardClaim> pendingRewards(UUID playerId) {
+        return database.withConnection(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                """
+                SELECT skill, milestone_level
+                  FROM pc_skill_rewards
+                 WHERE player_uuid = ? AND delivered_at IS NULL
+                 ORDER BY earned_at, skill, milestone_level
+                """
+            )) {
+                statement.setString(1, playerId.toString());
+                try (ResultSet result = statement.executeQuery()) {
+                    List<RewardClaim> rewards = new ArrayList<>();
+                    while (result.next()) {
+                        Skill skill = Skill.byId(result.getString("skill"));
+                        if (skill != null) {
+                            rewards.add(new RewardClaim(skill, result.getInt("milestone_level")));
+                        }
+                    }
+                    return rewards;
+                }
+            }
+        });
+    }
+
+    void markRewardDelivered(UUID playerId, Skill skill, int milestoneLevel) {
+        database.withConnection(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                """
+                UPDATE pc_skill_rewards
+                   SET delivered_at = ?
+                 WHERE player_uuid = ? AND skill = ? AND milestone_level = ?
+                   AND delivered_at IS NULL
+                """
+            )) {
+                statement.setLong(1, Instant.now().toEpochMilli());
+                statement.setString(2, playerId.toString());
+                statement.setString(3, skill.id());
+                statement.setInt(4, milestoneLevel);
+                statement.executeUpdate();
+            }
+            return null;
+        });
+    }
+
+    void syncRewardDefinitions(Map<Integer, String> definitions) {
+        database.inTransaction(connection -> {
+            try (PreparedStatement delete = connection.prepareStatement(
+                "DELETE FROM pc_skill_reward_definitions"
+            )) {
+                delete.executeUpdate();
+            }
+            if (definitions.isEmpty()) {
+                return null;
+            }
+            try (PreparedStatement insert = connection.prepareStatement(
+                """
+                INSERT INTO pc_skill_reward_definitions
+                    (milestone_level, label, updated_at)
+                VALUES (?, ?, ?)
+                """
+            )) {
+                long now = Instant.now().toEpochMilli();
+                for (Map.Entry<Integer, String> entry : definitions.entrySet()) {
+                    insert.setInt(1, entry.getKey());
+                    insert.setString(2, entry.getValue());
+                    insert.setLong(3, now);
+                    insert.addBatch();
+                }
+                insert.executeBatch();
             }
             return null;
         });
@@ -179,5 +326,8 @@ final class SkillRepository {
     }
 
     record LeaderboardEntry(UUID playerId, String playerName, long amount) {
+    }
+
+    record RewardClaim(Skill skill, int milestoneLevel) {
     }
 }

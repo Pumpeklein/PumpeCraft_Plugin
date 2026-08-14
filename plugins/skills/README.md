@@ -5,11 +5,16 @@ Tracking-Bereich für einzelne Aktionen.
 
 ## Commands
 
-- `/skills` – eigene Übersicht mit Level, Fortschrittsbalken und Punkten
-- `/skills <Skill>` – Details eines Skills inklusive Top-Items und Platzierung
+- `/skills` – öffnet eine Inventar-GUI mit Levelspanne, Fortschritt und Restpunkten
+- `/skills <Skill>` – öffnet die GUI-Details mit Rang, Zählern und nächstem Reward
 - `/skills top <Skill>` – Bestenliste der besten zehn Spieler
 - `/skills <Spieler> [Skill]` – Werte eines anderen Spielers (`pumpecraft.skills.others`)
 - `/skills help` – Kurzübersicht
+
+Die Übersicht nutzt sieben feste Skill-Slots. Ein Klick öffnet die jeweilige
+Detailansicht; der Rang-Button ruft die Top 10 auf. Zurück- und Schließen-Buttons
+sind als Pfeil beziehungsweise Barriere ausgeführt. Das Standard-Inventar-GUI
+funktioniert ohne Client-Mod und damit auch für Bedrock-Spieler über Geyser.
 
 ## Skills
 
@@ -31,6 +36,21 @@ Alle Punktwerte stehen zentral in
 
 Level `n` beginnt bei `50 * (n-1)²` Punkten: Level 2 ab 50, Level 5 ab 800,
 Level 10 ab 4.050, Level 50 ab 120.050. Maximum ist Level 100.
+
+Die Anzeige trennt Gesamtpunkte und Level-Fortschritt. Bei 4.100 Gesamtpunkten
+steht ein Spieler beispielsweise auf Level 10 bei `50 / 950`; bis Level 11
+fehlen dann noch 900 Punkte.
+
+### Level-Rewards
+
+Jeder der sieben Level-Skills vergibt bei Level 10, 20, ... bis 100 einen
+einmaligen Item-Reward. Inhalt und Beschriftung stehen in `config.yml`. Nicht
+zugestellte Rewards bleiben in `pc_skill_rewards` offen und werden beim
+nächsten Join ausgegeben. Ist das Inventar voll, landen Restitems am Spieler.
+
+Bereits vor der Einführung erreichte Meilensteine werden beim ersten Join
+nachgetragen. Der Primärschlüssel aus Spieler-UUID, Skill und Meilenstein
+verhindert doppelte Ausgaben nach einem Neustart.
 
 ### Detailzähler
 
@@ -74,6 +94,11 @@ Tabellen aus Migration `V4__skill_stats.sql`:
 | `pc_skill_stats` | ein Zähler je Spieler, Skill und Statistik-Schlüssel |
 | `pc_skill_village_partners` | mit welchen Villagern ein Spieler schon gehandelt hat |
 | `pc_players` | zuletzt bekannter Name je UUID |
+
+Migration `V9__skill_rewards.sql` ergänzt `pc_skill_rewards` für einmalige und
+gegebenenfalls noch ausstehende Level-Rewards. Migration
+`V10__skill_reward_definitions.sql` stellt die aktuell konfigurierte
+Reward-Liste auch dem Webpanel zur Verfügung.
 
 `pc_players` wird bei jedem Login aktualisiert und macht UUID-basierte
 Statistiken – auch Playtime und Tode – ohne externe Namensauflösung anzeigbar.
