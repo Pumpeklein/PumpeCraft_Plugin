@@ -43,7 +43,7 @@ neue Schlüssel, es korrigiert keine alten.
 | Modul | Plugin | Rolle |
 | --- | --- | --- |
 | `plugins/database` | `PumpeDatabase` | HikariCP-Pool, Flyway-Migrationen, `DatabaseService` als Bukkit-Service |
-| `plugins/utils` | `PumpeUtils` | Statische Helfer ohne Zustand, von allen Gameplay-Plugins genutzt |
+| `plugins/utils` | `PumpeUtils` | Statische Helfer ohne Zustand plus Sektion `objects` für Serverobjekte |
 | `plugins/anticheat` | `PumpeAntiCheat` | Checks, Client-Erkennung, Item-Validierung |
 | `plugins/essentials` | `PumpeEssentials` | Inventar- und Enderchest-Zugriff für das Team |
 | `plugins/mod` | `PumpeMod` | Bans, Mutes, Reports, Notizen |
@@ -54,6 +54,15 @@ neue Schlüssel, es korrigiert keine alten.
 | `plugins/playtime` | `PumpePlaytime` | Spielzeit-Erfassung |
 | `plugins/chat-control` | `PumpeChatControl` | Chatfilter, Privatnachrichten, Persistenz |
 | `plugins/transactions` | `PumpeTransactions` | PumpePoints (PP), Buchungen, Zeitgutschrift |
+| `plugins/mailbox` | `PumpeMailbox` | Briefkasten als Serverobjekt: animierte Klappe und Fahne, Postfach, Resourcepack |
+
+`plugins/briefkasten` ist der Vorläufer von `plugins/mailbox`, nicht mehr im Build und wartet nur
+noch darauf, gelöscht zu werden. Nichts von dort übernehmen — die Mechanik liegt jetzt in
+`plugins/utils` unter `de.pumpecraft.utils.objects`.
+
+Neue Serverobjekte (Briefkasten, Mülltonne, Schild, …) bekommen ein eigenes Modul und beschreiben
+sich über `DisplayObjectType`; sie bringen nur ihr Modell und ihre Spiellogik mit. Siehe
+[plugins/utils/CLAUDE.md](plugins/utils/CLAUDE.md), Sektion `objects`.
 
 `database` und `utils` sind Bibliotheks-Plugins: sie werden per `compileOnly` eingebunden
 und zur Laufzeit über `depend:` in der `plugin.yml` aufgelöst. Wer eines davon nutzt, muss

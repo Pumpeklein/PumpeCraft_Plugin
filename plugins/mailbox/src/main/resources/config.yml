@@ -1,0 +1,29 @@
+# Briefkasten: Animation und Postfach. Das Modell selbst steckt im Resourcepack.
+config-version: 1
+
+animation:
+  # Dauer der Klappenbewegung in Ticks. Der Server dreht pro Tick ein Stueck weiter,
+  # mehr Ticks heisst also weicher. 1 oder 0 springt sofort in die Endlage.
+  door-open-ticks: 6
+  door-close-ticks: 7
+
+  # Wie lange die Klappe nach einem Einwurf offen bleibt.
+  door-hold-ticks: 25
+
+  # Dauer der Fahnenbewegung in Ticks.
+  flag-ticks: 10
+
+mail:
+  # Groesse des Postfachs in Slots, wird auf ein Vielfaches von 9 gerundet (max. 54).
+  capacity: 27
+
+  # Was als Brief gilt und eingeworfen werden darf.
+  letters:
+    - paper
+    - written_book
+    - writable_book
+    - book
+    - filled_map
+
+  # Meldung an den Besitzer, sobald jemand etwas einwirft.
+  notify-owner: true
