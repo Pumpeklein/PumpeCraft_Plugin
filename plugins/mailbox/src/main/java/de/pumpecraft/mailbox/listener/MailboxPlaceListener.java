@@ -2,6 +2,7 @@ package de.pumpecraft.mailbox.listener;
 
 import de.pumpecraft.mailbox.MailboxItems;
 import de.pumpecraft.mailbox.MailboxObject;
+import de.pumpecraft.mailbox.MailboxService;
 import de.pumpecraft.utils.objects.DisplayObjects;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -20,6 +21,12 @@ import org.bukkit.inventory.ItemStack;
 public final class MailboxPlaceListener implements Listener {
     private static final String PLACE_PERMISSION = "pumpecraft.mailbox.place";
     private static final double OCCUPIED_RADIUS = 0.6D;
+
+    private final MailboxService service;
+
+    public MailboxPlaceListener(MailboxService service) {
+        this.service = service;
+    }
 
     @EventHandler(ignoreCancelled = true)
     public void onPlace(PlayerInteractEvent event) {
@@ -51,7 +58,10 @@ public final class MailboxPlaceListener implements Listener {
             return;
         }
 
-        DisplayObjects.spawn(MailboxObject.TYPE, base, DisplayObjects.facingYaw(player), player);
+        if (!service.place(player, base)) {
+            return;
+        }
+
         target.getWorld().playSound(base, Sound.BLOCK_WOOD_PLACE, 1.0F, 1.0F);
         if (player.getGameMode() != GameMode.CREATIVE) {
             player.getInventory().setItem(EquipmentSlot.HAND, item.subtract());

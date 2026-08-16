@@ -1,5 +1,5 @@
-# Briefkasten: Animation und Postfach. Das Modell selbst steckt im Resourcepack.
-config-version: 1
+# Briefkasten: Animation, Postfach und Versand. Das Modell steckt im Resourcepack.
+config-version: 2
 
 animation:
   # Dauer der Klappenbewegung in Ticks. Der Server dreht pro Tick ein Stueck weiter,
@@ -17,7 +17,7 @@ mail:
   # Groesse des Postfachs in Slots, wird auf ein Vielfaches von 9 gerundet (max. 54).
   capacity: 27
 
-  # Was als Brief gilt und eingeworfen werden darf.
+  # Was als Brief gilt und direkt eingeworfen werden darf.
   letters:
     - paper
     - written_book
@@ -27,3 +27,27 @@ mail:
 
   # Meldung an den Besitzer, sobald jemand etwas einwirft.
   notify-owner: true
+
+  # Das Paket steht neben dem Briefkasten, sobald etwas drin liegt, das kein Brief ist.
+  # Reine Briefe zeigen es erst ab so vielen Items.
+  parcel-threshold: 32
+
+delivery:
+  # Kosten einer Sendung in PumpePoints. Selbst einwerfen bleibt kostenlos.
+  cost:
+    base: 50
+    per-item: 1
+    per-100-blocks: 10
+
+  # Lieferzeit. Ergebnis wird auf max-seconds gedeckelt.
+  time:
+    base-seconds: 60
+    seconds-per-100-blocks: 30
+    seconds-per-stack: 15
+    max-seconds: 600
+
+  # Ersatzdistanz, wenn Absender und Briefkasten in verschiedenen Welten sind.
+  cross-world-blocks: 5000
+
+  # Wie viele Sendungen gleichzeitig zu einem Spieler unterwegs sein duerfen.
+  max-pending: 5

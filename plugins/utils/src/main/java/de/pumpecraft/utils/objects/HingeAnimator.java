@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.bukkit.Bukkit;
-import org.bukkit.entity.ItemDisplay;
+import org.bukkit.entity.Display;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
@@ -36,7 +36,7 @@ public final class HingeAnimator {
      * @return whether the part had to move at all
      */
     public boolean rotate(DisplayObject object, ObjectHinge hinge, float degrees, int ticks) {
-        ItemDisplay display = object.part(hinge.part());
+        Display display = object.part(hinge.part());
         if (display == null || !display.isValid()) {
             return false;
         }
@@ -77,7 +77,7 @@ public final class HingeAnimator {
     }
 
     public float angle(DisplayObject object, ObjectHinge hinge) {
-        ItemDisplay display = object.part(hinge.part());
+        Display display = object.part(hinge.part());
         if (display == null) {
             return 0.0F;
         }
@@ -90,7 +90,7 @@ public final class HingeAnimator {
      * replaces the pending action.
      */
     public void delay(DisplayObject object, ObjectHinge hinge, int ticks, Runnable action) {
-        ItemDisplay display = object.part(hinge.part());
+        Display display = object.part(hinge.part());
         if (display == null) {
             return;
         }
@@ -106,7 +106,7 @@ public final class HingeAnimator {
     }
 
     public void cancel(DisplayObject object, ObjectHinge hinge) {
-        ItemDisplay display = object.part(hinge.part());
+        Display display = object.part(hinge.part());
         if (display != null) {
             stop(delayed, display.getUniqueId());
         }
@@ -119,7 +119,7 @@ public final class HingeAnimator {
         delayed.clear();
     }
 
-    private void apply(ItemDisplay display, float degrees, ObjectHinge hinge) {
+    private void apply(Display display, float degrees, ObjectHinge hinge) {
         Quaternionf rotation = new Quaternionf().rotateX((float) Math.toRadians(degrees));
         // An item display with transform FIXED renders the model turned by 180 degrees around Y and
         // the transformation applies on top of that, so X and Z of a model space hinge are mirrored

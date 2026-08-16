@@ -3,6 +3,13 @@ import org.gradle.jvm.tasks.Jar
 
 description = "PumpeCraft mailbox plugin"
 
+// PumpeTransactions is no library module, so its classes are not on the shared compile classpath.
+// The mailbox only needs the PointsService API and resolves it at runtime through depend:.
+dependencies {
+    compileOnly(project(":plugins:transactions"))
+    add("ideClasspath", project(":plugins:transactions"))
+}
+
 val packZip = tasks.register<Zip>("packZip") {
     group = "build"
     description = "Bundles the mailbox resource pack into build/pack."
@@ -36,6 +43,10 @@ tasks.register<Copy>("deployBundle") {
     into("plugins") {
         from(tasks.named<Jar>("jar").flatMap { it.archiveFile })
         from(project(":plugins:utils").tasks.named<Jar>("jar").flatMap { it.archiveFile })
+        // The mailbox needs both at runtime, and the database jar carries the migration for its
+        // own tables - shipping them together keeps the bundle installable on its own.
+        from(project(":plugins:database").tasks.named<Jar>("shadowJar").flatMap { it.archiveFile })
+        from(project(":plugins:transactions").tasks.named<Jar>("jar").flatMap { it.archiveFile })
     }
     into("resourcepack") {
         from(layout.projectDirectory.dir("pack"))

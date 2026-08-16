@@ -54,7 +54,7 @@ neue Schlüssel, es korrigiert keine alten.
 | `plugins/playtime` | `PumpePlaytime` | Spielzeit-Erfassung |
 | `plugins/chat-control` | `PumpeChatControl` | Chatfilter, Privatnachrichten, Persistenz |
 | `plugins/transactions` | `PumpeTransactions` | PumpePoints (PP), Buchungen, Zeitgutschrift |
-| `plugins/mailbox` | `PumpeMailbox` | Briefkasten als Serverobjekt: animierte Klappe und Fahne, Postfach, Resourcepack |
+| `plugins/mailbox` | `PumpeMailbox` | Briefkasten als Serverobjekt: Klappe, Fahne, Namensschild, Postfach, bezahlter Versand mit Lieferzeit |
 
 `plugins/briefkasten` ist der Vorläufer von `plugins/mailbox`, nicht mehr im Build und wartet nur
 noch darauf, gelöscht zu werden. Nichts von dort übernehmen — die Mechanik liegt jetzt in

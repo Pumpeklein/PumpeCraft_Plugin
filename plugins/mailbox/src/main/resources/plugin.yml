@@ -3,13 +3,13 @@ version: ${version}
 main: de.pumpecraft.mailbox.PumpeMailboxPlugin
 api-version: '1.21'
 author: PumpeCraft
-description: Mailbox object with animated door, flag and mail storage.
-depend: [PumpeUtils]
+description: Mailbox object with animated door, flag, mail storage and paid deliveries.
+depend: [PumpeUtils, PumpeDatabase, PumpeTransactions]
 commands:
   mailbox:
     aliases: [briefkasten, bk]
-    description: Gives, places and removes mailboxes.
-    usage: /mailbox <give|spawn|remove|info> [Spieler]
+    description: Places mailboxes and sends mail.
+    usage: /mailbox <give|spawn|remove|send|status|info> [Spieler]
     permission: pumpecraft.mailbox.command
 permissions:
   pumpecraft.mailbox.*:
@@ -18,17 +18,21 @@ permissions:
     children:
       pumpecraft.mailbox.command: true
       pumpecraft.mailbox.place: true
-      pumpecraft.mailbox.manage: true
       pumpecraft.mailbox.use: true
+      pumpecraft.mailbox.give: true
+      pumpecraft.mailbox.manage: true
   pumpecraft.mailbox.command:
-    description: Allows using /mailbox.
-    default: false
+    description: Allows using /mailbox for own mailbox, sending and status.
+    default: true
   pumpecraft.mailbox.place:
     description: Allows placing a mailbox from the item.
+    default: true
+  pumpecraft.mailbox.use:
+    description: Allows dropping letters into a mailbox.
+    default: true
+  pumpecraft.mailbox.give:
+    description: Allows creating mailboxes out of nothing through /mailbox give and /mailbox spawn.
     default: false
   pumpecraft.mailbox.manage:
     description: Allows opening and removing a mailbox of another player.
     default: false
-  pumpecraft.mailbox.use:
-    description: Allows dropping letters into a mailbox.
-    default: true

@@ -2,8 +2,8 @@ package de.pumpecraft.mailbox.listener;
 
 import de.pumpecraft.mailbox.MailboxItems;
 import de.pumpecraft.mailbox.MailboxObject;
+import de.pumpecraft.mailbox.MailboxService;
 import de.pumpecraft.mailbox.MailboxSettings;
-import de.pumpecraft.mailbox.mail.MailService;
 import de.pumpecraft.utils.objects.DisplayObject;
 import de.pumpecraft.utils.objects.DisplayObjects;
 import io.papermc.paper.event.player.PrePlayerAttackEntityEvent;
@@ -11,8 +11,6 @@ import java.util.Optional;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.GameMode;
-import org.bukkit.Location;
-import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -26,11 +24,11 @@ public final class MailboxInteractListener implements Listener {
     private static final String MANAGE_PERMISSION = "pumpecraft.mailbox.manage";
 
     private final MailboxSettings settings;
-    private final MailService mail;
+    private final MailboxService service;
 
-    public MailboxInteractListener(MailboxSettings settings, MailService mail) {
+    public MailboxInteractListener(MailboxSettings settings, MailboxService service) {
         this.settings = settings;
-        this.mail = mail;
+        this.service = service;
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -55,13 +53,14 @@ public final class MailboxInteractListener implements Listener {
             return;
         }
 
-        if (!mail.canOpen(player, mailbox)) {
+        if (!service.canOpen(player, mailbox)) {
             player.sendMessage(Component.text(
-                "Dieser Briefkasten gehört " + mail.ownerName(mailbox) + ".", NamedTextColor.RED));
+                "Dieser Briefkasten gehört " + service.ownerName(mailbox)
+                    + ". Nutze /mailbox send " + service.ownerName(mailbox) + ".", NamedTextColor.RED));
             return;
         }
 
-        mail.open(player, mailbox);
+        service.open(player, mailbox);
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -72,7 +71,7 @@ public final class MailboxInteractListener implements Listener {
 
         event.setCancelled(true);
         Player player = event.getPlayer();
-        if (!player.isSneaking() || !player.hasPermission(MANAGE_PERMISSION)) {
+        if (!player.isSneaking()) {
             return;
         }
 
@@ -82,15 +81,12 @@ public final class MailboxInteractListener implements Listener {
         }
 
         DisplayObject mailbox = found.get();
-        Location location = mailbox.location();
-        mail.dropAll(mailbox);
-        DisplayObjects.remove(mailbox);
-        if (location != null) {
-            location.getWorld().playSound(location, Sound.BLOCK_WOOD_BREAK, 1.0F, 1.0F);
-            if (player.getGameMode() != GameMode.CREATIVE) {
-                location.getWorld().dropItemNaturally(location, MailboxItems.create(1));
-            }
+        if (!service.isOwner(player, mailbox) && !player.hasPermission(MANAGE_PERMISSION)) {
+            player.sendMessage(Component.text("Das ist nicht dein Briefkasten.", NamedTextColor.RED));
+            return;
         }
+
+        service.remove(player, mailbox, true);
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -106,7 +102,7 @@ public final class MailboxInteractListener implements Listener {
             return;
         }
 
-        if (mail.insert(player, mailbox, held) && player.getGameMode() != GameMode.CREATIVE) {
+        if (service.insert(player, mailbox, held) && player.getGameMode() != GameMode.CREATIVE) {
             player.getInventory().setItem(EquipmentSlot.HAND, held.subtract());
         }
     }

@@ -1,20 +1,24 @@
 # PumpeMailbox
 
 Briefkasten als Serverobjekt: Item mit `minecraft:item_model`, aufgestelltes Modell aus
-Display-Entities, animierte Klappe und Fahne, Postfach mit persistentem Inhalt.
+Display-Entities, animierte Klappe und Fahne, Namensschild, Postfach und bezahlter Versand mit
+Lieferzeit.
 
-Die Mechanik dahinter - Aufstellen, Wiederfinden, Scharniere, Besitzer und Inhalt - liegt in
+Die Objektmechanik - Aufstellen, Wiederfinden, Scharniere, Label, Besitzer und Inhalt - liegt in
 `de.pumpecraft.utils.objects` in [plugins/utils](../utils/CLAUDE.md) und wird von jedem weiteren
-Serverobjekt genauso genutzt. Hier liegt nur, was den Briefkasten ausmacht: das Modell, die Post
-und die Bedienung.
+Serverobjekt genauso genutzt. Hier liegt nur, was den Briefkasten ausmacht.
+
+`depend: [PumpeUtils, PumpeDatabase, PumpeTransactions]` - Positionen und Sendungen liegen in der
+Datenbank, der Versand kostet PumpePoints.
 
 ## Commands
 
 - `/mailbox give [Spieler]` - gibt das Briefkasten-Item.
-- `/mailbox spawn` - stellt einen Briefkasten auf dem eigenen Block auf.
-- `/mailbox remove` - entfernt den nächsten Briefkasten im Umkreis von 5 Blöcken und wirft die
-  enthaltene Post aus.
-- `/mailbox info` - zeigt Objekt-ID, Modellschlüssel und Basis-Item.
+- `/mailbox spawn` - stellt den eigenen Briefkasten auf.
+- `/mailbox remove` - baut den nächsten eigenen Briefkasten ab und wirft die Post aus.
+- `/mailbox send <Spieler>` - öffnet das Versandmenü zu einem fremden Briefkasten.
+- `/mailbox status` - Standort des eigenen Briefkastens und was unterwegs ist.
+- `/mailbox info` - Objekt-ID, Modellschlüssel und Basis-Item.
 
 Aliase: `/briefkasten`, `/bk`.
 
@@ -26,12 +30,78 @@ Aliase: `/briefkasten`, `/bk`.
 | Rechtsklick mit einem Brief | Klappe öffnet, Brief landet im Postfach, Fahne geht hoch |
 | Rechtsklick mit leerer Hand | öffnet das Postfach (nur Besitzer bzw. `manage`) |
 | Postfach schließen | speichert den Inhalt, Klappe zu, Fahne fällt bei leerem Kasten |
-| Schleichen + Schlagen | baut ihn ab, gibt Item und Post zurück (`manage`) |
+| Schleichen + Schlagen | baut den eigenen Briefkasten ab (`manage` auch fremde) |
 
-Was als Brief gilt, steht in `config.yml` unter `mail.letters`. Besitzer wird, wer den
-Briefkasten aufstellt; ohne Besitzer darf jeder öffnen.
+Direkt einwerfen ist kostenlos, dafür muss man vor dem Briefkasten stehen. Versand über
+`/mailbox send` kostet PumpePoints und braucht Zeit.
+
+## Ein Briefkasten pro Spieler
+
+Wer schon einen hat, bekommt beim Aufstellen die Koordinaten des vorhandenen genannt. Die
+Zuordnung steht in `pc_mailboxes` und überlebt Neustarts; Position und Body-UUID stehen mit drin,
+damit eine Lieferung den Briefkasten auch findet, während sein Chunk nicht geladen ist - dann wird
+er kurz nachgeladen.
+
+Über dem Briefkasten schwebt ein Namensschild mit dem Besitzer, darunter Anzahl der wartenden
+Items und der Sendungen, die noch unterwegs sind. Es ist ein `text_display` mit begrenzter
+Sichtweite, taucht also erst ein paar Blöcke davor auf.
+
+## Versand
+
+`/mailbox send <Spieler>` öffnet ein Menü: oben 36 Felder für die Ware, unten Entfernung, Preis,
+Lieferzeit und die beiden Knöpfe. Preis und Zeit rechnen sich nach jedem Einlegen neu.
+
+```
+Preis   = base + per-item * Items + per-100-blocks * Distanz / 100
+Zeit    = base-seconds + seconds-per-100-blocks * Distanz / 100 + seconds-per-stack * Stapel
+          gedeckelt auf max-seconds (Standard 10 Minuten)
+```
+
+Andere Welt zählt als feste Ersatzdistanz (`cross-world-blocks`). Bezahlt wird beim Abschicken über
+`PointsService`; reicht das Guthaben nicht, kommt alles zurück.
+
+Ab dem Abschicken sind im Zielbriefkasten so viele Slots mit Barrieren blockiert, wie die Sendung
+Stapel hat. Sie zeigen Absender und Restzeit, lassen sich nicht herausnehmen und werden nie
+gespeichert - sie existieren nur in der offenen Ansicht. Damit kann der Empfänger den Kasten nicht
+so voll machen, dass die Lieferung nicht mehr passt, und muss regelmäßig hineinsehen.
+
+Ist bei Ankunft trotzdem kein Platz, bleibt die Sendung stehen und der Empfänger bekommt eine
+Meldung. Absender und Empfänger werden beim Abschicken, bei Ankunft und beim Einloggen informiert.
+
+Liegen mindestens `mail.parcel-threshold` Items im Briefkasten, steht zusätzlich ein Paket-Modell
+daneben (`pumpecraft:mailbox_parcel`), das wieder verschwindet, sobald geleert wurde.
+
+## Anti-Dupe
+
+Der offensichtliche Weg - jeder Öffner bekommt eine Kopie des gespeicherten Inhalts - dupliziert,
+sobald zwei Leute gleichzeitig öffnen oder jemand den Briefkasten abbaut, während er offen ist.
+Deshalb:
+
+- Ein Briefkasten hat genau **ein** `Inventory`-Objekt, solange er offen ist; alle Öffner sehen
+  dieselbe Instanz (`MailboxInventories`).
+- Geschrieben wird beim Schließen des letzten Öffners und nach jedem Einwurf.
+- Abbauen ruft `drain`: erst alle Ansichten schließen (das schreibt zurück), dann den gespeicherten
+  Inhalt einmal auswerfen.
+- Reservierungs-Barrieren werden beim Speichern herausgefiltert und können nicht angeklickt,
+  gezogen oder per Zahlentaste getauscht werden.
+- Im Versandmenü wandern die Items beim Abschicken erst aus dem Menü in die Sendung, dann wird
+  geschlossen und erst danach abgebucht - während der Zahlung existieren sie nirgends im Spiel.
+- Beim Abschalten des Plugins werden alle offenen Briefkästen gespeichert und geschlossen.
 
 ## Aufbau
+
+| Klasse | Aufgabe |
+| --- | --- |
+| `MailboxObject` | Objekt-, Scharnier- und Paketdefinition |
+| `MailboxItems` | Item, Reservierungs-Barriere, Menüknöpfe |
+| `MailboxAnimations` | Klappe, Fahne |
+| `MailboxService` | Klammer: Aufstellen, Öffnen, Einwerfen, Abbauen, Label/Fahne/Paket aktualisieren |
+| `box/MailboxIndex` + `MailboxRepository` | ein Briefkasten pro Spieler, `pc_mailboxes` |
+| `box/MailboxInventories` | die eine lebende Ansicht, Persistenz, Anti-Dupe |
+| `mail/DeliveryService` + `DeliveryRepository` | Preis, Laufzeit, Reservierungen, Zustellung, `pc_mail_deliveries` |
+| `mail/SendMenu` + `SendHolder` | Versandmenü |
+| `command/MailboxCommand` | `/mailbox` |
+| `listener/…` | Aufstellen, Interaktion, Inventar, Login |
 
 `MailboxObject` beschreibt das ganze Objekt - mehr braucht ein Serverobjekt nicht:
 
@@ -44,34 +114,36 @@ DisplayObjectType.builder("mailbox")
     .part("flag", "pumpecraft:mailbox_flag")
     .hitbox(0.7F, 1.4F)
     .shadow(0.5F)
+    .label(1.7F, 0.16F)
     .build();
 
 ObjectHinge.fromModel("door", 8.0D, 13.0D, 3.65D);
 ObjectHinge.fromModel("flag", 14.85D, 19.0D, 8.0D);
 ```
 
-Die Zahlen in `fromModel` sind die Scharnierpunkte direkt aus den Modelldateien, sie lassen sich
-nach jeder Änderung in Blockbench dort wieder ablesen.
-
-| Klasse | Aufgabe |
-| --- | --- |
-| `MailboxObject` | Objekt- und Scharnierdefinition, Drehwinkel |
-| `MailboxItems` | Item mit Name und Lore |
-| `MailboxAnimations` | Klappe auf/zu/klappen, Fahne hoch/runter samt Sounds |
-| `mail/MailService` | Einwurf, Postfach-GUI, Speichern, Auswerfen, Besitzerprüfung |
-| `mail/MailboxHolder` | Inventar-Holder, verbindet GUI und Objekt |
-| `command/MailboxCommand` | `/mailbox` |
-| `listener/…` | Aufstellen, Interaktion, Inventar schließen |
+Die Zahlen in `fromModel` sind die Scharnierpunkte direkt aus den Modelldateien.
 
 ## Permissions
 
-- `pumpecraft.mailbox.*`
-- `pumpecraft.mailbox.command`
-- `pumpecraft.mailbox.place`
-- `pumpecraft.mailbox.manage` - fremde Briefkästen öffnen und abbauen
-- `pumpecraft.mailbox.use` - Briefe einwerfen, steht auf `true`
+| Permission | Standard | Wofür |
+| --- | --- | --- |
+| `pumpecraft.mailbox.command` | `true` | `/mailbox` mit `send`, `status`, `remove`, `info` |
+| `pumpecraft.mailbox.place` | `true` | Briefkasten aus dem Item aufstellen |
+| `pumpecraft.mailbox.use` | `true` | Briefe einwerfen |
+| `pumpecraft.mailbox.give` | `false` | `/mailbox give` und `/mailbox spawn` - erzeugt Briefkästen aus dem Nichts, gehört dem Team |
+| `pumpecraft.mailbox.manage` | `false` | fremde Briefkästen öffnen und abbauen |
 
-Die übrigen Permissions stehen auf `false` und werden über LuckPerms vergeben.
+Spieler brauchen also nichts zugewiesen zu bekommen; nur Team-Ränge bekommen `give` und `manage`
+über LuckPerms. Wer das Item ausgeben darf, entscheidet damit auch, wie Spieler an einen
+Briefkasten kommen - ein Rezept gibt es bewusst noch nicht.
+
+## Datenbank
+
+`V18__mailboxes_and_deliveries.sql` legt an:
+
+- `pc_mailboxes` - ein Eintrag pro Spieler mit Welt, Position und Body-UUID.
+- `pc_mail_deliveries` - jede Sendung mit Inhalt, Stapelzahl, Kosten, Absende- und Ankunftszeit;
+  `delivered_at` bleibt bis zur Zustellung leer, offene Sendungen werden beim Start neu geladen.
 
 ## Resourcepack
 
@@ -79,13 +151,10 @@ Die übrigen Permissions stehen auf `false` und werden über LuckPerms vergeben.
 pack/
 ├── pack.mcmeta
 └── assets/pumpecraft/
-    ├── items/                    # mailbox, _body, _door, _flag
-    ├── models/item/              # dieselben vier Modelle
+    ├── items/                    # mailbox, _body, _door, _flag, _parcel
+    ├── models/item/              # dieselben fünf Modelle
     └── textures/item/mailbox.png # 32x32, sieben Zonen
 ```
-
-`mailbox` ist das komplette Modell in Ruhelage - es steckt im Item, in der Hand und im Inventar.
-Die drei Teilmodelle sind für die aufgestellte Version, gebaut im selben Koordinatensystem.
 
 ```bash
 ./gradlew :plugins:mailbox:packZip       # build/pack/mailbox-pack.zip

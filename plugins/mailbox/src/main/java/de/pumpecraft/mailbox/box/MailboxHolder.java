@@ -1,4 +1,4 @@
-package de.pumpecraft.mailbox.mail;
+package de.pumpecraft.mailbox.box;
 
 import de.pumpecraft.utils.objects.DisplayObject;
 import org.bukkit.inventory.Inventory;

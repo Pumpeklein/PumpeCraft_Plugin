@@ -8,8 +8,8 @@ import org.bukkit.NamespacedKey;
 
 /**
  * Describes one kind of server object: which vanilla item carries the model, which item models the
- * body and the movable parts use, and how big the hitbox is. One instance per object kind, built
- * once and kept as a constant in the owning plugin.
+ * body and the movable parts use, how big the hitbox is and whether the object carries a floating
+ * label. One instance per object kind, built once and kept as a constant in the owning plugin.
  */
 public final class DisplayObjectType {
     private final String id;
@@ -20,6 +20,9 @@ public final class DisplayObjectType {
     private final float width;
     private final float height;
     private final float shadowRadius;
+    private final boolean labelled;
+    private final float labelHeight;
+    private final float labelViewRange;
 
     private DisplayObjectType(Builder builder) {
         this.id = builder.id;
@@ -30,6 +33,9 @@ public final class DisplayObjectType {
         this.width = builder.width;
         this.height = builder.height;
         this.shadowRadius = builder.shadowRadius;
+        this.labelled = builder.labelled;
+        this.labelHeight = builder.labelHeight;
+        this.labelViewRange = builder.labelViewRange;
     }
 
     public static Builder builder(String id) {
@@ -68,6 +74,18 @@ public final class DisplayObjectType {
         return shadowRadius;
     }
 
+    public boolean labelled() {
+        return labelled;
+    }
+
+    public float labelHeight() {
+        return labelHeight;
+    }
+
+    public float labelViewRange() {
+        return labelViewRange;
+    }
+
     public static final class Builder {
         private final String id;
         private final Map<String, NamespacedKey> parts = new LinkedHashMap<>();
@@ -77,6 +95,9 @@ public final class DisplayObjectType {
         private float width = 0.6F;
         private float height = 1.0F;
         private float shadowRadius;
+        private boolean labelled;
+        private float labelHeight = 1.6F;
+        private float labelViewRange = 0.2F;
 
         private Builder(String id) {
             this.id = id;
@@ -110,6 +131,17 @@ public final class DisplayObjectType {
 
         public Builder shadow(float radius) {
             this.shadowRadius = radius;
+            return this;
+        }
+
+        /**
+         * @param height    height of the label above the ground in blocks
+         * @param viewRange multiplier on the default render distance; 0.15 is roughly ten blocks
+         */
+        public Builder label(float height, float viewRange) {
+            this.labelled = true;
+            this.labelHeight = height;
+            this.labelViewRange = viewRange;
             return this;
         }
 
