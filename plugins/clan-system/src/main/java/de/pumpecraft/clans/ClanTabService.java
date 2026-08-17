@@ -12,12 +12,16 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.scoreboard.Team;
 
 final class ClanTabService {
     private final PumpeClanSystemPlugin plugin;
     private final ClanRepository repository;
     private final Map<UUID, TabEntry> entries = new HashMap<>();
     private final Set<UUID> decoratedPlayers = new HashSet<>();
+    private final Map<Long, Team> clanTeams = new HashMap<>();
+    private final Map<UUID, Team> playerTeams = new HashMap<>();
 
     ClanTabService(PumpeClanSystemPlugin plugin, ClanRepository repository) {
         this.plugin = plugin;
@@ -44,33 +48,73 @@ final class ClanTabService {
     }
 
     void apply(Player player) {
-        Component currentName = player.playerListName();
-        String plainName = PlainTextComponentSerializer.plainText().serialize(currentName);
-        if (plainName.startsWith("[AFK] ")) {
-            return;
-        }
-
         TabEntry entry = entries.get(player.getUniqueId());
         if (entry == null) {
+            removeNametag(player);
             if (decoratedPlayers.remove(player.getUniqueId())) {
                 player.playerListName(Component.text(player.getName(), NamedTextColor.WHITE));
             }
             return;
         }
+
+        applyNametag(player, entry);
+
+        Component currentName = player.playerListName();
+        String plainName = PlainTextComponentSerializer.plainText().serialize(currentName);
+        if (plainName.startsWith("[AFK] ")) {
+            return;
+        }
         player.playerListName(
-            Component.text("[" + entry.tag() + "] ", ClanColors.color(entry.tagColor()))
+            ClanTagFormatter.prefix(entry.tag(), entry.tagColor())
                 .append(Component.text(player.getName(), NamedTextColor.WHITE))
         );
         decoratedPlayers.add(player.getUniqueId());
     }
 
+    private void applyNametag(Player player, TabEntry entry) {
+        Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
+        Team expected = clanTeams.computeIfAbsent(entry.clanId(), clanId -> {
+            String name = "pcC" + Long.toUnsignedString(clanId, 36);
+            Team team = scoreboard.getTeam(name);
+            if (team == null) {
+                team = scoreboard.registerNewTeam(name);
+            }
+            team.setOption(Team.Option.NAME_TAG_VISIBILITY, Team.OptionStatus.ALWAYS);
+            return team;
+        });
+        expected.prefix(ClanTagFormatter.prefix(entry.tag(), entry.tagColor()));
+
+        Team previous = playerTeams.put(player.getUniqueId(), expected);
+        if (previous != null && previous != expected) {
+            previous.removeEntry(player.getName());
+        }
+        expected.addEntry(player.getName());
+    }
+
+    private void removeNametag(Player player) {
+        Team team = playerTeams.remove(player.getUniqueId());
+        if (team != null) {
+            team.removeEntry(player.getName());
+        }
+    }
+
     void restoreOnlinePlayers() {
         for (Player player : Bukkit.getOnlinePlayers()) {
+            removeNametag(player);
             if (decoratedPlayers.contains(player.getUniqueId())) {
                 player.playerListName(Component.text(player.getName(), NamedTextColor.WHITE));
             }
         }
+        for (Team team : clanTeams.values()) {
+            try {
+                team.unregister();
+            } catch (IllegalStateException ignored) {
+                // Another scoreboard owner may already have removed the shared team.
+            }
+        }
         decoratedPlayers.clear();
+        playerTeams.clear();
+        clanTeams.clear();
         entries.clear();
     }
 }

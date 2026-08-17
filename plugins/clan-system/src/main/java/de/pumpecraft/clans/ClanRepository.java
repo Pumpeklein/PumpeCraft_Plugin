@@ -10,6 +10,7 @@ import de.pumpecraft.clans.ClanData.Member;
 import de.pumpecraft.clans.ClanData.PlayerBase;
 import de.pumpecraft.clans.ClanData.PlayerIdentity;
 import de.pumpecraft.clans.ClanData.RemoveMemberResult;
+import de.pumpecraft.clans.ClanData.RenameClanResult;
 import de.pumpecraft.clans.ClanData.TabEntry;
 import de.pumpecraft.database.DatabaseService;
 import de.pumpecraft.database.Databases;
@@ -146,6 +147,35 @@ final class ClanRepository {
                 statement.setLong(2, clanId);
                 statement.setString(3, ownerId.toString());
                 return statement.executeUpdate() > 0;
+            }
+        });
+    }
+
+    RenameClanResult renameClan(long clanId, UUID ownerId, String newName) {
+        return database.inTransaction(connection -> {
+            if (!ownsClan(connection, clanId, ownerId)) {
+                return RenameClanResult.NOT_OWNER;
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT 1 FROM pc_clans WHERE LOWER(clan_name) = LOWER(?) AND id <> ?"
+            )) {
+                statement.setString(1, newName);
+                statement.setLong(2, clanId);
+                try (ResultSet result = statement.executeQuery()) {
+                    if (result.next()) {
+                        return RenameClanResult.NAME_TAKEN;
+                    }
+                }
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE pc_clans SET clan_name = ? WHERE id = ? AND owner_uuid = ?"
+            )) {
+                statement.setString(1, newName);
+                statement.setLong(2, clanId);
+                statement.setString(3, ownerId.toString());
+                return statement.executeUpdate() > 0
+                    ? RenameClanResult.RENAMED
+                    : RenameClanResult.NOT_OWNER;
             }
         });
     }
@@ -321,13 +351,14 @@ final class ClanRepository {
             List<TabEntry> entries = new ArrayList<>();
             try (PreparedStatement statement = connection.prepareStatement(
                 """
-                SELECT m.player_uuid, m.player_name, c.clan_tag, c.tag_color
+                SELECT c.id AS clan_id, m.player_uuid, m.player_name, c.clan_tag, c.tag_color
                   FROM pc_clan_members m
                   JOIN pc_clans c ON c.id = m.clan_id
                 """
             ); ResultSet result = statement.executeQuery()) {
                 while (result.next()) {
                     entries.add(new TabEntry(
+                        result.getLong("clan_id"),
                         UUID.fromString(result.getString("player_uuid")),
                         result.getString("player_name"),
                         result.getString("clan_tag"),

@@ -30,7 +30,7 @@ import org.bukkit.entity.Player;
 
 final class ClanCommand implements CommandExecutor, TabCompleter {
     private static final Pattern CLAN_NAME = Pattern.compile("[\\p{L}\\p{N}_-]{3,24}");
-    private static final Pattern CLAN_TAG = Pattern.compile("[A-Za-z0-9]{2,8}");
+    private static final Pattern CLAN_TAG = Pattern.compile("[A-Za-z0-9]{2,4}");
     private static final Component DIVIDER = Component.text("─".repeat(36), NamedTextColor.DARK_GRAY);
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter
         .ofPattern("dd.MM.yyyy")
@@ -78,7 +78,16 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
             case "erstellen", "create" -> create(player, label, args);
             case "löschen", "loeschen", "delete" -> delete(player, label, args);
             case "tagfarbe", "farbe", "color" -> setColor(player, label, args);
+            case "rename", "umbenennen" -> rename(player, label, args);
             case "info" -> info(player, args);
+            case "whois", "werist" -> whoIs(player, label, args, 1);
+            case "who" -> {
+                if (args.length >= 2 && args[1].equalsIgnoreCase("is")) {
+                    whoIs(player, label, args, 2);
+                } else {
+                    player.sendMessage(error("Nutzung: /" + label + " who is <Spieler>"));
+                }
+            }
             case "einladen", "invite" -> invite(player, label, args);
             case "annehmen", "accept" -> accept(player, label, args);
             case "verlassen", "leave" -> leave(player);
@@ -103,13 +112,13 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length == 1) {
             List<String> options = new ArrayList<>(List.of(
-                "info", "accept", "leave", "help"
+                "info", "whois", "accept", "leave", "help"
             ));
             if (sender.hasPermission(plugin.permission("clan-create"))) {
                 options.add("create");
             }
             if (sender.hasPermission(plugin.permission("clan-manage"))) {
-                options.addAll(List.of("invite", "kick", "delete"));
+                options.addAll(List.of("invite", "kick", "rename", "delete"));
             }
             if (sender.hasPermission(plugin.permission("clan-color"))) {
                 options.add("color");
@@ -127,12 +136,23 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
             if (matches(subcommand, "einladen", "invite")) {
                 return filter(plugin.directory().knownPlayerNames(), args[1]);
             }
+            if (matches(subcommand, "whois", "werist")) {
+                return filter(plugin.directory().knownPlayerNames(), args[1]);
+            }
+            if (matches(subcommand, "who")) {
+                return filter(List.of("is"), args[1]);
+            }
             if (matches(subcommand, "kicken", "kick")) {
                 return filter(plugin.directory().memberNames(), args[1]);
             }
             if (matches(subcommand, "löschen", "loeschen", "delete")) {
                 return filter(List.of("confirm"), args[1]);
             }
+        }
+        if (args.length == 3
+            && matches(args[0], "who")
+            && args[1].equalsIgnoreCase("is")) {
+            return filter(plugin.directory().knownPlayerNames(), args[2]);
         }
         return List.of();
     }
@@ -153,7 +173,7 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
             return;
         }
         if (!CLAN_TAG.matcher(clanTag).matches()) {
-            player.sendMessage(error("Der Clan-Tag braucht 2-8 Buchstaben oder Zahlen."));
+            player.sendMessage(error("Der Clan-Tag braucht 2-4 Buchstaben oder Zahlen."));
             return;
         }
         PlayerIdentity owner = identity(player);
@@ -163,8 +183,9 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
             result -> {
                 switch (result) {
                     case CREATED -> {
-                        player.sendMessage(success(
-                            "Clan " + clanName + " [" + clanTag + "] wurde erstellt."));
+                        player.sendMessage(Component.text(
+                            "Clan " + clanName + " wurde erstellt: ", NamedTextColor.GREEN)
+                            .append(ClanTagFormatter.badge(clanTag, "GRAY")));
                         changed();
                     }
                     case ALREADY_MEMBER -> player.sendMessage(error(
@@ -246,10 +267,88 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
                         return;
                     }
                     player.sendMessage(Component.text("Neue Tagfarbe: ", NamedTextColor.GREEN)
-                        .append(Component.text("[" + clan.get().tag() + "]", choice.color())));
+                        .append(ClanTagFormatter.badge(clan.get().tag(), choice.storedName())));
                     changed();
                 }
             );
+        });
+    }
+
+    private void rename(Player player, String label, String[] args) {
+        if (!requirePermission(player, "clan-manage")) {
+            return;
+        }
+        if (args.length != 2) {
+            player.sendMessage(error("Nutzung: /" + label + " rename <NeuerName>"));
+            return;
+        }
+        String newName = args[1];
+        if (!CLAN_NAME.matcher(newName).matches()) {
+            player.sendMessage(error(
+                "Der Clanname braucht 3-24 Buchstaben, Zahlen, _ oder -."));
+            return;
+        }
+        UUID playerId = player.getUniqueId();
+        plugin.runAsync(player, () -> repository.clanForPlayer(playerId), clan -> {
+            if (clan.isEmpty() || !clan.get().ownerId().equals(playerId)) {
+                player.sendMessage(error("Nur der Clan-Besitzer kann den Clan umbenennen."));
+                return;
+            }
+            String previousName = clan.get().name();
+            plugin.runAsync(
+                player,
+                () -> repository.renameClan(clan.get().id(), playerId, newName),
+                result -> {
+                    switch (result) {
+                        case RENAMED -> {
+                            player.sendMessage(success(
+                                "Clan " + previousName + " wurde in " + newName + " umbenannt."));
+                            changed();
+                        }
+                        case NOT_OWNER -> player.sendMessage(error(
+                            "Nur der Clan-Besitzer kann den Clan umbenennen."));
+                        case NAME_TAKEN -> player.sendMessage(error(
+                            "Dieser Clanname ist bereits vergeben."));
+                    }
+                }
+            );
+        });
+    }
+
+    private void whoIs(Player player, String label, String[] args, int playerArgument) {
+        if (args.length != playerArgument + 1) {
+            player.sendMessage(error("Nutzung: /" + label + " whois <Spieler>"));
+            return;
+        }
+        String requestedName = args[playerArgument].startsWith("@")
+            ? args[playerArgument].substring(1)
+            : args[playerArgument];
+        Player onlineTarget = Bukkit.getPlayerExact(requestedName);
+        PlayerIdentity immediateTarget = onlineTarget == null ? null : identity(onlineTarget);
+        plugin.runAsync(player, () -> {
+            PlayerIdentity target = immediateTarget;
+            if (target == null) {
+                target = repository.findKnownPlayer(requestedName).orElse(null);
+            }
+            if (target == null) {
+                return new WhoIsOutcome(null, Optional.empty());
+            }
+            return new WhoIsOutcome(target, repository.clanForPlayer(target.playerId()));
+        }, outcome -> {
+            if (outcome.player() == null) {
+                player.sendMessage(error("Dieser Spieler ist dem Server nicht bekannt."));
+                return;
+            }
+            if (outcome.clan().isEmpty()) {
+                player.sendMessage(Component.text(
+                    outcome.player().playerName() + " ist in keinem Clan.", NamedTextColor.GRAY));
+                return;
+            }
+            Clan clan = outcome.clan().get();
+            player.sendMessage(Component.text(
+                outcome.player().playerName() + " ist Mitglied bei ", NamedTextColor.GRAY)
+                .append(ClanTagFormatter.badge(clan.tag(), clan.tagColor()))
+                .append(Component.text(" " + clan.name(), NamedTextColor.WHITE)));
         });
     }
 
@@ -399,11 +498,10 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
             return;
         }
         Clan clan = details.get().clan();
-        NamedTextColor tagColor = ClanColors.color(clan.tagColor());
         player.sendMessage(DIVIDER);
         player.sendMessage(Component.text("Clan ", NamedTextColor.GOLD, TextDecoration.BOLD)
             .append(Component.text(clan.name() + " ", NamedTextColor.WHITE, TextDecoration.BOLD))
-            .append(Component.text("[" + clan.tag() + "]", tagColor, TextDecoration.BOLD)));
+            .append(ClanTagFormatter.badge(clan.tag(), clan.tagColor())));
         player.sendMessage(Component.text("Besitzer: ", NamedTextColor.GRAY)
             .append(Component.text(clan.ownerName(), NamedTextColor.WHITE)));
         player.sendMessage(Component.text("Mitglieder: ", NamedTextColor.GRAY)
@@ -462,6 +560,7 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(DIVIDER);
         player.sendMessage(Component.text("Clan-System", NamedTextColor.GOLD, TextDecoration.BOLD));
         player.sendMessage(Component.text("/" + label + " info [Clan]", NamedTextColor.GRAY));
+        player.sendMessage(Component.text("/" + label + " whois <Spieler>", NamedTextColor.GRAY));
         player.sendMessage(Component.text("/" + label + " accept <Clan>", NamedTextColor.GRAY));
         player.sendMessage(Component.text("/" + label + " leave", NamedTextColor.GRAY));
         if (player.hasPermission(plugin.permission("clan-create"))) {
@@ -471,6 +570,8 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
         if (player.hasPermission(plugin.permission("clan-manage"))) {
             player.sendMessage(Component.text(
                 "/" + label + " invite|kick <Spieler>", NamedTextColor.GRAY));
+            player.sendMessage(Component.text(
+                "/" + label + " rename <NeuerName>", NamedTextColor.GRAY));
             player.sendMessage(Component.text(
                 "/" + label + " delete confirm", NamedTextColor.GRAY));
         }
@@ -540,5 +641,8 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
     }
 
     private record InviteOutcome(InviteStatus status, Clan clan, PlayerIdentity target) {
+    }
+
+    private record WhoIsOutcome(PlayerIdentity player, Optional<Clan> clan) {
     }
 }

@@ -57,7 +57,7 @@ final class ClanListener implements Listener {
         for (Invitation invitation : invitations) {
             long minutes = Math.max(1L, Duration.ofMillis(invitation.expiresAt() - now).toMinutes());
             player.sendMessage(
-                Component.text("[" + invitation.clanTag() + "] ", NamedTextColor.AQUA)
+                ClanTagFormatter.prefix(invitation.clanTag(), "AQUA")
                     .append(Component.text(invitation.clanName(), NamedTextColor.WHITE))
                     .append(Component.text(" · noch " + minutes + " Min. ", NamedTextColor.GRAY))
                     .append(Component.text("[ACCEPT]", NamedTextColor.GREEN)

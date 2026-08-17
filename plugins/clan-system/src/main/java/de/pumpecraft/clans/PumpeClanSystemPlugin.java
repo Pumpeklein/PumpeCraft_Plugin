@@ -85,9 +85,8 @@ public final class PumpeClanSystemPlugin extends JavaPlugin {
                     return;
                 }
                 ClanData.Clan clan = details.get().clan();
-                Component message = Component.text(
-                    "[" + clan.tag() + "] ", ClanColors.color(clan.tagColor())
-                ).append(Component.text(
+                Component message = ClanTagFormatter.prefix(clan.tag(), clan.tagColor())
+                    .append(Component.text(
                     joinedPlayer.getName() + " ist dem Clan beigetreten.",
                     NamedTextColor.GREEN
                 ));

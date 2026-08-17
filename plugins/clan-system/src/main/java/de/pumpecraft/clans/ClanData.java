@@ -31,7 +31,7 @@ final class ClanData {
     record ClanDetails(Clan clan, List<Member> members) {
     }
 
-    record TabEntry(UUID playerId, String playerName, String tag, String tagColor) {
+    record TabEntry(long clanId, UUID playerId, String playerName, String tag, String tagColor) {
     }
 
     record Invitation(long clanId, String clanName, String clanTag, long expiresAt) {
@@ -80,6 +80,12 @@ final class ClanData {
         NOT_INVITED,
         INVITATION_EXPIRED,
         CLAN_FULL
+    }
+
+    enum RenameClanResult {
+        RENAMED,
+        NOT_OWNER,
+        NAME_TAKEN
     }
 
     enum RemoveMemberResult {
