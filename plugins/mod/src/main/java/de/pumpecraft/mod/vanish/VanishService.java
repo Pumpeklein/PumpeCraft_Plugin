@@ -7,28 +7,34 @@ import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
-import org.bukkit.GameMode;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.scheduler.BukkitTask;
 
 /**
  * Versteckt Teamler vor normalen Spielern so, als hätten sie den Server verlassen, und zeigt sie
- * dem Team weiterhin: ausgegraut in der Tabliste und als schwebender Kopf im Spectator-Modus.
+ * dem Team weiterhin: ausgegraut in der Tabliste und als schwebender Kopf. Der versteckte Teamler
+ * behält seinen Spielmodus und kann weiter bauen; er wird nur unsichtbar geschaltet und darf
+ * fliegen wie im Kreativmodus.
  */
 public final class VanishService {
     public static final String SEE_PERMISSION = "pumpecraft.mod.vanish.see";
+    /** Getarnte Ausrüstung überlebt kein Nachladen des Trackings; sie wird deshalb nachgeschickt. */
+    private static final long EQUIPMENT_REFRESH_TICKS = 10L;
 
     private final Plugin plugin;
     private final VanishHeads heads;
-    private final NamespacedKey previousGameModeKey;
+    private final NamespacedKey interruptedKey;
     private final Map<UUID, VanishState> states = new HashMap<>();
+    private BukkitTask ticker;
+    private long ticks;
 
     public VanishService(Plugin plugin) {
         this.plugin = plugin;
         this.heads = new VanishHeads(plugin);
-        this.previousGameModeKey = new NamespacedKey(plugin, "vanish_game_mode");
+        this.interruptedKey = new NamespacedKey(plugin, "vanish_allow_flight");
     }
 
     public boolean isVanished(Player player) {
@@ -47,11 +53,12 @@ public final class VanishService {
     public void enable(Player staff) {
         states.put(staff.getUniqueId(), VanishState.capture(staff));
         staff.getPersistentDataContainer()
-            .set(previousGameModeKey, PersistentDataType.STRING, staff.getGameMode().name());
+            .set(interruptedKey, PersistentDataType.BOOLEAN, staff.getAllowFlight());
 
         applyVanishedState(staff);
-        heads.spawn(staff, tabName(staff));
+        heads.spawn(staff);
         applyViewers(staff);
+        startTicker();
 
         announce(
             staff,
@@ -75,7 +82,7 @@ public final class VanishService {
     }
 
     public void handleJoin(Player player) {
-        restoreInterruptedGameMode(player);
+        restoreInterruptedFlight(player);
         refresh(player);
     }
 
@@ -101,11 +108,8 @@ public final class VanishService {
     }
 
     public void refreshViewer(Player viewer) {
-        for (UUID vanishedId : List.copyOf(states.keySet())) {
-            Player staff = Bukkit.getPlayer(vanishedId);
-            if (staff != null) {
-                applyViewer(viewer, staff);
-            }
+        for (Player staff : vanishedPlayers()) {
+            applyViewer(viewer, staff);
         }
     }
 
@@ -119,12 +123,13 @@ public final class VanishService {
         }
         states.clear();
         heads.removeAll();
+        stopTicker();
     }
 
     private void deactivate(Player staff, VanishState state) {
         heads.remove(staff);
         state.restore(staff);
-        staff.getPersistentDataContainer().remove(previousGameModeKey);
+        staff.getPersistentDataContainer().remove(interruptedKey);
 
         for (Player viewer : Bukkit.getOnlinePlayers()) {
             if (!viewer.equals(staff)) {
@@ -134,12 +139,14 @@ public final class VanishService {
                 viewer.listPlayer(staff);
             }
         }
+        stopTicker();
     }
 
     private void applyVanishedState(Player staff) {
         staff.setSilent(true);
         staff.setCollidable(false);
-        staff.setGameMode(GameMode.SPECTATOR);
+        staff.setInvisible(true);
+        staff.setAllowFlight(true);
         staff.setVisibleByDefault(false);
         staff.playerListName(tabName(staff));
     }
@@ -162,6 +169,7 @@ public final class VanishService {
 
         if (!viewer.equals(staff)) {
             viewer.showPlayer(plugin, staff);
+            VanishEquipment.clear(viewer, staff);
         }
         // listPlayer wirft, solange der Spieler für den Zuschauer versteckt ist.
         if (viewer.canSee(staff)) {
@@ -170,21 +178,53 @@ public final class VanishService {
         heads.showTo(viewer, staff);
     }
 
-    /** Nach einem Serverabsturz bleibt der Spectator-Modus des Vanish sonst am Teamler hängen. */
-    private void restoreInterruptedGameMode(Player player) {
-        String stored = player.getPersistentDataContainer()
-            .get(previousGameModeKey, PersistentDataType.STRING);
-        if (stored == null) {
+    private void startTicker() {
+        if (ticker == null) {
+            ticker = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 1L, 1L);
+        }
+    }
+
+    private void stopTicker() {
+        if (states.isEmpty() && ticker != null) {
+            ticker.cancel();
+            ticker = null;
+        }
+    }
+
+    private void tick() {
+        heads.follow();
+
+        ticks++;
+        if (ticks % EQUIPMENT_REFRESH_TICKS != 0) {
+            return;
+        }
+        for (Player staff : vanishedPlayers()) {
+            for (Player viewer : Bukkit.getOnlinePlayers()) {
+                if (!viewer.equals(staff) && viewer.hasPermission(SEE_PERMISSION)) {
+                    VanishEquipment.clear(viewer, staff);
+                }
+            }
+        }
+    }
+
+    private List<Player> vanishedPlayers() {
+        return states.keySet().stream()
+            .map(Bukkit::getPlayer)
+            .filter(player -> player != null)
+            .toList();
+    }
+
+    /** Nach einem Serverabsturz bleibt der Teamler sonst unsichtbar und im Flugmodus hängen. */
+    private void restoreInterruptedFlight(Player player) {
+        Boolean allowFlight = player.getPersistentDataContainer()
+            .get(interruptedKey, PersistentDataType.BOOLEAN);
+        if (allowFlight == null) {
             return;
         }
 
-        player.getPersistentDataContainer().remove(previousGameModeKey);
-        for (GameMode gameMode : GameMode.values()) {
-            if (gameMode.name().equals(stored)) {
-                player.setGameMode(gameMode);
-                return;
-            }
-        }
+        player.getPersistentDataContainer().remove(interruptedKey);
+        player.setInvisible(false);
+        player.setAllowFlight(allowFlight);
     }
 
     private void announce(Player staff, Component publicMessage, Component staffMessage) {

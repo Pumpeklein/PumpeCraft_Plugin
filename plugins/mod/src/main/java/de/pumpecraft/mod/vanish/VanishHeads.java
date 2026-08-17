@@ -3,7 +3,6 @@ package de.pumpecraft.mod.vanish;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -14,41 +13,32 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.scheduler.BukkitTask;
 
 /**
- * Schwebende Köpfe der versteckten Teamler. Der Client rendert einen echten Spectator nur für
- * andere Spectators; damit das Team einen Vanish trotzdem wie im Spectator-Modus sieht, folgt
- * jedem versteckten Teamler ein {@code item_display} mit seinem Spielerkopf, das ausschließlich
+ * Schwebende Köpfe der versteckten Teamler. Der versteckte Spieler bleibt in seinem eigenen
+ * Spielmodus und ist nur unsichtbar geschaltet; damit das Team ihn trotzdem wie einen Spectator
+ * sieht, folgt ihm ein {@code item_display} mit seinem Spielerkopf, das ausschließlich
  * berechtigten Zuschauern gezeigt wird.
  */
 final class VanishHeads {
     private final Plugin plugin;
     private final Map<UUID, ItemDisplay> heads = new HashMap<>();
-    private BukkitTask followTask;
 
     VanishHeads(Plugin plugin) {
         this.plugin = plugin;
     }
 
-    void spawn(Player staff, Component label) {
+    void spawn(Player staff) {
         remove(staff);
 
-        ItemDisplay head = staff.getWorld().spawn(headLocation(staff), ItemDisplay.class, display -> {
+        heads.put(staff.getUniqueId(), staff.getWorld().spawn(headLocation(staff), ItemDisplay.class, display -> {
             display.setItemStack(headItem(staff));
             display.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
             display.setBillboard(Display.Billboard.FIXED);
             display.setTeleportDuration(1);
             display.setVisibleByDefault(false);
             display.setPersistent(false);
-            display.customName(label);
-            display.setCustomNameVisible(true);
-        });
-
-        heads.put(staff.getUniqueId(), head);
-        if (followTask == null) {
-            followTask = Bukkit.getScheduler().runTaskTimer(plugin, this::follow, 1L, 1L);
-        }
+        }));
     }
 
     void showTo(Player viewer, Player staff) {
@@ -57,6 +47,7 @@ final class VanishHeads {
             return;
         }
 
+        // Ein Spectator sieht unsichtbare Spieler ohnehin vollständig, der Kopf wäre doppelt.
         if (viewer.getGameMode() == GameMode.SPECTATOR) {
             viewer.hideEntity(plugin, head);
             return;
@@ -76,7 +67,6 @@ final class VanishHeads {
         if (head != null) {
             head.remove();
         }
-        stopWhenEmpty();
     }
 
     void removeAll() {
@@ -84,23 +74,15 @@ final class VanishHeads {
             head.remove();
         }
         heads.clear();
-        stopWhenEmpty();
     }
 
-    private void follow() {
+    void follow() {
         for (Map.Entry<UUID, ItemDisplay> entry : heads.entrySet()) {
             Player staff = Bukkit.getPlayer(entry.getKey());
             ItemDisplay head = entry.getValue();
             if (staff != null && head.isValid()) {
                 head.teleport(headLocation(staff));
             }
-        }
-    }
-
-    private void stopWhenEmpty() {
-        if (heads.isEmpty() && followTask != null) {
-            followTask.cancel();
-            followTask = null;
         }
     }
 

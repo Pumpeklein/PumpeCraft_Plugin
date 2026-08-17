@@ -74,16 +74,20 @@ Die Spalten kommen mit Migration `V3__punishment_lifecycle.sql` aus
   gewohnte Meldung `… hat den Server verlassen.`, der Eintrag fällt aus der Tabliste und die
   Spielerfigur wird nicht mehr gesendet. Beim Ausschalten kommt `… hat den Server betreten.`
 - **Mit `pumpecraft.mod.vanish.see`**: Der Teamler bleibt in der Tabliste, ausgegraut als
-  `Name [Spec]`, und ist im Spiel als schwebender Kopf mit Namensschild zu sehen.
+  `Name [Spec]`, und schwebt im Spiel als Kopf mit seinem Namensschild - so, als wäre er im
+  Spectator-Modus.
 
-Der Teamler wechselt im Vanish in den Spectator-Modus: er fliegt, geht durch Blöcke, kann nichts
-anfassen und zieht keine Mobs. Der Modus von vorher wird beim Ausschalten, beim Ausloggen und
-beim Serverstop wiederhergestellt; er liegt zusätzlich im PDC des Spielers, damit ein Absturz
-niemanden im Spectator-Modus stehen lässt.
+Der Spielmodus bleibt unangetastet: Der Teamler kann im Vanish weiter bauen und alles anfassen.
+Er wird nur unsichtbar geschaltet, ist stumm, kollidiert nicht, wird von Mobs nicht anvisiert und
+darf fliegen wie im Kreativmodus (Leertaste doppelt). Der Flugstand von vorher wird beim
+Ausschalten, beim Ausloggen und beim Serverstop wiederhergestellt; er liegt zusätzlich im PDC des
+Spielers, damit ein Absturz niemanden unsichtbar und fliegend zurücklässt.
 
-Ein Spectator wird vom Client nur für andere Spectators gerendert. Der Kopf, den das Team sieht,
-ist deshalb ein `item_display` mit dem Spielerkopf, das dem Teamler folgt und nur berechtigten
-Zuschauern gezeigt wird - wer selbst Spectator ist, sieht stattdessen den echten Kopf.
+Die Optik für das Team besteht aus drei Teilen: der unsichtbar geschaltete Spieler (nur sein
+Namensschild bleibt sichtbar), ein `item_display` mit seinem Spielerkopf, das ihm folgt und nur
+berechtigten Zuschauern gezeigt wird, und leer geschickte Ausrüstungs-Slots - ein unsichtbarer
+Spieler würde sonst weiter Rüstung und Handitem zeigen. Wer selbst Spectator ist, sieht
+unsichtbare Spieler ohnehin vollständig und bekommt den zusätzlichen Kopf deshalb nicht.
 
 ## Permissions
 
