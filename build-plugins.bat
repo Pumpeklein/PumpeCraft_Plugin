@@ -24,8 +24,8 @@ if not "%EXIT_CODE%"=="0" (
     goto :finish
 )
 
-set "INVSEE_CACHE=%CD%\.gradle\external-plugins\InvSeePlusPlus-0.31.1.jar"
-set "INVSEE_URL=https://repo.repsy.io/mvn/jannyboy11/minecraft/com/janboerman/invsee/invsee-plus-plus_plugin/0.31.1-SNAPSHOT/invsee-plus-plus_plugin-0.31.1-20251215.233604-1.jar"
+set "INVSEE_CACHE=%CD%\.gradle\external-plugins\InvSeePlusPlus-0.31.15.jar"
+set "INVSEE_URL=https://cdn.modrinth.com/data/bYazc7fd/versions/cAOIkpWF/InvSee%%2B%%2B.jar"
 
 if not exist "%INVSEE_CACHE%" (
     echo Lade InvSeePlusPlus fuer Offline-Inventare...
@@ -40,7 +40,7 @@ if not exist "%INVSEE_CACHE%" (
     )
 )
 
-copy /Y "%INVSEE_CACHE%" "%CD%\build\plugins\InvSeePlusPlus-0.31.1.jar" >nul
+copy /Y "%INVSEE_CACHE%" "%CD%\build\plugins\InvSeePlusPlus-0.31.15.jar" >nul
 if errorlevel 1 (
     echo.
     echo [FEHLER] InvSeePlusPlus konnte nicht in den Ausgabeordner kopiert werden.

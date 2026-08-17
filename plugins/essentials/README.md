@@ -1,6 +1,7 @@
 # PumpeEssentials
 
-`PumpeEssentials` requires `InvSeePlusPlus`. Online inventories use the custom
+`PumpeEssentials` requires `InvSeePlusPlus` 0.31.15 or newer for Paper 26.1.2.
+Online inventories use the custom
 live mirror. Offline inventories and ender chests use InvSee++'s persistent
 playerdata implementation so edits are written back safely.
 
