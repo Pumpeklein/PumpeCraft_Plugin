@@ -1,6 +1,7 @@
 package de.pumpecraft.clans;
 
 import de.pumpecraft.clans.ClanData.Invitation;
+import de.pumpecraft.clans.ClanData.JoinRequest;
 import java.time.Duration;
 import java.util.List;
 import net.kyori.adventure.text.Component;
@@ -36,19 +37,52 @@ final class ClanListener implements Listener {
             () -> {
                 repository.touchPlayer(new ClanData.PlayerIdentity(
                     player.getUniqueId(), player.getName()));
+                List<JoinRequest> joinRequests = List.of();
+                var member = repository.member(player.getUniqueId());
+                if (member.isPresent() && member.get().canManageMembership()) {
+                    var clan = repository.clanForPlayer(player.getUniqueId());
+                    if (clan.isPresent()) {
+                        joinRequests = repository.joinRequests(clan.get().id());
+                    }
+                }
                 return new JoinPayload(
                     repository.invitations(player.getUniqueId(), System.currentTimeMillis()),
-                    repository.takeNotifications(player.getUniqueId())
+                    repository.takeNotifications(player.getUniqueId()),
+                    joinRequests
                 );
             },
             payload -> {
                 sendInvitations(player, payload.invitations());
+                sendJoinRequests(player, payload.joinRequests());
                 for (String notification : payload.notifications()) {
                     player.sendMessage(Component.text(notification, NamedTextColor.GOLD));
                 }
                 plugin.refreshDirectory();
             }
         );
+    }
+
+    private void sendJoinRequests(Player player, List<JoinRequest> requests) {
+        if (requests.isEmpty()) {
+            return;
+        }
+        player.sendMessage(Component.text(
+            "Dein Clan hat " + requests.size() + " offene Beitrittsanfrage(n):",
+            NamedTextColor.GOLD
+        ));
+        for (JoinRequest request : requests) {
+            String name = request.player().playerName();
+            player.sendMessage(Component.text(name + " ", NamedTextColor.WHITE)
+                .append(Component.text("[ANNEHMEN]", NamedTextColor.GREEN)
+                    .clickEvent(ClickEvent.runCommand("/clan request accept " + name))
+                    .hoverEvent(HoverEvent.showText(Component.text(
+                        name + " aufnehmen", NamedTextColor.GREEN))))
+                .append(Component.text(" "))
+                .append(Component.text("[ABLEHNEN]", NamedTextColor.RED)
+                    .clickEvent(ClickEvent.runCommand("/clan request deny " + name))
+                    .hoverEvent(HoverEvent.showText(Component.text(
+                        "Anfrage ablehnen", NamedTextColor.RED)))));
+        }
     }
 
     private void sendInvitations(Player player, List<Invitation> invitations) {
@@ -77,6 +111,10 @@ final class ClanListener implements Listener {
         }
     }
 
-    private record JoinPayload(List<Invitation> invitations, List<String> notifications) {
+    private record JoinPayload(
+        List<Invitation> invitations,
+        List<String> notifications,
+        List<JoinRequest> joinRequests
+    ) {
     }
 }
