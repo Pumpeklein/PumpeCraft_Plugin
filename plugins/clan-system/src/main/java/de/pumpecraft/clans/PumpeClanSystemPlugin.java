@@ -17,6 +17,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public final class PumpeClanSystemPlugin extends JavaPlugin {
     private PermissionRegistry permissions;
+    private ClanNameBlacklist clanNameBlacklist;
     private ClanRepository repository;
     private ClanTabService tabService;
     private volatile Directory directory = Directory.empty();
@@ -26,6 +27,7 @@ public final class PumpeClanSystemPlugin extends JavaPlugin {
         saveDefaultConfig();
         permissions = new PermissionRegistry(this);
         permissions.load();
+        clanNameBlacklist = ClanNameBlacklist.load(this);
         if (!databaseAvailable()) {
             return;
         }
@@ -33,7 +35,8 @@ public final class PumpeClanSystemPlugin extends JavaPlugin {
         repository = new ClanRepository(this);
         tabService = new ClanTabService(this, repository);
 
-        ClanCommand clanCommand = new ClanCommand(this, repository, tabService);
+        ClanCommand clanCommand = new ClanCommand(
+            this, repository, tabService, clanNameBlacklist);
         BaseCommand baseCommand = new BaseCommand(this, repository);
         registerCommand("clan", clanCommand);
         registerCommand("base", baseCommand);

@@ -1,0 +1,41 @@
+# Exact entries block the complete normalized clan name or tag.
+# They are useful for short extremist abbreviations and number codes.
+blocked-exact:
+  - "18"
+  - "88"
+  - hh
+  - kkk
+  - nsdap
+  - sa
+  - ss
+  - wp
+
+# These entries also block a name or tag when they occur as part of it.
+# Case, separators, accents, common leetspeak and repeated letters are ignored.
+blocked-contains:
+  - arschloch
+  - bastard
+  - drecksau
+  - faggot
+  - fotze
+  - heilhitler
+  - hitler
+  - hundesohn
+  - hurensohn
+  - judensau
+  - kanake
+  - ku klux klan
+  - missgeburt
+  - mongo
+  - nazi
+  - neger
+  - nigger
+  - schlampe
+  - schwuchtel
+  - siegheil
+  - spast
+  - untermensch
+  - waffenss
+  - whitepower
+  - wichser
+  - zigeuner

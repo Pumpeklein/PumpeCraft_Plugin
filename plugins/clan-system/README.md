@@ -20,6 +20,11 @@ Persistent clan and player-base system backed by `PumpeDatabase`.
 - `/clan color <Farbe>` changes the colored clan tag in the player list.
 - `/clan delete confirm` permanently deletes the clan.
 
+New clan names, renamed clans and clan tags are checked against the editable
+`clan-name-blacklist.yml`. The check ignores case, separators, accents, common
+leetspeak substitutions and repeated letters. Existing clans are not changed
+automatically when the blacklist is edited.
+
 Open invitations are shown again whenever the invited player joins. After an
 invitation is accepted, every online clan member is notified about the new member.
 Clan selection completion only suggests clan tags; invite completion includes known

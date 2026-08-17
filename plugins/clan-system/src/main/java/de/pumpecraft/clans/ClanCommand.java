@@ -40,17 +40,20 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
     private final PumpeClanSystemPlugin plugin;
     private final ClanRepository repository;
     private final ClanTabService tabService;
+    private final ClanNameBlacklist clanNameBlacklist;
     private final int maxMembers;
     private final long invitationDurationMillis;
 
     ClanCommand(
         PumpeClanSystemPlugin plugin,
         ClanRepository repository,
-        ClanTabService tabService
+        ClanTabService tabService,
+        ClanNameBlacklist clanNameBlacklist
     ) {
         this.plugin = plugin;
         this.repository = repository;
         this.tabService = tabService;
+        this.clanNameBlacklist = clanNameBlacklist;
         maxMembers = Math.max(2, plugin.getConfig().getInt("clans.max-members", 20));
         invitationDurationMillis = Math.max(
             1L,
@@ -207,6 +210,12 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(error("Der Clan-Tag braucht 2-4 Buchstaben oder Zahlen."));
             return;
         }
+        if (clanNameBlacklist.isBlocked(clanName)
+            || clanNameBlacklist.isBlocked(clanTag)) {
+            player.sendMessage(error(
+                "Dieser Clanname oder Clan-Tag enthält einen gesperrten Begriff."));
+            return;
+        }
         PlayerIdentity owner = identity(player);
         plugin.runAsync(
             player,
@@ -317,6 +326,10 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
         if (!CLAN_NAME.matcher(newName).matches()) {
             player.sendMessage(error(
                 "Der Clanname braucht 3-24 Buchstaben, Zahlen, _ oder -."));
+            return;
+        }
+        if (clanNameBlacklist.isBlocked(newName)) {
+            player.sendMessage(error("Dieser Clanname enthält einen gesperrten Begriff."));
             return;
         }
         UUID playerId = player.getUniqueId();
