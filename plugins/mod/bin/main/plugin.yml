@@ -51,6 +51,7 @@ permissions:
       pumpecraft.mod.ban: true
       pumpecraft.mod.unban: true
       pumpecraft.mod.vanish: true
+      pumpecraft.mod.vanish.see: true
   pumpecraft.mod.report:
     description: Allows reporting known players.
     default: false
@@ -74,4 +75,9 @@ permissions:
     default: false
   pumpecraft.mod.vanish:
     description: Allows toggling staff vanish.
+    default: false
+    children:
+      pumpecraft.mod.vanish.see: true
+  pumpecraft.mod.vanish.see:
+    description: Shows vanished staff greyed out in the tab list and as a spectator head.
     default: false

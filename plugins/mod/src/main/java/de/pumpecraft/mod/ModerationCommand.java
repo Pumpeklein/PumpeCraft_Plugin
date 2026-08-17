@@ -1,5 +1,6 @@
 package de.pumpecraft.mod;
 
+import de.pumpecraft.mod.vanish.VanishService;
 import io.papermc.paper.ban.BanListType;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import java.time.Duration;
@@ -7,7 +8,6 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -32,13 +32,9 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.entity.EntityPickupItemEvent;
-import org.bukkit.event.entity.EntityTargetEvent;
 import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.event.player.PlayerRespawnEvent;
-import org.bukkit.event.player.PlayerTeleportEvent;
 
 public final class ModerationCommand implements CommandExecutor, TabCompleter, Listener {
     private static final DateTimeFormatter REPORT_TIME_FORMAT = DateTimeFormatter
@@ -56,14 +52,14 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
 
     private final PumpeModPlugin plugin;
     private final ModerationRepository repository;
-    private final Set<UUID> vanishedPlayers = new HashSet<>();
-    private final Map<UUID, VanishState> vanishStates = new HashMap<>();
+    private final VanishService vanish;
     /** Aktive Mutes der eingeloggten Spieler; hält den Chat-Check von der Datenbank fern. */
     private final Map<UUID, MuteRecord> muteCache = new ConcurrentHashMap<>();
 
-    public ModerationCommand(PumpeModPlugin plugin, ModerationRepository repository) {
+    public ModerationCommand(PumpeModPlugin plugin, ModerationRepository repository, VanishService vanish) {
         this.plugin = plugin;
         this.repository = repository;
+        this.vanish = vanish;
     }
 
     @Override
@@ -139,8 +135,6 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
 
-        hideAllVanishedPlayersFrom(player);
-
         if (canViewReports(player)) {
             int unseenReports = repository.countUnseenOpenReports(player.getUniqueId());
             if (unseenReports > 0) {
@@ -155,25 +149,8 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
     }
 
     @EventHandler
-    public void onPlayerRespawn(PlayerRespawnEvent event) {
-        Bukkit.getScheduler().runTask(plugin, () -> refreshVanishFor(event.getPlayer()));
-    }
-
-    @EventHandler
-    public void onPlayerTeleport(PlayerTeleportEvent event) {
-        Bukkit.getScheduler().runTask(plugin, () -> refreshVanishFor(event.getPlayer()));
-    }
-
-    @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         muteCache.remove(event.getPlayer().getUniqueId());
-
-        if (!vanishedPlayers.remove(event.getPlayer().getUniqueId())) {
-            return;
-        }
-
-        event.quitMessage(null);
-        restoreVanishState(event.getPlayer());
     }
 
     @EventHandler
@@ -198,21 +175,6 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
         }
         muteCache.remove(playerId);
         return null;
-    }
-
-    @EventHandler
-    public void onEntityTarget(EntityTargetEvent event) {
-        if (event.getTarget() instanceof Player player && isVanished(player)) {
-            event.setCancelled(true);
-            event.setTarget(null);
-        }
-    }
-
-    @EventHandler
-    public void onEntityPickupItem(EntityPickupItemEvent event) {
-        if (event.getEntity() instanceof Player player && isVanished(player)) {
-            event.setCancelled(true);
-        }
     }
 
     private boolean handleReport(CommandSender sender, String label, String[] args) {
@@ -496,13 +458,9 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
             return true;
         }
 
-        if (isVanished(staff)) {
-            disableVanish(staff);
-            staff.sendMessage(success("Vanish deaktiviert."));
-        } else {
-            enableVanish(staff);
-            staff.sendMessage(success("Vanish aktiviert."));
-        }
+        staff.sendMessage(vanish.toggle(staff)
+            ? success("Vanish aktiviert. Das Team sieht dich ausgegraut als Spec.")
+            : success("Vanish deaktiviert."));
         return true;
     }
 
@@ -610,115 +568,6 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
                     .append(Component.text(" gemeldet.", NamedTextColor.GRAY))
             );
         }
-    }
-
-    private void hideAllVanishedPlayersFrom(Player viewer) {
-        for (UUID vanishedPlayerId : vanishedPlayers) {
-            Player vanishedPlayer = Bukkit.getPlayer(vanishedPlayerId);
-            if (vanishedPlayer != null) {
-                hideVanishedPlayerFrom(viewer, vanishedPlayer);
-            }
-        }
-    }
-
-    private void refreshVanishFor(Player player) {
-        if (isVanished(player)) {
-            applyHiddenState(player);
-            for (Player viewer : Bukkit.getOnlinePlayers()) {
-                hideVanishedPlayerFrom(viewer, player);
-            }
-            return;
-        }
-
-        hideAllVanishedPlayersFrom(player);
-    }
-
-    private void applyHiddenState(Player staff) {
-        staff.setSilent(true);
-        staff.setCollidable(false);
-        staff.setInvisible(true);
-        staff.setVisibleByDefault(false);
-    }
-
-    private void enableVanish(Player staff) {
-        vanishedPlayers.add(staff.getUniqueId());
-        vanishStates.put(staff.getUniqueId(), new VanishState(
-            staff.playerListName(),
-            staff.isSilent(),
-            staff.isCollidable(),
-            staff.isInvisible(),
-            staff.isVisibleByDefault()
-        ));
-
-        applyHiddenState(staff);
-
-        Bukkit.broadcast(Component.text(staff.getName() + " hat den Server verlassen.", NamedTextColor.YELLOW));
-        for (Player viewer : Bukkit.getOnlinePlayers()) {
-            hideVanishedPlayerFrom(viewer, staff);
-        }
-    }
-
-    private void disableVanish(Player staff) {
-        vanishedPlayers.remove(staff.getUniqueId());
-        restoreVanishState(staff);
-
-        for (Player viewer : Bukkit.getOnlinePlayers()) {
-            viewer.listPlayer(staff);
-            if (!viewer.getUniqueId().equals(staff.getUniqueId())) {
-                viewer.showPlayer(plugin, staff);
-                viewer.showEntity(plugin, staff);
-            }
-        }
-        Bukkit.broadcast(Component.text(staff.getName() + " hat den Server betreten.", NamedTextColor.YELLOW));
-    }
-
-    private void hideVanishedPlayerFrom(Player viewer, Player vanishedPlayer) {
-        viewer.unlistPlayer(vanishedPlayer);
-        if (viewer.getUniqueId().equals(vanishedPlayer.getUniqueId())) {
-            return;
-        }
-
-        viewer.hidePlayer(plugin, vanishedPlayer);
-        viewer.hideEntity(plugin, vanishedPlayer);
-    }
-
-    private void restoreVanishState(Player staff) {
-        VanishState state = vanishStates.remove(staff.getUniqueId());
-        if (state == null) {
-            staff.setSilent(false);
-            staff.setCollidable(true);
-            staff.setInvisible(false);
-            staff.setVisibleByDefault(true);
-            return;
-        }
-
-        staff.playerListName(state.originalTabName());
-        staff.setSilent(state.silent());
-        staff.setCollidable(state.collidable());
-        staff.setInvisible(state.invisible());
-        staff.setVisibleByDefault(state.visibleByDefault());
-    }
-
-    private boolean isVanished(Player player) {
-        return vanishedPlayers.contains(player.getUniqueId());
-    }
-
-    void revealAllVanishedPlayers() {
-        for (UUID vanishedPlayerId : List.copyOf(vanishedPlayers)) {
-            Player vanishedPlayer = Bukkit.getPlayer(vanishedPlayerId);
-            if (vanishedPlayer != null) {
-                restoreVanishState(vanishedPlayer);
-                for (Player viewer : Bukkit.getOnlinePlayers()) {
-                    viewer.listPlayer(vanishedPlayer);
-                    if (!viewer.getUniqueId().equals(vanishedPlayer.getUniqueId())) {
-                        viewer.showPlayer(plugin, vanishedPlayer);
-                        viewer.showEntity(plugin, vanishedPlayer);
-                    }
-                }
-            }
-        }
-        vanishedPlayers.clear();
-        vanishStates.clear();
     }
 
     void clearCaches() {
@@ -883,8 +732,5 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
     }
 
     private record BanInput(String reason, Instant expiresAt) {
-    }
-
-    private record VanishState(Component originalTabName, boolean silent, boolean collidable, boolean invisible, boolean visibleByDefault) {
     }
 }

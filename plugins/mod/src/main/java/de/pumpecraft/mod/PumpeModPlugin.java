@@ -1,5 +1,7 @@
 package de.pumpecraft.mod;
 
+import de.pumpecraft.mod.vanish.VanishListener;
+import de.pumpecraft.mod.vanish.VanishService;
 import java.util.Objects;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.Plugin;
@@ -8,6 +10,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 public final class PumpeModPlugin extends JavaPlugin {
     private ModerationRepository repository;
     private ModerationCommand moderationCommand;
+    private VanishService vanishService;
 
     @Override
     public void onEnable() {
@@ -18,7 +21,10 @@ public final class PumpeModPlugin extends JavaPlugin {
         repository = new ModerationRepository(this);
         repository.load();
 
-        moderationCommand = new ModerationCommand(this, repository);
+        vanishService = new VanishService(this);
+        getServer().getPluginManager().registerEvents(new VanishListener(this, vanishService), this);
+
+        moderationCommand = new ModerationCommand(this, repository, vanishService);
         registerCommand("report", moderationCommand);
         registerCommand("reports", moderationCommand);
         registerCommand("warn", moderationCommand);
@@ -34,8 +40,10 @@ public final class PumpeModPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (vanishService != null) {
+            vanishService.revealAll();
+        }
         if (moderationCommand != null) {
-            moderationCommand.revealAllVanishedPlayers();
             moderationCommand.clearCaches();
         }
         getLogger().info("PumpeMod disabled.");

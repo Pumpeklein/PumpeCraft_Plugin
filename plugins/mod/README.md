@@ -11,7 +11,7 @@ Moderation commands, punishments, reports and staff tools.
 - `/unmute <Spieler>` - lifts an active mute.
 - `/ban <Spieler> <Grund> [Zeit]` - bans a known player permanently or for a duration.
 - `/unban <Spieler> [Grund]` - lifts an active ban.
-- `/vanish` - toggles staff vanish with fake leave/join visibility.
+- `/vanish` - toggles staff vanish: gone for players, sichtbar als Spec fürs Team.
 
 Player names can also be entered with an `@` prefix, for example `/report @Fabienne Griefing`.
 Targets can be online or known offline players.
@@ -66,6 +66,25 @@ durchgelassen, statt den kompletten Login zu blockieren.
 Die Spalten kommen mit Migration `V3__punishment_lifecycle.sql` aus
 `plugins/database`.
 
+## Vanish
+
+`/vanish` trennt Spieler und Team:
+
+- **Ohne `pumpecraft.mod.vanish.see`**: Der Teamler verschwindet komplett. Es kommt die
+  gewohnte Meldung `… hat den Server verlassen.`, der Eintrag fällt aus der Tabliste und die
+  Spielerfigur wird nicht mehr gesendet. Beim Ausschalten kommt `… hat den Server betreten.`
+- **Mit `pumpecraft.mod.vanish.see`**: Der Teamler bleibt in der Tabliste, ausgegraut als
+  `Name [Spec]`, und ist im Spiel als schwebender Kopf mit Namensschild zu sehen.
+
+Der Teamler wechselt im Vanish in den Spectator-Modus: er fliegt, geht durch Blöcke, kann nichts
+anfassen und zieht keine Mobs. Der Modus von vorher wird beim Ausschalten, beim Ausloggen und
+beim Serverstop wiederhergestellt; er liegt zusätzlich im PDC des Spielers, damit ein Absturz
+niemanden im Spectator-Modus stehen lässt.
+
+Ein Spectator wird vom Client nur für andere Spectators gerendert. Der Kopf, den das Team sieht,
+ist deshalb ein `item_display` mit dem Spielerkopf, das dem Teamler folgt und nur berechtigten
+Zuschauern gezeigt wird - wer selbst Spectator ist, sieht stattdessen den echten Kopf.
+
 ## Permissions
 
 - `pumpecraft.mod.*`
@@ -77,6 +96,7 @@ Die Spalten kommen mit Migration `V3__punishment_lifecycle.sql` aus
 - `pumpecraft.mod.ban`
 - `pumpecraft.mod.unban`
 - `pumpecraft.mod.vanish`
+- `pumpecraft.mod.vanish.see`
 
 All permissions default to `false` and should be assigned through LuckPerms.
 
@@ -85,4 +105,5 @@ Recommended LuckPerms setup:
 ```mcfunction
 /lp group support permission set pumpecraft.mod.* true
 /lp group default permission set pumpecraft.mod.report true
+/lp group builder permission set pumpecraft.mod.vanish.see true
 ```
