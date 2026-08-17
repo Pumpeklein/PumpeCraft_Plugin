@@ -1,5 +1,6 @@
 package de.pumpecraft.mod.vanish;
 
+import de.pumpecraft.utils.messages.ConnectionMessages;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -62,7 +63,7 @@ public final class VanishService {
 
         announce(
             staff,
-            Component.text(staff.getName() + " hat den Server verlassen.", NamedTextColor.YELLOW),
+            ConnectionMessages.leave(staff.getName()),
             Component.text(staff.getName() + " ist jetzt im Vanish.", NamedTextColor.DARK_GRAY)
         );
     }
@@ -76,7 +77,7 @@ public final class VanishService {
         deactivate(staff, state);
         announce(
             staff,
-            Component.text(staff.getName() + " hat den Server betreten.", NamedTextColor.YELLOW),
+            ConnectionMessages.join(staff.getName()),
             Component.text(staff.getName() + " ist nicht mehr im Vanish.", NamedTextColor.DARK_GRAY)
         );
     }

@@ -50,7 +50,7 @@ neue Schlüssel, es korrigiert keine alten.
 | `plugins/clan-system` | `PumpeClanSystem` | Clans, Basen, Tab-Darstellung |
 | `plugins/skills` | `PumpeSkills` | Skill-Level, Belohnungen, GUI |
 | `plugins/trader` | `PumpeTrader` | Handels-NPCs |
-| `plugins/death-messages` | `PumpeDeathMessages` | Todesmeldungen und Zähler |
+| `plugins/death-messages` | `PumpeDeathMessages` | Todes-, Join- und Leave-Meldungen, Todeszähler |
 | `plugins/playtime` | `PumpePlaytime` | Spielzeit-Erfassung |
 | `plugins/chat-control` | `PumpeChatControl` | Chatfilter, Privatnachrichten, Persistenz |
 | `plugins/transactions` | `PumpeTransactions` | PumpePoints (PP), Buchungen, Zeitgutschrift |

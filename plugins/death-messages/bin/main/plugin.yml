@@ -3,5 +3,5 @@ version: ${version}
 main: de.pumpecraft.deathmessages.PumpeDeathMessagesPlugin
 api-version: '1.21'
 author: PumpeCraft
-description: Death messages plugin for PumpeCraft.
-depend: [PumpeDatabase]
+description: Death, join and leave messages for PumpeCraft.
+depend: [PumpeDatabase, PumpeUtils]

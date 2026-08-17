@@ -29,6 +29,17 @@ Nutzung: `depend: [PumpeUtils]` in der `plugin.yml`. Der Gradle-Classpath kommt 
 | `Configs` | `lowerStringList`, `matchesAny` (exakter Token-Abgleich mit `*`-Präfix) |
 | `Recipes` | `register`, `unregister` — Rezepte unter ihrem Key, ersetzt ein altes statt am Duplikat zu scheitern |
 
+## Sektion `messages` — Meldungstexte
+
+| Klasse | Inhalt |
+| --- | --- |
+| `MessageRotation` | Zufällige Vorlage aus einer Liste, ohne die zuletzt gezogene zu wiederholen |
+| `ConnectionMessages` | `join`, `firstJoin`, `leave` — fertige Meldungen zum Betreten und Verlassen |
+
+`ConnectionMessages` liegt hier und nicht in `plugins/death-messages`, wo die Events verdrahtet
+werden: Der Vanish in `plugins/mod` täuscht dasselbe Verlassen vor und muss denselben Topf
+benutzen. Eine eigene Formulierung dort würde einen versteckten Teamler sofort verraten.
+
 ## Sektion `objects` — Serverobjekte
 
 Ein Server kann dem Client keine neuen Blöcke beibringen. Ein Serverobjekt ist deshalb ein Satz

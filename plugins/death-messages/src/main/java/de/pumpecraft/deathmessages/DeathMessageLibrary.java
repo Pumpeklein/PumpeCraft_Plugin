@@ -1,0 +1,410 @@
+package de.pumpecraft.deathmessages;
+
+import de.pumpecraft.utils.messages.MessageRotation;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
+
+/** Vorlagen für Todesmeldungen, getrennt nach Schadensursache, plus Meilensteine alle fünf Tode. */
+final class DeathMessageLibrary {
+    private static final int MILESTONE_INTERVAL = 5;
+
+    private final Map<DamageCause, List<String>> messages = new EnumMap<>(DamageCause.class);
+    private final MessageRotation rotation = new MessageRotation();
+    private final List<String> milestones = List.of(
+        "{player} ist zum {deaths}. Mal gestorben und nennt das vermutlich Training.",
+        "{player} hat nach {previousDeaths} Toden immer noch keinen Lernprozess gestartet.",
+        "{player} sammelt Tode wie andere Leute Dias. Stand: {deaths}.",
+        "{player} beweist zum {deaths}. Mal, dass Optimismus keine Rüstung ersetzt.",
+        "{player} ist wieder tot. Ab {deaths} nennen wir es Tradition.",
+        "{player} hat {deaths} Tode erreicht. Der Respawn-Button kennt den Namen schon.",
+        "{player} macht aus Sterben eine Karriere. Aktueller Rekord: {deaths}.",
+        "{player} hat den Tod erneut getestet. Ergebnis: funktioniert noch.",
+        "{player} hat {deaths} Tode gesammelt und plant offenbar mehr.",
+        "{player} feiert Tod Nummer {deaths}. Kuchen gibt es keinen.",
+        "{player} ist zum {deaths}. Mal gestorben. Statistisch beeindruckend, praktisch nutzlos.",
+        "{player} hat mit {deaths} Toden ein neues Hobby gefunden.",
+        "{player} ist {deaths} Mal gestorben und lernt nach wie vor nichts dazu.",
+        "{player} knackt die {deaths}. Im Abo wäre das günstiger."
+    );
+
+    @SuppressWarnings("deprecation")
+    DeathMessageLibrary() {
+        put(DamageCause.KILL,
+            "{player} wurde per Admin-Finger aus der Existenz geschnipst.",
+            "{player} hat den unsichtbaren Hammer der Gerechtigkeit kassiert.",
+            "{player} wurde gelöscht. Papierkorb wurde nicht gefunden.",
+            "{player} bekam ein sehr direktes Nein vom Server.",
+            "{player} wurde technisch gesehen fachgerecht entfernt.",
+            "{player} wurde administrativ beendet.",
+            "{player} hat den Kill-Befehl aus nächster Nähe erlebt.",
+            "{player} wurde ohne Vorwarnung aus dem Spiel genommen.",
+            "{player} verlor gegen eine Konsole."
+        );
+        put(DamageCause.WORLD_BORDER,
+            "{player} dachte, Grenzen gelten nur für andere.",
+            "{player} hat mit der Worldborder diskutiert und verloren.",
+            "{player} wollte die Karte verlassen. Die Karte war dagegen.",
+            "{player} wurde von der roten Linie pädagogisch korrigiert.",
+            "{player} fand heraus, dass Weltgrenzen keine Deko sind.",
+            "{player} wollte die Welt erweitern. Die Welt sagte nein.",
+            "{player} hat den Rand gefunden und sofort bereut.",
+            "{player} wurde von der Grenze eingesammelt.",
+            "{player} hielt die Worldborder für eine Empfehlung."
+        );
+        put(DamageCause.CONTACT,
+            "{player} hat einen Kaktus umarmt. Der Kaktus fand es komisch.",
+            "{player} hat Stacheln für Dekoration gehalten.",
+            "{player} verlor gegen eine Pflanze. Botanisch peinlich.",
+            "{player} wurde von Grünzeug auseinandergenommen.",
+            "{player} hat den Kaktus angefasst und die Quittung bekommen.",
+            "{player} wurde von einem Kaktus abgewiesen.",
+            "{player} hat sich am Pflanzenrecht gestoßen.",
+            "{player} führte Nahkampf gegen Deko und verlor.",
+            "{player} wurde von Süßbeeren aufgespießt. Süß war anders."
+        );
+        put(DamageCause.ENTITY_ATTACK,
+            "{player} wurde von {killer} zurück in die Lobby philosophiert.",
+            "{killer} hat {player} sehr überzeugend widersprochen.",
+            "{player} fand {killer}s Argumente schlagkräftig.",
+            "{killer} hat {player} gezeigt, wo der Respawn wohnt.",
+            "{player} wurde von {killer} handlich zusammengefaltet.",
+            "{killer} hat {player} aus dem Verkehr gezogen.",
+            "{player} stand {killer} im Weg. Einmalig.",
+            "{killer} hat {player} sachlich beendet.",
+            "{player} hat den Nahkampf gegen {killer} verloren, immerhin mit Stil."
+        );
+        put(DamageCause.ENTITY_SWEEP_ATTACK,
+            "{player} stand im Schwung von {killer}. Taktisch eher unklug.",
+            "{killer} hat {player} mit einem Rundumschlag aussortiert.",
+            "{player} wurde von {killer}s Sweep mitgenommen wie Kleingeld.",
+            "{killer} hat {player} nebenbei weggewischt.",
+            "{player} lernte: Abstand ist keine Theorie.",
+            "{killer} hat {player} beim Aufräumen mitgenommen.",
+            "{player} wurde von {killer} im Vorbeigehen erledigt.",
+            "{player} war Kollateralschaden von {killer}.",
+            "{killer} schwang einmal. {player} reichte das."
+        );
+        put(DamageCause.PROJECTILE,
+            "{player} wurde von {killer} geliefert. Per Luftpost.",
+            "{killer} traf {player}; {player} traf den Boden der Tatsachen.",
+            "{player} hat ein Projektil mit dem Gesicht gefangen.",
+            "{killer} hat {player} aus der Ferne abbestellt.",
+            "{player} entdeckte, dass Pfeile schneller sind als Ausreden.",
+            "{player} wurde von {killer} punktgenau beliefert.",
+            "{killer} hat {player} auf Distanz beendet.",
+            "{player} hat den Pfeil kommen sehen. Zu spät.",
+            "{player} wurde von {killer} zugestellt. Ohne Empfangsbestätigung."
+        );
+        put(DamageCause.SUFFOCATION,
+            "{player} hat Wände zu persönlich genommen.",
+            "{player} steckte fest und machte daraus ein Finale.",
+            "{player} wurde von einem Block eng betreut.",
+            "{player} hat vergessen, dass Atmen nicht optional ist.",
+            "{player} verschwand in der Wand wie ein schlechter Zaubertrick.",
+            "{player} wurde von einem Block eingelagert.",
+            "{player} hat den Kopf im falschen Moment in die Decke gesteckt.",
+            "{player} bekam keine Luft und keinen Ausweg.",
+            "{player} wurde von der Statik verschluckt."
+        );
+        put(DamageCause.FALL,
+            "{player} testete Gravitation. Gravitation gewann.",
+            "{player} verwechselte Mut mit fehlenden Treppen.",
+            "{player} nahm den schnellen Weg nach unten. Einmalig.",
+            "{player} fiel tief, aber nicht elegant.",
+            "{player} hat den Boden frontal begrüßt.",
+            "{player} hat Höhe unterschätzt. Wieder.",
+            "{player} sprang mutig und landete endgültig.",
+            "{player} suchte die Abkürzung nach unten.",
+            "{player} hat den letzten Meter nicht eingeplant."
+        );
+        put(DamageCause.FIRE,
+            "{player} wurde knusprig, aber niemand hatte Hunger.",
+            "{player} hat Feuer unterschätzt. Klassiker.",
+            "{player} ging in Flammen auf und nannte es Stimmung.",
+            "{player} wurde gegrillt, ohne eingeladen zu sein.",
+            "{player} fand heraus: Feuer ist heiß. Überraschung.",
+            "{player} stand in Flammen und blieb höflich stehen.",
+            "{player} wurde flambiert. Ungefragt.",
+            "{player} hat sich am Feuer gewärmt. Zu gründlich.",
+            "{player} brennt jetzt nicht mehr. Aber auch sonst nicht mehr viel."
+        );
+        put(DamageCause.FIRE_TICK,
+            "{player} brannte weiter und dachte wohl, das geht von selbst weg.",
+            "{player} ignorierte die Flammen zu lange.",
+            "{player} wurde langsam aber sicher geröstet.",
+            "{player} hat das Löschen verschoben. Für immer.",
+            "{player} wurde vom Nachbrennen erledigt.",
+            "{player} hat das Feuer mitgenommen. Bis zum Schluss.",
+            "{player} rannte brennend weiter und hoffte auf ein Wunder.",
+            "{player} wurde nachträglich fertig gegart.",
+            "{player} hat Wasser als Option verworfen."
+        );
+        put(DamageCause.MELTING,
+            "{player} ist geschmolzen wie Selbstvertrauen im Nether.",
+            "{player} wurde flüssig beeindruckt.",
+            "{player} hat Hitze nicht gut verarbeitet.",
+            "{player} verwandelte sich in eine schlechte Pfütze.",
+            "{player} löste sich thermisch aus der Runde.",
+            "{player} hat sich in der Sonne aufgelöst.",
+            "{player} war zu weich für diese Temperatur.",
+            "{player} tropfte aus der Runde.",
+            "{player} wurde von Wärme entsorgt."
+        );
+        put(DamageCause.LAVA,
+            "{player} nahm ein Bad in Lava. Wellness war es nicht.",
+            "{player} wurde von Lava umarmt und nicht losgelassen.",
+            "{player} dachte, Orange bedeutet freundlich.",
+            "{player} fand den schärfsten Whirlpool des Servers.",
+            "{player} wurde flüssig gegrillt.",
+            "{player} hat Lava getestet. Ergebnis: heiß.",
+            "{player} ist in Orange gestiegen und nicht zurückgekommen.",
+            "{player} wurde von der Lava aufgenommen. Dauerhaft.",
+            "{player} hielt Lava für Deko mit Beleuchtung."
+        );
+        put(DamageCause.DROWNING,
+            "{player} hat Wasser geatmet. Schlechte Idee.",
+            "{player} wurde vom Ozean aus dem Chat entfernt.",
+            "{player} vergaß, dass Luft ein Feature ist.",
+            "{player} ging unter und blieb beim Fehler.",
+            "{player} hat Schwimmen mit Sterben verwechselt.",
+            "{player} hat den Luftbalken übersehen.",
+            "{player} blieb zu lange unten. Jetzt für immer.",
+            "{player} verlor gegen Wasser. Wieder mal.",
+            "{player} wollte tauchen und ist dabei geblieben."
+        );
+        put(DamageCause.BLOCK_EXPLOSION,
+            "{player} wurde von Blöcken in Einzelteile diskutiert.",
+            "{player} stand zu nah an der falschen Idee.",
+            "{player} bekam Architektur mit Nachdruck.",
+            "{player} wurde vom Gelände neu sortiert.",
+            "{player} hat Explosionen als Einladung verstanden.",
+            "{player} stand neben etwas, das gleich nicht mehr da war.",
+            "{player} wurde bautechnisch verteilt.",
+            "{player} hat Sprengstoff aus der Nähe bewundert.",
+            "{player} wurde von einem Knall aussortiert."
+        );
+        put(DamageCause.ENTITY_EXPLOSION,
+            "{player} wurde spektakulär weggesprengt.",
+            "{player} traf eine Explosion und verlor das Gespräch.",
+            "{player} wurde von TNT-Logik überzeugt.",
+            "{player} stand da, wo gleich nichts mehr stand.",
+            "{player} wurde in Partikelform verabschiedet.",
+            "{player} hat einen Creeper zu freundlich angesehen.",
+            "{player} wurde in alle Richtungen gleichzeitig verabschiedet.",
+            "{player} bekam eine Umarmung mit Zündschnur.",
+            "{player} stand im Explosionsradius und blieb höflich stehen."
+        );
+        put(DamageCause.VOID,
+            "{player} fiel aus der Welt. Auch eine Art Ragequit.",
+            "{player} fand das Loch unter der Map.",
+            "{player} wurde vom Nichts angenommen.",
+            "{player} hat den Boden verpasst. Komplett.",
+            "{player} ging dahin, wo selbst Koordinaten aufgeben.",
+            "{player} ist unter die Welt gerutscht.",
+            "{player} hat das Ende der Karte gefunden. Von unten.",
+            "{player} fällt vermutlich immer noch.",
+            "{player} wurde von der Leere abgeholt."
+        );
+        put(DamageCause.LIGHTNING,
+            "{player} wurde vom Himmel persönlich beleidigt.",
+            "{player} bekam göttliches Feedback. Sehr direkt.",
+            "{player} wurde geblitzt, aber nicht wegen Tempo.",
+            "{player} hat Gewitter unterschätzt.",
+            "{player} wurde vom Wetter ausgesucht.",
+            "{player} wurde vom Himmel aussortiert.",
+            "{player} stand am falschen Ort beim falschen Wetter.",
+            "{player} bekam Strom ohne Rechnung.",
+            "{player} wurde vom Gewitter markiert."
+        );
+        put(DamageCause.SUICIDE,
+            "{player} hat sich selbst aus dem Spiel genommen.",
+            "{player} drückte innerlich auf Deinstallieren.",
+            "{player} hat den eigenen Plan überlebt. Kurz nicht.",
+            "{player} war sein härtester Gegner.",
+            "{player} beendete die Diskussion mit sich selbst.",
+            "{player} hat den kürzesten Weg gewählt.",
+            "{player} hat sich selbst überstimmt.",
+            "{player} wollte es hinter sich bringen. Erfolgreich.",
+            "{player} hat sich aus der Runde geschrieben."
+        );
+        put(DamageCause.STARVATION,
+            "{player} verhungerte. Essen war wohl zu meta.",
+            "{player} wurde von einem leeren Magen besiegt.",
+            "{player} ignorierte Hunger bis zum Abspann.",
+            "{player} fand heraus, dass Brot nützlich ist.",
+            "{player} hat Nahrung als optional markiert. Fehler.",
+            "{player} hat Essen für optional gehalten.",
+            "{player} wurde vom eigenen Magen erledigt.",
+            "{player} sparte am Proviant. Endgültig.",
+            "{player} hat die Kartoffeln zu lange liegen lassen."
+        );
+        put(DamageCause.POISON,
+            "{player} wurde von Gift langsam ausgelacht.",
+            "{player} hat etwas Dummes angefasst und dafür gezahlt.",
+            "{player} wurde chemisch überzeugt.",
+            "{player} hat Gift zu lange wirken lassen.",
+            "{player} verlor gegen innere Werte.",
+            "{player} wurde von innen ausgeknockt.",
+            "{player} hat Gift ausgesessen. Falsch entschieden.",
+            "{player} wurde von einer Spinne nachhaltig beeindruckt.",
+            "{player} hat die Milch nicht rechtzeitig gefunden."
+        );
+        put(DamageCause.MAGIC,
+            "{player} wurde von Magie fachgerecht zerlegt.",
+            "{player} verstand die Zauberei erst nach dem Respawn.",
+            "{player} bekam Hokuspokus mit Nebenwirkungen.",
+            "{player} wurde magisch aus der Runde entfernt.",
+            "{player} hat gegen Glitzer verloren. Hart.",
+            "{player} wurde weggezaubert.",
+            "{player} hat einen Trank abbekommen, der nicht gemeint war.",
+            "{player} verlor gegen Zaubersprüche und Physik gleichzeitig.",
+            "{player} wurde von einem Hexenwurf beendet."
+        );
+        put(DamageCause.WITHER,
+            "{player} wurde verwelkt wie Salat im Nether.",
+            "{player} hat Wither-Schaden zu lange ignoriert.",
+            "{player} wurde vom Verfall persönlich abgeholt.",
+            "{player} zerbröselte stilvoll, aber nutzlos.",
+            "{player} wurde vom Wither-Effekt langsam beleidigt.",
+            "{player} wurde langsam aufgelöst.",
+            "{player} hat den schwarzen Balken ignoriert.",
+            "{player} verwelkte im laufenden Betrieb.",
+            "{player} wurde vom Wither ausgetragen."
+        );
+        put(DamageCause.FALLING_BLOCK,
+            "{player} wurde von einem Block überdacht. Endgültig.",
+            "{player} stand unter schlechter Statik.",
+            "{player} bekam Schwerkraft plus Baumaterial.",
+            "{player} wurde von Sand und Kies didaktisch getroffen.",
+            "{player} lernte: Nach oben schauen hilft manchmal.",
+            "{player} wurde von oben zugedeckt.",
+            "{player} stand unter der falschen Decke.",
+            "{player} hat Kies unterschätzt.",
+            "{player} wurde von einem Amboss abgeschlossen."
+        );
+        put(DamageCause.THORNS,
+            "{player} schlug zu und bekam die Quittung.",
+            "{player} verlor gegen eine Rücksendung mit Dornen.",
+            "{killer}s Rüstung hat {player} ausgelacht.",
+            "{player} hat sich an {killer} selbst wehgetan.",
+            "{player} wurde vom Gegenargument der Dornen erledigt.",
+            "{player} hat sich am eigenen Angriff verletzt.",
+            "{player} bekam den Schaden zurück, per Einschreiben.",
+            "{player} lernte, dass Rüstung auch zurückschlägt.",
+            "{player} wurde von {killer}s Dornen ausgezählt."
+        );
+        put(DamageCause.DRAGON_BREATH,
+            "{player} inhalierte Drachenatem. Medizinisch fragwürdig.",
+            "{player} wurde von Drachenmundgeruch entfernt.",
+            "{player} stand in lila Nein.",
+            "{player} hat Drachenatem für Nebel gehalten.",
+            "{player} wurde vom Ender Dragon aromatisch besiegt.",
+            "{player} hat lila Luft eingeatmet.",
+            "{player} stand im Atem des Drachen und blieb einfach stehen.",
+            "{player} wurde vom Drachen ausgeatmet.",
+            "{player} hielt Drachenatem für Bodennebel."
+        );
+        put(DamageCause.FLY_INTO_WALL,
+            "{player} flog in eine Wand. Navigation: null Punkte.",
+            "{player} hat Elytra mit Abrissbirne verwechselt.",
+            "{player} wurde von einer Wand gestoppt. Überraschend effektiv.",
+            "{player} suchte den Durchgang mit dem Gesicht.",
+            "{player} war schneller als der eigene Plan.",
+            "{player} hat die Wand zuerst gefunden.",
+            "{player} beendete den Flug abrupt und massiv.",
+            "{player} hat Elytra ohne Bremse getestet.",
+            "{player} wurde von der Landschaft gestoppt."
+        );
+        put(DamageCause.HOT_FLOOR,
+            "{player} tanzte auf Magma bis zum Respawn.",
+            "{player} stand auf heißem Boden und blieb dumm stehen.",
+            "{player} wurde von Magma-Sneakers abgelehnt.",
+            "{player} lernte, dass der Boden Lava sein kann.",
+            "{player} hat Hot Floor gespielt und verloren.",
+            "{player} hat auf Magmablöcken posiert.",
+            "{player} blieb einen Schritt zu lange stehen.",
+            "{player} hat heiße Böden für Deko gehalten.",
+            "{player} wurde von unten durchgebraten."
+        );
+        put(DamageCause.CAMPFIRE,
+            "{player} wurde am Lagerfeuer zu nah dran erzählt.",
+            "{player} kuschelte mit einem Campfire. Kurz.",
+            "{player} wurde zum Snack am Feuer.",
+            "{player} hat Camping falsch verstanden.",
+            "{player} wurde gemütlich weggebrutzelt.",
+            "{player} hat sich am Lagerfeuer überschätzt.",
+            "{player} wurde vom Campfire aufgenommen.",
+            "{player} stand erst im Rauch und dann im Feuer.",
+            "{player} hat Marshmallows falsch verstanden."
+        );
+        put(DamageCause.CRAMMING,
+            "{player} wurde in der Menge zerquetscht.",
+            "{player} hatte zu viele Nachbarn und zu wenig Platz.",
+            "{player} starb an Gruppendynamik.",
+            "{player} wurde von Körperkontakt besiegt.",
+            "{player} fand heraus, dass Kuscheln Limits hat.",
+            "{player} wurde von der Menge platt gemacht.",
+            "{player} hat zu viele Freunde auf einem Block versammelt.",
+            "{player} wurde weggedrückt. Von allen Seiten.",
+            "{player} verlor gegen Statistik und Mobs."
+        );
+        put(DamageCause.DRYOUT,
+            "{player} trocknete aus. Fischige Leistung.",
+            "{player} wurde zu lange an der Luft gelagert.",
+            "{player} hat Wasserrechte ignoriert.",
+            "{player} verdorrte wie ein schlecht geparkter Fisch.",
+            "{player} wurde von Trockenheit erledigt.",
+            "{player} hat Wasser zu spät gefunden.",
+            "{player} lag zu lange an Land.",
+            "{player} wurde zum Trockenfisch.",
+            "{player} hat den Feuchtigkeitsbedarf unterschätzt."
+        );
+        put(DamageCause.FREEZE,
+            "{player} wurde tiefgekühlt und aussortiert.",
+            "{player} hat Schnee zu ernst genommen.",
+            "{player} fror ein wie ein schlechter Gedanke.",
+            "{player} wurde von Kälte langsam ausgeloggt.",
+            "{player} fand Powder Snow gar nicht powderful.",
+            "{player} wurde vom Powder Snow eingelegt.",
+            "{player} hat Kälte ausgesessen. Zu lange.",
+            "{player} wurde zum Eiswürfel mit Namensschild.",
+            "{player} verlor gegen das Wetter."
+        );
+        put(DamageCause.SONIC_BOOM,
+            "{player} wurde vom Warden angeschrien und zerlegt.",
+            "{player} bekam Schall mit Hausverbot.",
+            "{player} hat den Soundcheck nicht überlebt.",
+            "{player} wurde akustisch aus der Welt entfernt.",
+            "{player} lernte: Leise sein wäre eine Option gewesen.",
+            "{player} wurde vom Warden übertönt.",
+            "{player} hat sich zu laut angeschlichen.",
+            "{player} bekam den Schrei aus der Tiefe.",
+            "{player} wurde durch Wände hindurch beendet."
+        );
+        put(DamageCause.CUSTOM,
+            "{player} starb auf eine Weise, die selbst Minecraft peinlich ist.",
+            "{player} wurde von unbekannter Dummheit erwischt.",
+            "{player} hat einen mysteriösen Fehler im Lebensplan.",
+            "{player} wurde vom Server mit Schulterzucken beerdigt.",
+            "{player} starb. Ursache: vermutlich Skill Issue.",
+            "{player} ist gestorben. Details verschweigt der Server.",
+            "{player} wurde auf unerklärliche Weise entfernt.",
+            "{player} hat etwas getan, das niemand nachstellen will.",
+            "{player} starb ohne erkennbaren Grund. Typisch."
+        );
+    }
+
+    String choose(DamageCause cause, int deathCount) {
+        return rotation.next(deathCount % MILESTONE_INTERVAL == 0 ? milestones : messagesFor(cause));
+    }
+
+    private List<String> messagesFor(DamageCause cause) {
+        return messages.getOrDefault(cause, messages.get(DamageCause.CUSTOM));
+    }
+
+    private void put(DamageCause cause, String... templates) {
+        messages.put(cause, List.of(templates));
+    }
+}

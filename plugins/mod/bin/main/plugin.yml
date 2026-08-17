@@ -4,7 +4,7 @@ main: de.pumpecraft.mod.PumpeModPlugin
 api-version: '1.21'
 author: PumpeCraft
 description: Moderation plugin for PumpeCraft.
-depend: [PumpeDatabase]
+depend: [PumpeDatabase, PumpeUtils]
 commands:
   report:
     description: Reports a known player to the staff team.

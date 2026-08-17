@@ -70,9 +70,11 @@ Die Spalten kommen mit Migration `V3__punishment_lifecycle.sql` aus
 
 `/vanish` trennt Spieler und Team:
 
-- **Ohne `pumpecraft.mod.vanish.see`**: Der Teamler verschwindet komplett. Es kommt die
-  gewohnte Meldung `… hat den Server verlassen.`, der Eintrag fällt aus der Tabliste und die
-  Spielerfigur wird nicht mehr gesendet. Beim Ausschalten kommt `… hat den Server betreten.`
+- **Ohne `pumpecraft.mod.vanish.see`**: Der Teamler verschwindet komplett. Es kommt eine echte
+  Leave-Meldung aus `ConnectionMessages` in [plugins/utils](../utils/CLAUDE.md) - demselben Topf,
+  aus dem auch [plugins/death-messages](../death-messages/README.md) beim echten Ausloggen zieht,
+  damit ein Vanish nicht an der Formulierung erkennbar ist. Der Eintrag fällt aus der Tabliste und
+  die Spielerfigur wird nicht mehr gesendet. Beim Ausschalten kommt die passende Join-Meldung.
 - **Mit `pumpecraft.mod.vanish.see`**: Der Teamler bleibt in der Tabliste, ausgegraut als
   `Name [Spec]`, und schwebt im Spiel als Kopf mit seinem Namensschild - so, als wäre er im
   Spectator-Modus.

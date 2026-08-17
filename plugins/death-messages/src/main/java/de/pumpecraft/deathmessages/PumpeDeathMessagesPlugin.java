@@ -15,6 +15,7 @@ public final class PumpeDeathMessagesPlugin extends JavaPlugin {
         repository = new DeathCounterRepository(this);
         repository.load();
         getServer().getPluginManager().registerEvents(new DeathMessageListener(repository), this);
+        getServer().getPluginManager().registerEvents(new ConnectionMessageListener(), this);
 
         getLogger().info("PumpeDeathMessages enabled.");
     }
