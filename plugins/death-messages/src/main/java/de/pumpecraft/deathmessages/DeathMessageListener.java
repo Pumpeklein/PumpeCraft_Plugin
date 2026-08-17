@@ -1,5 +1,7 @@
 package de.pumpecraft.deathmessages;
 
+import de.pumpecraft.utils.messages.Messages;
+import java.util.Map;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -16,10 +18,11 @@ import org.bukkit.projectiles.ProjectileSource;
 
 public final class DeathMessageListener implements Listener {
     private final DeathCounterRepository repository;
-    private final DeathMessageLibrary library = new DeathMessageLibrary();
+    private final DeathTopics topics;
 
-    public DeathMessageListener(DeathCounterRepository repository) {
+    public DeathMessageListener(DeathCounterRepository repository, DeathTopics topics) {
         this.repository = repository;
+        this.topics = topics;
     }
 
     @EventHandler
@@ -28,8 +31,11 @@ public final class DeathMessageListener implements Listener {
         int deathCount = repository.incrementDeaths(player.getUniqueId(), dimension(player));
         DeathContext context = createContext(player, deathCount);
 
-        String template = library.choose(context.cause(), deathCount);
-        event.deathMessage(Component.text(render(template, context), NamedTextColor.GRAY));
+        event.deathMessage(Messages.render(
+            topics.topicFor(context.cause(), deathCount),
+            NamedTextColor.GRAY,
+            values(context)
+        ));
     }
 
     private String dimension(Player player) {
@@ -82,12 +88,13 @@ public final class DeathMessageListener implements Listener {
         return builder.toString();
     }
 
-    private String render(String template, DeathContext context) {
-        return template
-            .replace("{player}", context.playerName())
-            .replace("{killer}", context.killerName())
-            .replace("{deaths}", String.valueOf(context.deathCount()))
-            .replace("{previousDeaths}", String.valueOf(context.deathCount() - 1));
+    private Map<String, String> values(DeathContext context) {
+        return Map.of(
+            "player", context.playerName(),
+            "killer", context.killerName(),
+            "deaths", String.valueOf(context.deathCount()),
+            "previousDeaths", String.valueOf(context.deathCount() - 1)
+        );
     }
 
     private record DeathContext(String playerName, String killerName, int deathCount, DamageCause cause) {

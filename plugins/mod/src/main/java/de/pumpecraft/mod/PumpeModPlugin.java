@@ -2,6 +2,7 @@ package de.pumpecraft.mod;
 
 import de.pumpecraft.mod.vanish.VanishListener;
 import de.pumpecraft.mod.vanish.VanishService;
+import de.pumpecraft.utils.messages.ConnectionMessages;
 import java.util.Objects;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.Plugin;
@@ -20,6 +21,9 @@ public final class PumpeModPlugin extends JavaPlugin {
 
         repository = new ModerationRepository(this);
         repository.load();
+
+        ModerationTopics.register();
+        ConnectionMessages.register();
 
         vanishService = new VanishService(this);
         getServer().getPluginManager().registerEvents(new VanishListener(this, vanishService), this);

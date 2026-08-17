@@ -30,6 +30,7 @@ rootProject.name = "pumpecraft-plugins"
 include(":plugins:essentials")
 include(":plugins:database")
 include(":plugins:utils")
+include(":plugins:ai")
 include(":plugins:mod")
 include(":plugins:clan-system")
 include(":plugins:skills")

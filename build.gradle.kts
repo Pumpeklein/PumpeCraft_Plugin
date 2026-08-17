@@ -14,6 +14,7 @@ val paperApiVersion = providers.gradleProperty("paperApiVersion").get()
 val pluginModulePaths = listOf(
     ":plugins:database",
     ":plugins:utils",
+    ":plugins:ai",
     ":plugins:essentials",
     ":plugins:mod",
     ":plugins:clan-system",
@@ -73,7 +74,7 @@ configure(pluginProjects) {
     }
 }
 
-val libraryModulePaths = listOf(":plugins:database", ":plugins:utils")
+val libraryModulePaths = listOf(":plugins:database", ":plugins:utils", ":plugins:ai")
 
 configure(pluginProjects.filter { it.path !in libraryModulePaths }) {
     apply(plugin = "eclipse")

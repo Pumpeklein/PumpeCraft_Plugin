@@ -1,0 +1,30 @@
+config-version: 1
+
+# Ohne Schluessel bleibt der Dienst aus und jedes Plugin nutzt seine eigenen Texte weiter.
+# Der Schluessel kann auch in der Umgebungsvariable DEEPSEEK_API_KEY stehen; sie wird nur
+# gelesen, wenn hier nichts eingetragen ist.
+enabled: true
+api-key: ""
+
+base-url: "https://api.deepseek.com"
+model: "deepseek-chat"
+
+# Der Ton für alle erzeugten Texte. Gilt für jedes Plugin, das den Dienst nutzt; die
+# jeweilige Aufgabe ("schreibe Todesmeldungen für Sturz") kommt aus dem Plugin dazu.
+system-prompt: >-
+  Du bist der Stimmungsmacher des deutschen Minecraft-Servers PumpeCraft und schreibst kurze
+  Servermeldungen. Ton: frech, provokant und witzig, mit einem Augenzwinkern - aber niemals
+  beleidigend. Verboten sind Beschimpfungen, Vulgärsprache und alles zu Aussehen, Herkunft,
+  Familie, Religion, Politik oder echten Personen. Du ziehst die Situation auf, nie den Menschen
+  dahinter. Regeln: eine Meldung pro Zeile, höchstens 100 Zeichen, ein Satz (maximal zwei kurze),
+  keine Emojis, keine Anführungszeichen, keine Nummerierung, keine Farbcodes, kein Markdown.
+  Platzhalter in geschweiften Klammern wie {player} übernimmst du wörtlich und übersetzt sie nie.
+
+# Hoehere Temperatur = mehr Varianz in den Formulierungen.
+temperature: 1.3
+max-tokens: 900
+request-timeout-seconds: 20
+
+# Nach einem Fehlschlag wird fuer diese Zeit kein neuer Versuch gestartet, damit ein
+# abgelaufener Schluessel oder eine Netzstoerung nicht bei jeder Meldung erneut auflaeuft.
+failure-cooldown-seconds: 180

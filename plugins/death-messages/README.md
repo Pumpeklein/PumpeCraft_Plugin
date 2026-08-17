@@ -1,35 +1,46 @@
 # PumpeDeathMessages
 
-Custom death, join and leave messages for PumpeCraft.
+Custom death, join, leave and advancement messages for PumpeCraft.
 
 ## Features
 
 - Replaces vanilla death messages with custom German messages.
 - Covers every current Paper `DamageCause` with 9 message variants.
 - Every 5th death for a player uses a special milestone message (14 variants).
-- Replaces the vanilla join and leave messages with the same kind of custom German messages;
-  a player joining for the very first time gets his own welcome pool.
-- Avoids using the same message template twice in a row globally, even across different players:
-  once for all death messages (across causes and milestones), once for all join and leave messages.
+- Replaces the vanilla join, leave and advancement messages with the same kind of custom German
+  messages; a player joining for the very first time gets a separate welcome pool.
+- Avoids using the same message template twice in a row globally, across players and topics.
 - Tracks player death counts in MariaDB through PumpeDatabase.
 - Imports an existing `plugins/PumpeDeathMessages/death-message-data.yml` once and leaves it untouched as a backup.
 
 The messages are intentionally varied, sarcastic and less vanilla-like.
 
-## Platzhalter
+## Themen statt fester Texte
 
-| Platzhalter | Bedeutung | Verfügbar in |
+Jede Meldung ist ein `MessageTopic` aus [PumpeUtils](../utils/CLAUDE.md): Schlüssel, Aufgabe für
+eine Textquelle und die eigenen Vorlagen. Gerendert wird über `Messages.render`. Läuft
+[PumpeAI](../ai/README.md) mit gültigem Schlüssel, kommen die Texte von dort und die eigenen
+Vorlagen sind der Fallback; ohne PumpeAI ändert sich nichts.
+
+| Thema | Vorlagen | Platzhalter |
 | --- | --- | --- |
-| `{player}` | Name des Spielers | Tod, Join, Leave |
-| `{killer}` | Name des Verursachers, sonst `das Universum` | Tod |
-| `{deaths}` | Tode inklusive diesem | Tod |
-| `{previousDeaths}` | Tode vor diesem | Tod |
+| `death-<URSACHE>` (33 Stück) | 9 je Ursache | `{player}`, bei Gegnern `{killer}` |
+| `death-milestone` | 14 | `{player}`, `{deaths}`, `{previousDeaths}` |
+| `connection-join` / `connection-leave` | je 12 | `{player}` |
+| `connection-first-join` | 6 | `{player}` |
+| `advancement` | 8 | `{player}`, `{advancement}` |
 
-## Join- und Leave-Meldungen
+Die Themen für Tode liegen in `DeathTopics`, die für Join und Leave in `ConnectionMessages` in
+PumpeUtils - der Vanish aus [plugins/mod](../mod/README.md) braucht denselben Topf, sonst wäre ein
+versteckter Teamler an der Formulierung erkennbar.
 
-Die Texte liegen in `ConnectionMessages` in [plugins/utils](../utils/CLAUDE.md), nicht hier: Der
-Vanish aus [plugins/mod](../mod/README.md) täuscht dasselbe Verlassen vor und zieht aus demselben
-Topf. Eine eigene Formulierung dort würde einen versteckten Teamler sofort verraten.
+| Klasse | Aufgabe |
+| --- | --- |
+| `DeathMessageListener` | Event-Verdrahtung für Tode, Zähler, Platzhalterwerte |
+| `ConnectionMessageListener` | Event-Verdrahtung für Join und Leave |
+| `AdvancementMessageListener` | Event-Verdrahtung für Fortschritte samt Thema |
+| `DeathTopics` | Themen und Vorlagen je Schadensursache, Meilenstein alle fünf Tode |
+| `DeathCounterRepository` | Todeszähler in MariaDB |
 
-Beide Handler laufen auf `EventPriority.LOW`, damit der Vanish die Meldung eines versteckten
-Teamlers danach noch streichen kann.
+Fortschritte ohne Chat-Ankündigung - Rezepte und versteckte Advancements - bleiben unangetastet:
+Wo Vanilla nichts meldet, meldet das Plugin auch nichts.

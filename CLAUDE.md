@@ -43,14 +43,15 @@ neue Schlüssel, es korrigiert keine alten.
 | Modul | Plugin | Rolle |
 | --- | --- | --- |
 | `plugins/database` | `PumpeDatabase` | HikariCP-Pool, Flyway-Migrationen, `DatabaseService` als Bukkit-Service |
-| `plugins/utils` | `PumpeUtils` | Statische Helfer ohne Zustand plus Sektion `objects` für Serverobjekte |
+| `plugins/utils` | `PumpeUtils` | Statische Helfer ohne Zustand plus Sektionen `messages` und `objects` |
+| `plugins/ai` | `PumpeAI` | DeepSeek-Anbindung als Dienst; erzeugt Textzeilen für andere Plugins |
 | `plugins/anticheat` | `PumpeAntiCheat` | Checks, Client-Erkennung, Item-Validierung |
 | `plugins/essentials` | `PumpeEssentials` | Inventar- und Enderchest-Zugriff für das Team |
 | `plugins/mod` | `PumpeMod` | Bans, Mutes, Reports, Notizen |
 | `plugins/clan-system` | `PumpeClanSystem` | Clans, Basen, Tab-Darstellung |
 | `plugins/skills` | `PumpeSkills` | Skill-Level, Belohnungen, GUI |
 | `plugins/trader` | `PumpeTrader` | Handels-NPCs |
-| `plugins/death-messages` | `PumpeDeathMessages` | Todes-, Join- und Leave-Meldungen, Todeszähler |
+| `plugins/death-messages` | `PumpeDeathMessages` | Todes-, Join-, Leave- und Fortschrittsmeldungen, Todeszähler |
 | `plugins/playtime` | `PumpePlaytime` | Spielzeit-Erfassung |
 | `plugins/chat-control` | `PumpeChatControl` | Chatfilter, Privatnachrichten, Persistenz |
 | `plugins/transactions` | `PumpeTransactions` | PumpePoints (PP), Buchungen, Zeitgutschrift |
@@ -64,9 +65,22 @@ Neue Serverobjekte (Briefkasten, Mülltonne, Schild, …) bekommen ein eigenes M
 sich über `DisplayObjectType`; sie bringen nur ihr Modell und ihre Spiellogik mit. Siehe
 [plugins/utils/CLAUDE.md](plugins/utils/CLAUDE.md), Sektion `objects`.
 
-`database` und `utils` sind Bibliotheks-Plugins: sie werden per `compileOnly` eingebunden
+`database`, `utils` und `ai` sind Bibliotheks-Plugins: sie werden per `compileOnly` eingebunden
 und zur Laufzeit über `depend:` in der `plugin.yml` aufgelöst. Wer eines davon nutzt, muss
-es dort eintragen — sonst schlägt der Klassenzugriff erst im laufenden Server fehl.
+es dort eintragen — sonst schlägt der Klassenzugriff erst im laufenden Server fehl. `ai` gehört
+in `softdepend:`, nicht in `depend:`: Ein Plugin, das ohne erzeugte Texte nicht mehr startet,
+hat seinen Fallback nicht verstanden.
+
+**Servermeldungen.** Alles, was der ganze Server sieht, ist ein `MessageTopic` aus
+`plugins/utils` (Sektion `messages`): Thema mit eigenen Vorlagen neben der Logik anlegen, in
+`onEnable` über `Messages.register` anmelden, über `Messages.render` ausgeben. Ein hart
+formulierter `Bukkit.broadcast` ist ein Fehler. Ob ein erzeugter Text oder eine Vorlage
+herauskommt, entscheidet `PumpeAI` über `Messages.use` — kein Plugin braucht dafür eine
+Abhängigkeit zur KI.
+
+**Erzeugte Texte.** Was von `PumpeAI` kommt, ist Kür. Die eigenen Vorlagen bleiben stehen und
+gelten immer dann, wenn nichts Erzeugtes bereitliegt — nie im Spielverlauf auf eine Antwort
+warten, nie ungeprüft in den Chat schreiben. Referenz: `AiMessagePool` in `plugins/ai`.
 
 ## Build
 

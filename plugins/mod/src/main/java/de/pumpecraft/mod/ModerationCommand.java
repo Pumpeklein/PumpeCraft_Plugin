@@ -1,6 +1,7 @@
 package de.pumpecraft.mod;
 
 import de.pumpecraft.mod.vanish.VanishService;
+import de.pumpecraft.utils.messages.Messages;
 import io.papermc.paper.ban.BanListType;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import java.time.Duration;
@@ -313,12 +314,10 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
         }
 
         String formattedDuration = Durations.format(duration);
-        Bukkit.broadcast(
-            Component.text(target.name(), NamedTextColor.AQUA)
-                .append(Component.text(" wurde für ", NamedTextColor.RED))
-                .append(Component.text(formattedDuration, NamedTextColor.GOLD))
-                .append(Component.text(" gemutet.", NamedTextColor.RED))
-        );
+        Bukkit.broadcast(Messages.render(ModerationTopics.MUTED, NamedTextColor.RED, Map.of(
+            "player", target.name(),
+            "duration", formattedDuration
+        )));
         staff.sendMessage(success(target.name() + " wurde für " + formattedDuration + " gemutet."));
         return true;
     }
@@ -353,10 +352,7 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
             onlineTarget.sendMessage(unmuteMessage(staff.getName()));
         }
 
-        Bukkit.broadcast(
-            Component.text(target.name(), NamedTextColor.AQUA)
-                .append(Component.text(" wurde entmutet.", NamedTextColor.GREEN))
-        );
+        Bukkit.broadcast(Messages.render(ModerationTopics.UNMUTED, NamedTextColor.GREEN, target.name()));
         staff.sendMessage(success("Der Mute von " + target.name() + " wurde aufgehoben."));
         return true;
     }
@@ -398,6 +394,10 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
             onlineTarget.kick(banScreen(ban));
         }
 
+        Bukkit.broadcast(Messages.render(ModerationTopics.BANNED, NamedTextColor.RED, Map.of(
+            "player", target.name(),
+            "duration", ban.permanent() ? "permanent" : "für " + Durations.format(ban.total())
+        )));
         staff.sendMessage(success(
             target.name() + " wurde "
                 + (ban.permanent() ? "permanent" : "für " + Durations.format(ban.total()))
@@ -435,6 +435,7 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
             return true;
         }
 
+        Bukkit.broadcast(Messages.render(ModerationTopics.UNBANNED, NamedTextColor.GREEN, target.name()));
         staff.sendMessage(success("Der Ban von " + target.name() + " wurde aufgehoben."));
         return true;
     }

@@ -10,7 +10,8 @@ Supported times: `30s`, `15m`, `1h`, `2h`, `1d`. Plain numbers are treated as mi
 
 ## Behavior
 
-- Broadcasts the trader location when spawned.
+- Broadcasts the trader location when spawned; the wording comes from `TraderTopics` over
+  `Messages.render`, so [PumpeAI](../ai/README.md) can take it over when it runs.
 - Trader does not move, is silent, non-collidable and invulnerable.
 - Trader despawns after the given time and broadcasts a despawn message.
 - Trades use item combinations instead of emeralds and are priced for practical building use.

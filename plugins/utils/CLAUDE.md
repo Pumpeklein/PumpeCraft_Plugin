@@ -1,9 +1,9 @@
 # PumpeUtils
 
 Bibliotheks-Plugin ohne Spiellogik. Das Wurzelpaket enthält ausschließlich zustandslose Helfer,
-die mindestens zwei Plugins brauchen könnten. Daneben gibt es Sektionen in Subpaketen — aktuell
-`objects` für Serverobjekte —, die auch Zustand halten dürfen, weil sie eine Mechanik statt einer
-Hilfsmethode anbieten.
+die mindestens zwei Plugins brauchen könnten. Daneben gibt es Sektionen in Subpaketen — `messages`
+für Meldungstexte, `objects` für Serverobjekte —, die auch Zustand halten dürfen, weil sie eine
+Mechanik statt einer Hilfsmethode anbieten.
 
 ## Regel
 
@@ -33,8 +33,30 @@ Nutzung: `depend: [PumpeUtils]` in der `plugin.yml`. Der Gradle-Classpath kommt 
 
 | Klasse | Inhalt |
 | --- | --- |
+| `MessageTopic` | Eine Sorte Meldung: `key`, `task` für die Textquelle, eigene Vorlagen |
+| `Messages` | `register`, `template`, `render`, `use` — rendert ein Thema, mit oder ohne Quelle |
+| `MessageSource` | Vorlagen von außerhalb; `null` je Aufruf fällt auf die Vorlagen des Themas zurück |
 | `MessageRotation` | Zufällige Vorlage aus einer Liste, ohne die zuletzt gezogene zu wiederholen |
-| `ConnectionMessages` | `join`, `firstJoin`, `leave` — fertige Meldungen zum Betreten und Verlassen |
+| `ConnectionMessages` | Themen und fertige Meldungen für Betreten und Verlassen |
+
+**Jede Meldung, die der ganze Server sieht, ist ein `MessageTopic`.** Das Plugin legt das Thema
+neben seiner Logik an (`ModerationTopics`, `TraderTopics`, `DeathTopics`) und rendert es über
+`Messages.render(topic, farbe, werte)`. Ob dabei ein erzeugter Text oder eine eigene Vorlage
+herauskommt, ist nicht die Sache des Plugins: `PumpeAI` hängt sich über `Messages.use` ein, sonst
+gelten die Vorlagen. Kein Plugin braucht dafür eine Abhängigkeit zur KI.
+
+**Themen melden sich beim Start an.** `Messages.register(...)` in `onEnable`, sonst wärmt eine
+Quelle sie nicht vor und die jeweils erste Meldung jedes Themas fällt zwangsläufig auf die eigene
+Vorlage zurück. Bei 33 Todesursachen heißt das: einmal pro Ursache umsonst sterben.
+
+Zwei weitere Regeln für ein Thema:
+
+- **Vorlagen sind Fallback und Stilvorgabe zugleich.** Aus ihnen liest die Quelle den Ton ab und
+  welche Platzhalter erlaubt sind. Ein Platzhalter, der in keiner Vorlage steht, existiert für sie
+  nicht — er käme roh in den Chat.
+- **Platzhalter, die in jeder Vorlage stehen, gelten als Pflicht.** So bleibt die Information
+  erhalten: eine Trader-Meldung ohne `{location}` oder eine Mute-Meldung ohne `{duration}` wird
+  verworfen, statt halb informiert im Chat zu landen.
 
 `ConnectionMessages` liegt hier und nicht in `plugins/death-messages`, wo die Events verdrahtet
 werden: Der Vanish in `plugins/mod` täuscht dasselbe Verlassen vor und muss denselben Topf

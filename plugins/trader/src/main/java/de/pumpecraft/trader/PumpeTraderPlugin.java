@@ -9,6 +9,8 @@ public final class PumpeTraderPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        TraderTopics.register();
+
         traderCommand = new TraderCommand(this);
         PluginCommand command = Objects.requireNonNull(getCommand("trader"), "Missing command: trader");
         command.setExecutor(traderCommand);

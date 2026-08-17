@@ -1,5 +1,7 @@
 package de.pumpecraft.deathmessages;
 
+import de.pumpecraft.utils.messages.ConnectionMessages;
+import de.pumpecraft.utils.messages.Messages;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -14,8 +16,16 @@ public final class PumpeDeathMessagesPlugin extends JavaPlugin {
 
         repository = new DeathCounterRepository(this);
         repository.load();
-        getServer().getPluginManager().registerEvents(new DeathMessageListener(repository), this);
+
+        DeathTopics deathTopics = new DeathTopics();
+        deathTopics.register();
+        ConnectionMessages.register();
+        Messages.register(AdvancementMessageListener.ADVANCEMENT);
+
+        getServer().getPluginManager().registerEvents(
+            new DeathMessageListener(repository, deathTopics), this);
         getServer().getPluginManager().registerEvents(new ConnectionMessageListener(), this);
+        getServer().getPluginManager().registerEvents(new AdvancementMessageListener(), this);
 
         getLogger().info("PumpeDeathMessages enabled.");
     }

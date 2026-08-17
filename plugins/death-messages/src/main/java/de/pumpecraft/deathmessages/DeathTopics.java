@@ -1,18 +1,21 @@
 package de.pumpecraft.deathmessages;
 
-import de.pumpecraft.utils.messages.MessageRotation;
+import de.pumpecraft.utils.messages.MessageTopic;
+import de.pumpecraft.utils.messages.Messages;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 
-/** Vorlagen für Todesmeldungen, getrennt nach Schadensursache, plus Meilensteine alle fünf Tode. */
-final class DeathMessageLibrary {
+/** Themen für Todesmeldungen, getrennt nach Schadensursache, plus Meilensteine alle fünf Tode. */
+final class DeathTopics {
     private static final int MILESTONE_INTERVAL = 5;
 
-    private final Map<DamageCause, List<String>> messages = new EnumMap<>(DamageCause.class);
-    private final MessageRotation rotation = new MessageRotation();
-    private final List<String> milestones = List.of(
+    private final Map<DamageCause, MessageTopic> topics = new EnumMap<>(DamageCause.class);
+    private final MessageTopic milestone = MessageTopic.of(
+        "death-milestone",
+        "Schreibe Todesmeldungen für jeden fünften Tod eines Spielers. Sie dürfen die Zahl der Tode"
+            + " aufgreifen und den Spieler dafür freundlich aufziehen.",
         "{player} ist zum {deaths}. Mal gestorben und nennt das vermutlich Training.",
         "{player} hat nach {previousDeaths} Toden immer noch keinen Lernprozess gestartet.",
         "{player} sammelt Tode wie andere Leute Dias. Stand: {deaths}.",
@@ -30,7 +33,7 @@ final class DeathMessageLibrary {
     );
 
     @SuppressWarnings("deprecation")
-    DeathMessageLibrary() {
+    DeathTopics() {
         put(DamageCause.KILL,
             "{player} wurde per Admin-Finger aus der Existenz geschnipst.",
             "{player} hat den unsichtbaren Hammer der Gerechtigkeit kassiert.",
@@ -396,15 +399,25 @@ final class DeathMessageLibrary {
         );
     }
 
-    String choose(DamageCause cause, int deathCount) {
-        return rotation.next(deathCount % MILESTONE_INTERVAL == 0 ? milestones : messagesFor(cause));
+    void register() {
+        Messages.register(milestone);
+        topics.values().forEach(Messages::register);
     }
 
-    private List<String> messagesFor(DamageCause cause) {
-        return messages.getOrDefault(cause, messages.get(DamageCause.CUSTOM));
+    /** @return das Thema für diesen Tod; jeder fünfte Tod bekommt den Meilenstein */
+    MessageTopic topicFor(DamageCause cause, int deathCount) {
+        if (deathCount % MILESTONE_INTERVAL == 0) {
+            return milestone;
+        }
+        return topics.getOrDefault(cause, topics.get(DamageCause.CUSTOM));
     }
 
-    private void put(DamageCause cause, String... templates) {
-        messages.put(cause, List.of(templates));
+    private void put(DamageCause cause, String... fallbacks) {
+        topics.put(cause, new MessageTopic("death-" + cause.name(), task(cause), List.of(fallbacks)));
+    }
+
+    private static String task(DamageCause cause) {
+        return "Schreibe Todesmeldungen für die Schadensursache " + cause.name()
+            + " auf einem Minecraft-Server. Die Meldung steht im Chat, sobald ein Spieler so stirbt.";
     }
 }

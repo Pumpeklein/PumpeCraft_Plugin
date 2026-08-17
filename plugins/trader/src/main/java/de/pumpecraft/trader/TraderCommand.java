@@ -1,5 +1,6 @@
 package de.pumpecraft.trader;
 
+import de.pumpecraft.utils.messages.Messages;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -162,11 +163,8 @@ public final class TraderCommand implements CommandExecutor, TabCompleter, Liste
         trader.getPersistentDataContainer().set(traderKey, PersistentDataType.BYTE, TRUE);
         trader.setRecipes(createRecipes());
 
-        Bukkit.broadcast(
-            Component.text("Ein Trader ist gespawnt bei ", NamedTextColor.GOLD)
-                .append(Component.text(formatLocation(spawnLocation), NamedTextColor.AQUA))
-                .append(Component.text(".", NamedTextColor.GOLD))
-        );
+        Bukkit.broadcast(Messages.render(TraderTopics.SPAWNED, NamedTextColor.GOLD,
+            Map.of("location", formatLocation(spawnLocation))));
 
         long ticks = Math.max(20L, duration.toSeconds() * 20L);
         BukkitTask task = Bukkit.getScheduler().runTaskLater(plugin, () -> despawnTrader(trader.getUniqueId()), ticks);
@@ -182,11 +180,8 @@ public final class TraderCommand implements CommandExecutor, TabCompleter, Liste
 
         Location location = entity.getLocation();
         entity.remove();
-        Bukkit.broadcast(
-            Component.text("Der Trader bei ", NamedTextColor.GOLD)
-                .append(Component.text(formatLocation(location), NamedTextColor.AQUA))
-                .append(Component.text(" ist wieder verschwunden.", NamedTextColor.GOLD))
-        );
+        Bukkit.broadcast(Messages.render(TraderTopics.DESPAWNED, NamedTextColor.GOLD,
+            Map.of("location", formatLocation(location))));
     }
 
     private List<MerchantRecipe> createRecipes() {

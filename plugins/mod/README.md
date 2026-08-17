@@ -66,6 +66,13 @@ durchgelassen, statt den kompletten Login zu blockieren.
 Die Spalten kommen mit Migration `V3__punishment_lifecycle.sql` aus
 `plugins/database`.
 
+## Servermeldungen
+
+`/mute`, `/unmute`, `/ban` und `/unban` melden dem ganzen Server, was passiert ist - über
+`ModerationTopics` und `Messages.render` aus [plugins/utils](../utils/CLAUDE.md), damit
+[PumpeAI](../ai/README.md) die Formulierung übernehmen kann, wenn es läuft. Der Grund einer Strafe
+bleibt beim Team und steht in keiner dieser Meldungen; öffentlich sind nur Name und Dauer.
+
 ## Vanish
 
 `/vanish` trennt Spieler und Team:

@@ -1,6 +1,5 @@
 package de.pumpecraft.utils.messages;
 
-import java.util.List;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 
@@ -10,9 +9,9 @@ import net.kyori.adventure.text.format.NamedTextColor;
  * eigene Formulierung dort würde einen versteckten Teamler sofort verraten.
  */
 public final class ConnectionMessages {
-    private static final MessageRotation ROTATION = new MessageRotation();
-
-    private static final List<String> JOIN = List.of(
+    public static final MessageTopic JOIN = MessageTopic.of(
+        "connection-join",
+        "Schreibe Meldungen für einen Spieler, der den Server betritt.",
         "{player} ist da. Die Ruhe war schön, solange sie hielt.",
         "{player} hat sich eingeloggt und bringt vermutlich Chaos mit.",
         "{player} betritt den Server. Bitte Wertsachen sichern.",
@@ -27,7 +26,10 @@ public final class ConnectionMessages {
         "{player} betritt die Welt. Die Welt bleibt gelassen."
     );
 
-    private static final List<String> FIRST_JOIN = List.of(
+    public static final MessageTopic FIRST_JOIN = MessageTopic.of(
+        "connection-first-join",
+        "Schreibe Willkommensmeldungen für einen Spieler, der zum allerersten Mal auf den Server"
+            + " kommt. Etwas freundlicher als sonst, aber nicht kitschig.",
         "{player} ist zum ersten Mal da. Kurz nett sein, danach wie immer.",
         "{player} hat den Server frisch entdeckt. Willkommen im Chaos.",
         "{player} ist neu hier und weiß noch nichts vom Glück.",
@@ -36,7 +38,9 @@ public final class ConnectionMessages {
         "{player} hat gerade angefangen. Der erste Tod kommt bestimmt."
     );
 
-    private static final List<String> LEAVE = List.of(
+    public static final MessageTopic LEAVE = MessageTopic.of(
+        "connection-leave",
+        "Schreibe Meldungen für einen Spieler, der den Server verlässt.",
         "{player} ist weg. Wahrscheinlich Ausreden holen.",
         "{player} hat sich ausgeloggt und den Rest uns überlassen.",
         "{player} verlässt den Server. Die Baustelle bleibt.",
@@ -51,22 +55,23 @@ public final class ConnectionMessages {
         "{player} ist weg vom Fenster. Freiwillig."
     );
 
+    /** Meldet die Themen an; jedes Plugin, das Join oder Leave meldet, ruft das beim Start auf. */
+    public static void register() {
+        Messages.register(JOIN, FIRST_JOIN, LEAVE);
+    }
+
     private ConnectionMessages() {
     }
 
     public static Component join(String playerName) {
-        return render(JOIN, playerName, NamedTextColor.GRAY);
+        return Messages.render(JOIN, NamedTextColor.GRAY, playerName);
     }
 
     public static Component firstJoin(String playerName) {
-        return render(FIRST_JOIN, playerName, NamedTextColor.GREEN);
+        return Messages.render(FIRST_JOIN, NamedTextColor.GREEN, playerName);
     }
 
     public static Component leave(String playerName) {
-        return render(LEAVE, playerName, NamedTextColor.GRAY);
-    }
-
-    private static Component render(List<String> templates, String playerName, NamedTextColor color) {
-        return Component.text(ROTATION.next(templates).replace("{player}", playerName), color);
+        return Messages.render(LEAVE, NamedTextColor.GRAY, playerName);
     }
 }
