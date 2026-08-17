@@ -116,6 +116,13 @@ final class ClanData {
         OWNER_PROTECTED
     }
 
+    enum TransferOwnershipResult {
+        TRANSFERRED,
+        NOT_OWNER,
+        NOT_MEMBER,
+        ALREADY_OWNER
+    }
+
     enum CreateJoinRequestResult {
         REQUESTED,
         ALREADY_REQUESTED,

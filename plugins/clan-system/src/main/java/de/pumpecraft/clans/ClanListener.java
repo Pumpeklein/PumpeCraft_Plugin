@@ -36,10 +36,16 @@ final class ClanListener implements Listener {
             () -> {
                 repository.touchPlayer(new ClanData.PlayerIdentity(
                     player.getUniqueId(), player.getName()));
-                return repository.invitations(player.getUniqueId(), System.currentTimeMillis());
+                return new JoinPayload(
+                    repository.invitations(player.getUniqueId(), System.currentTimeMillis()),
+                    repository.takeNotifications(player.getUniqueId())
+                );
             },
-            invitations -> {
-                sendInvitations(player, invitations);
+            payload -> {
+                sendInvitations(player, payload.invitations());
+                for (String notification : payload.notifications()) {
+                    player.sendMessage(Component.text(notification, NamedTextColor.GOLD));
+                }
                 plugin.refreshDirectory();
             }
         );
@@ -69,5 +75,8 @@ final class ClanListener implements Listener {
                         ))))
             );
         }
+    }
+
+    private record JoinPayload(List<Invitation> invitations, List<String> notifications) {
     }
 }

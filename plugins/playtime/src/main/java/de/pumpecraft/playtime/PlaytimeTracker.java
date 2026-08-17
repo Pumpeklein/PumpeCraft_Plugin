@@ -275,7 +275,8 @@ final class PlaytimeTracker implements Listener {
             player.getUniqueId(),
             new SessionState(session.lastInteractionMillis(), true, currentTabName, 0L)
         );
-        player.playerListName(Component.text("[AFK] ", NamedTextColor.YELLOW).append(currentTabName));
+        player.playerListName(currentTabName.append(
+            Component.text(" [AFK]", NamedTextColor.YELLOW)));
         player.sendMessage(Component.text("Bye Bye, du bist nun afk", NamedTextColor.YELLOW));
     }
 

@@ -48,20 +48,21 @@ final class ClanTabService {
     }
 
     void apply(Player player) {
+        Component currentName = player.playerListName();
+        String plainName = PlainTextComponentSerializer.plainText().serialize(currentName);
+        boolean afk = plainName.endsWith(" [AFK]");
+
         TabEntry entry = entries.get(player.getUniqueId());
         if (entry == null) {
             removeNametag(player);
-            if (decoratedPlayers.remove(player.getUniqueId())) {
+            if (decoratedPlayers.remove(player.getUniqueId()) && !afk) {
                 player.playerListName(Component.text(player.getName(), NamedTextColor.WHITE));
             }
             return;
         }
 
         applyNametag(player, entry);
-
-        Component currentName = player.playerListName();
-        String plainName = PlainTextComponentSerializer.plainText().serialize(currentName);
-        if (plainName.startsWith("[AFK] ")) {
+        if (afk) {
             return;
         }
         player.playerListName(

@@ -16,6 +16,7 @@ Persistent clan and player-base system backed by `PumpeDatabase`.
 - `/clan kick <Spieler>` removes an offline or online member.
 - `/clan rename <NeuerName>` lets the owner rename the clan.
 - `/clan role <Spieler> <co-owner|member>` lets the owner assign internal roles.
+- `/clan transfer <Spieler> confirm` transfers ownership and makes the previous owner co-owner.
 - `/clan color <Farbe>` changes the colored clan tag in the player list.
 - `/clan delete confirm` permanently deletes the clan.
 

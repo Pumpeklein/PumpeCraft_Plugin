@@ -16,6 +16,7 @@ import de.pumpecraft.clans.ClanData.RemoveMemberResult;
 import de.pumpecraft.clans.ClanData.RenameClanResult;
 import de.pumpecraft.clans.ClanData.ResolveJoinRequestResult;
 import de.pumpecraft.clans.ClanData.TabEntry;
+import de.pumpecraft.clans.ClanData.TransferOwnershipResult;
 import de.pumpecraft.database.DatabaseService;
 import de.pumpecraft.database.Databases;
 import java.sql.Connection;
@@ -24,6 +25,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -214,6 +216,101 @@ final class ClanRepository {
                 statement.executeUpdate();
                 return ChangeRoleResult.CHANGED;
             }
+        });
+    }
+
+    TransferOwnershipResult transferOwnership(
+        long clanId,
+        UUID ownerId,
+        String newOwnerName
+    ) {
+        return database.inTransaction(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT owner_uuid FROM pc_clans WHERE id = ? FOR UPDATE"
+            )) {
+                statement.setLong(1, clanId);
+                try (ResultSet result = statement.executeQuery()) {
+                    if (!result.next()
+                        || !ownerId.toString().equals(result.getString("owner_uuid"))) {
+                        return TransferOwnershipResult.NOT_OWNER;
+                    }
+                }
+            }
+            Optional<Member> target = member(connection, clanId, newOwnerName);
+            if (target.isEmpty()) {
+                return TransferOwnershipResult.NOT_MEMBER;
+            }
+            if (target.get().owner()) {
+                return TransferOwnershipResult.ALREADY_OWNER;
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE pc_clan_members SET member_role = 'CO_OWNER' WHERE clan_id = ? AND player_uuid = ?"
+            )) {
+                statement.setLong(1, clanId);
+                statement.setString(2, ownerId.toString());
+                statement.executeUpdate();
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE pc_clan_members SET member_role = 'OWNER' WHERE clan_id = ? AND player_uuid = ?"
+            )) {
+                statement.setLong(1, clanId);
+                statement.setString(2, target.get().playerId().toString());
+                statement.executeUpdate();
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE pc_clans SET owner_uuid = ?, owner_name = ? WHERE id = ? AND owner_uuid = ?"
+            )) {
+                statement.setString(1, target.get().playerId().toString());
+                statement.setString(2, target.get().playerName());
+                statement.setLong(3, clanId);
+                statement.setString(4, ownerId.toString());
+                return statement.executeUpdate() > 0
+                    ? TransferOwnershipResult.TRANSFERRED
+                    : TransferOwnershipResult.NOT_OWNER;
+            }
+        });
+    }
+
+    void addNotifications(Collection<UUID> playerIds, String message, long createdAt) {
+        if (playerIds.isEmpty()) {
+            return;
+        }
+        database.withConnection(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                "INSERT INTO pc_clan_notifications (player_uuid, message, created_at) VALUES (?, ?, ?)"
+            )) {
+                for (UUID playerId : playerIds) {
+                    statement.setString(1, playerId.toString());
+                    statement.setString(2, message);
+                    statement.setLong(3, createdAt);
+                    statement.addBatch();
+                }
+                statement.executeBatch();
+            }
+            return null;
+        });
+    }
+
+    List<String> takeNotifications(UUID playerId) {
+        return database.inTransaction(connection -> {
+            List<String> messages = new ArrayList<>();
+            try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT message FROM pc_clan_notifications WHERE player_uuid = ? ORDER BY created_at, id"
+            )) {
+                statement.setString(1, playerId.toString());
+                try (ResultSet result = statement.executeQuery()) {
+                    while (result.next()) {
+                        messages.add(result.getString("message"));
+                    }
+                }
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                "DELETE FROM pc_clan_notifications WHERE player_uuid = ?"
+            )) {
+                statement.setString(1, playerId.toString());
+                statement.executeUpdate();
+            }
+            return List.copyOf(messages);
         });
     }
 
@@ -1009,6 +1106,7 @@ final class ClanRepository {
             "pc_clan_members",
             "pc_clans",
             "pc_clan_invitations",
+            "pc_clan_join_requests",
             "pc_player_bases",
             "pc_base_visitors",
             "pc_base_likes"
