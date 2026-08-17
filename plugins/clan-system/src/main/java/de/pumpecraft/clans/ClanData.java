@@ -26,6 +26,24 @@ final class ClanData {
         boolean owner() {
             return role.equalsIgnoreCase("OWNER");
         }
+
+        boolean coOwner() {
+            return role.equalsIgnoreCase("CO_OWNER");
+        }
+
+        boolean canManageMembership() {
+            return owner() || coOwner();
+        }
+
+        String displayRole() {
+            if (owner()) {
+                return "Owner";
+            }
+            if (coOwner()) {
+                return "Co-Owner";
+            }
+            return "Member";
+        }
     }
 
     record ClanDetails(Clan clan, List<Member> members) {
@@ -35,6 +53,9 @@ final class ClanData {
     }
 
     record Invitation(long clanId, String clanName, String clanTag, long expiresAt) {
+    }
+
+    record JoinRequest(long clanId, PlayerIdentity player, long createdAt) {
     }
 
     record PlayerBase(
@@ -86,6 +107,29 @@ final class ClanData {
         RENAMED,
         NOT_OWNER,
         NAME_TAKEN
+    }
+
+    enum ChangeRoleResult {
+        CHANGED,
+        NOT_OWNER,
+        NOT_MEMBER,
+        OWNER_PROTECTED
+    }
+
+    enum CreateJoinRequestResult {
+        REQUESTED,
+        ALREADY_REQUESTED,
+        ALREADY_MEMBER,
+        CLAN_NOT_FOUND
+    }
+
+    enum ResolveJoinRequestResult {
+        ACCEPTED,
+        DENIED,
+        NOT_ALLOWED,
+        NOT_FOUND,
+        ALREADY_MEMBER,
+        CLAN_FULL
     }
 
     enum RemoveMemberResult {

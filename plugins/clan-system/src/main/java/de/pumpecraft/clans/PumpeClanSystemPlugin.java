@@ -77,30 +77,41 @@ public final class PumpeClanSystemPlugin extends JavaPlugin {
     }
 
     void notifyClanJoined(Player joinedPlayer) {
-        runAsync(
-            joinedPlayer,
-            () -> repository.clanDetailsForPlayer(joinedPlayer.getUniqueId()),
-            details -> {
+        notifyClanJoined(new ClanData.PlayerIdentity(
+            joinedPlayer.getUniqueId(), joinedPlayer.getName()));
+    }
+
+    void notifyClanJoined(ClanData.PlayerIdentity joinedPlayer) {
+        runAsync(() -> {
+            try {
+                var details = repository.clanDetailsForPlayer(joinedPlayer.playerId());
                 if (details.isEmpty()) {
                     return;
                 }
                 ClanData.Clan clan = details.get().clan();
                 Component message = ClanTagFormatter.prefix(clan.tag(), clan.tagColor())
                     .append(Component.text(
-                    joinedPlayer.getName() + " ist dem Clan beigetreten.",
+                    joinedPlayer.playerName() + " ist dem Clan beigetreten.",
                     NamedTextColor.GREEN
                 ));
-                for (ClanData.Member member : details.get().members()) {
-                    if (member.playerId().equals(joinedPlayer.getUniqueId())) {
-                        continue;
+                runSync(() -> {
+                    for (ClanData.Member member : details.get().members()) {
+                        if (member.playerId().equals(joinedPlayer.playerId())) {
+                            continue;
+                        }
+                        Player onlineMember = getServer().getPlayer(member.playerId());
+                        if (onlineMember != null && onlineMember.isOnline()) {
+                            onlineMember.sendMessage(message);
+                        }
                     }
-                    Player onlineMember = getServer().getPlayer(member.playerId());
-                    if (onlineMember != null && onlineMember.isOnline()) {
-                        onlineMember.sendMessage(message);
-                    }
-                }
+                });
+            } catch (RuntimeException exception) {
+                getLogger().warning(
+                    "Could not notify clan about new member " + joinedPlayer.playerName()
+                        + ": " + exception.getMessage()
+                );
             }
-        );
+        });
     }
 
     <T> void runAsync(Player recipient, Supplier<T> work, Consumer<T> callback) {

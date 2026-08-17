@@ -8,10 +8,14 @@ Persistent clan and player-base system backed by `PumpeDatabase`.
 - `/clan info [Clanname|Tag]` displays owner, creation date and members.
 - `/clan whois <Spieler>` displays the clan of an online or known offline player.
 - `/clan invite <Spieler>` stores an invitation for online or known offline players.
+- `/clan request <ClanTag>` sends a persistent request to join a clan.
+- `/clan requests` lists pending requests with clickable accept and deny actions.
+- `/clan request accept|deny <Spieler>` handles a pending request.
 - `/clan accept <ClanTag>` accepts an active invitation.
 - `/clan leave` leaves the current clan. Owners must delete their clan.
 - `/clan kick <Spieler>` removes an offline or online member.
 - `/clan rename <NeuerName>` lets the owner rename the clan.
+- `/clan role <Spieler> <co-owner|member>` lets the owner assign internal roles.
 - `/clan color <Farbe>` changes the colored clan tag in the player list.
 - `/clan delete confirm` permanently deletes the clan.
 
@@ -24,6 +28,12 @@ Clan tags use the same compact badge in the tab list, chat messages and the
 scoreboard name tag above each player. They are refreshed from a cache and do
 not query MariaDB from the server thread. Pending invitations are shown on join
 and can be accepted by clicking the chat action.
+
+## Clan roles
+
+- `Owner` controls roles, rename, deletion, tag color, invitations and kicks.
+- `Co-Owner` can invite players and accept or deny join requests.
+- `Member` cannot perform clan management actions.
 
 ## Player bases
 

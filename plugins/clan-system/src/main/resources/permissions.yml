@@ -9,7 +9,7 @@ permissions:
     default: true
   clan-manage:
     node: pumpecraft.clan.manage
-    description: Allows a clan owner to invite, kick, rename and delete their clan.
+    description: Allows management actions that are additionally restricted by the internal clan role.
     default: true
   clan-color:
     node: pumpecraft.clan.tagcolor
