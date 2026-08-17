@@ -1,7 +1,11 @@
 package de.pumpecraft.clans;
 
 import de.pumpecraft.clans.ClanData.Directory;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import net.kyori.adventure.text.Component;
@@ -77,30 +81,72 @@ public final class PumpeClanSystemPlugin extends JavaPlugin {
     }
 
     void notifyClanJoined(Player joinedPlayer) {
-        runAsync(
-            joinedPlayer,
-            () -> repository.clanDetailsForPlayer(joinedPlayer.getUniqueId()),
-            details -> {
+        notifyClanJoined(new ClanData.PlayerIdentity(
+            joinedPlayer.getUniqueId(), joinedPlayer.getName()));
+    }
+
+    void notifyClanJoined(ClanData.PlayerIdentity joinedPlayer) {
+        runAsync(() -> {
+            try {
+                var details = repository.clanDetailsForPlayer(joinedPlayer.playerId());
                 if (details.isEmpty()) {
                     return;
                 }
                 ClanData.Clan clan = details.get().clan();
                 Component message = ClanTagFormatter.prefix(clan.tag(), clan.tagColor())
                     .append(Component.text(
-                    joinedPlayer.getName() + " ist dem Clan beigetreten.",
+                    joinedPlayer.playerName() + " ist dem Clan beigetreten.",
                     NamedTextColor.GREEN
                 ));
-                for (ClanData.Member member : details.get().members()) {
-                    if (member.playerId().equals(joinedPlayer.getUniqueId())) {
-                        continue;
-                    }
-                    Player onlineMember = getServer().getPlayer(member.playerId());
-                    if (onlineMember != null && onlineMember.isOnline()) {
-                        onlineMember.sendMessage(message);
-                    }
-                }
+                String storedMessage = "Clan " + clan.name() + ": "
+                    + joinedPlayer.playerName() + " ist dem Clan beigetreten.";
+                runSync(() -> notifyClanMembers(
+                    details.get().members(),
+                    joinedPlayer.playerId(),
+                    message,
+                    storedMessage
+                ));
+            } catch (RuntimeException exception) {
+                getLogger().warning(
+                    "Could not notify clan about new member " + joinedPlayer.playerName()
+                        + ": " + exception.getMessage()
+                );
             }
-        );
+        });
+    }
+
+    void notifyPlayer(UUID playerId, Component message, String storedMessage) {
+        Player onlinePlayer = getServer().getPlayer(playerId);
+        if (onlinePlayer != null && onlinePlayer.isOnline()) {
+            onlinePlayer.sendMessage(message);
+            return;
+        }
+        runAsync(() -> repository.addNotifications(
+            List.of(playerId), storedMessage, System.currentTimeMillis()));
+    }
+
+    void notifyClanMembers(
+        Collection<ClanData.Member> members,
+        UUID excludedPlayer,
+        Component message,
+        String storedMessage
+    ) {
+        List<UUID> offlinePlayers = new ArrayList<>();
+        for (ClanData.Member member : members) {
+            if (member.playerId().equals(excludedPlayer)) {
+                continue;
+            }
+            Player onlinePlayer = getServer().getPlayer(member.playerId());
+            if (onlinePlayer != null && onlinePlayer.isOnline()) {
+                onlinePlayer.sendMessage(message);
+            } else {
+                offlinePlayers.add(member.playerId());
+            }
+        }
+        if (!offlinePlayers.isEmpty()) {
+            runAsync(() -> repository.addNotifications(
+                offlinePlayers, storedMessage, System.currentTimeMillis()));
+        }
     }
 
     <T> void runAsync(Player recipient, Supplier<T> work, Consumer<T> callback) {

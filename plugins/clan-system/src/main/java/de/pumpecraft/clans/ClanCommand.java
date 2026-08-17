@@ -3,6 +3,7 @@ package de.pumpecraft.clans;
 import de.pumpecraft.clans.ClanColors.ColorChoice;
 import de.pumpecraft.clans.ClanData.Clan;
 import de.pumpecraft.clans.ClanData.ClanDetails;
+import de.pumpecraft.clans.ClanData.JoinRequest;
 import de.pumpecraft.clans.ClanData.Member;
 import de.pumpecraft.clans.ClanData.PlayerIdentity;
 import java.time.Instant;
@@ -89,9 +90,13 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
                 }
             }
             case "einladen", "invite" -> invite(player, label, args);
+            case "request", "anfragen" -> request(player, label, args);
+            case "requests", "anfragenliste" -> showRequests(player);
             case "annehmen", "accept" -> accept(player, label, args);
             case "verlassen", "leave" -> leave(player);
             case "kicken", "kick" -> kick(player, label, args);
+            case "role", "rolle" -> changeRole(player, label, args);
+            case "transfer", "übertragen", "uebertragen" -> transfer(player, label, args);
             default -> {
                 player.sendMessage(error("Unbekannter Clan-Unterbefehl: " + args[0]));
                 sendHelp(player, label);
@@ -112,13 +117,14 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length == 1) {
             List<String> options = new ArrayList<>(List.of(
-                "info", "whois", "accept", "leave", "help"
+                "info", "whois", "request", "accept", "leave", "help"
             ));
             if (sender.hasPermission(plugin.permission("clan-create"))) {
                 options.add("create");
             }
             if (sender.hasPermission(plugin.permission("clan-manage"))) {
-                options.addAll(List.of("invite", "kick", "rename", "delete"));
+                options.addAll(List.of(
+                    "requests", "invite", "kick", "role", "transfer", "rename", "delete"));
             }
             if (sender.hasPermission(plugin.permission("clan-color"))) {
                 options.add("color");
@@ -142,7 +148,20 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
             if (matches(subcommand, "who")) {
                 return filter(List.of("is"), args[1]);
             }
+            if (matches(subcommand, "request", "anfragen")) {
+                List<String> options = new ArrayList<>(plugin.directory().clanTags());
+                if (sender.hasPermission(plugin.permission("clan-manage"))) {
+                    options.addAll(List.of("accept", "deny"));
+                }
+                return filter(options, args[1]);
+            }
             if (matches(subcommand, "kicken", "kick")) {
+                return filter(plugin.directory().memberNames(), args[1]);
+            }
+            if (matches(subcommand, "role", "rolle")) {
+                return filter(plugin.directory().memberNames(), args[1]);
+            }
+            if (matches(subcommand, "transfer", "übertragen", "uebertragen")) {
                 return filter(plugin.directory().memberNames(), args[1]);
             }
             if (matches(subcommand, "löschen", "loeschen", "delete")) {
@@ -153,6 +172,18 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
             && matches(args[0], "who")
             && args[1].equalsIgnoreCase("is")) {
             return filter(plugin.directory().knownPlayerNames(), args[2]);
+        }
+        if (args.length == 3 && matches(args[0], "request", "anfragen")) {
+            if (matches(args[1], "accept", "deny", "annehmen", "ablehnen")) {
+                return filter(plugin.directory().knownPlayerNames(), args[2]);
+            }
+        }
+        if (args.length == 3 && matches(args[0], "role", "rolle")) {
+            return filter(List.of("co-owner", "member"), args[2]);
+        }
+        if (args.length == 3
+            && matches(args[0], "transfer", "übertragen", "uebertragen")) {
+            return filter(List.of("confirm"), args[2]);
         }
         return List.of();
     }
@@ -382,10 +413,11 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
         PlayerIdentity inviter = identity(player);
         plugin.runAsync(player, () -> {
             Optional<Clan> clan = repository.clanForPlayer(inviter.playerId());
-            if (clan.isEmpty()) {
+            Optional<Member> inviterMember = repository.member(inviter.playerId());
+            if (clan.isEmpty() || inviterMember.isEmpty()) {
                 return new InviteOutcome(InviteStatus.NO_CLAN, null, null);
             }
-            if (!clan.get().ownerId().equals(inviter.playerId())) {
+            if (!inviterMember.get().canManageMembership()) {
                 return new InviteOutcome(InviteStatus.NOT_OWNER, clan.get(), null);
             }
             if (clan.get().memberCount() >= maxMembers) {
@@ -410,6 +442,187 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
                 target
             );
         }, outcome -> showInviteOutcome(player, outcome));
+    }
+
+    private void request(Player player, String label, String[] args) {
+        if (args.length == 2) {
+            PlayerIdentity applicant = identity(player);
+            plugin.runAsync(
+                player,
+                () -> {
+                    ClanData.CreateJoinRequestResult result = repository.createJoinRequest(
+                        applicant, args[1], System.currentTimeMillis());
+                    Optional<ClanDetails> clan = result == ClanData.CreateJoinRequestResult.REQUESTED
+                        ? repository.clanDetails(args[1])
+                        : Optional.empty();
+                    return new RequestCreationOutcome(result, clan);
+                },
+                outcome -> {
+                    switch (outcome.result()) {
+                        case REQUESTED -> {
+                            player.sendMessage(success(
+                                "Deine Beitrittsanfrage wurde an den Clan gesendet."));
+                            outcome.clan().ifPresent(details -> notifyManagersAboutRequest(
+                                details, applicant));
+                        }
+                        case ALREADY_REQUESTED -> player.sendMessage(error(
+                            "Du hast bei diesem Clan bereits eine offene Anfrage."));
+                        case ALREADY_MEMBER -> player.sendMessage(error(
+                            "Du bist bereits Mitglied eines Clans."));
+                        case CLAN_NOT_FOUND -> player.sendMessage(error("Clan nicht gefunden."));
+                    }
+                }
+            );
+            return;
+        }
+        if (args.length != 3 || !matches(args[1], "accept", "deny", "annehmen", "ablehnen")) {
+            player.sendMessage(error(
+                "Nutzung: /" + label + " request <ClanTag|accept Spieler|deny Spieler>"));
+            return;
+        }
+        if (!requirePermission(player, "clan-manage")) {
+            return;
+        }
+        if (matches(args[1], "accept", "annehmen")) {
+            acceptRequest(player, args[2]);
+        } else {
+            denyRequest(player, args[2]);
+        }
+    }
+
+    private void notifyManagersAboutRequest(ClanDetails details, PlayerIdentity applicant) {
+        Component message = ClanTagFormatter.prefix(
+            details.clan().tag(), details.clan().tagColor())
+            .append(Component.text(
+                applicant.playerName() + " möchte dem Clan beitreten. ", NamedTextColor.GOLD))
+            .append(Component.text("[ANZEIGEN]", NamedTextColor.GREEN)
+                .clickEvent(ClickEvent.runCommand("/clan requests"))
+                .hoverEvent(HoverEvent.showText(Component.text(
+                    "Beitrittsanfragen anzeigen", NamedTextColor.GREEN))));
+        for (Member member : details.members()) {
+            if (!member.canManageMembership()) {
+                continue;
+            }
+            Player manager = Bukkit.getPlayer(member.playerId());
+            if (manager != null && manager.isOnline()) {
+                manager.sendMessage(message);
+            }
+        }
+    }
+
+    private void showRequests(Player player) {
+        if (!requirePermission(player, "clan-manage")) {
+            return;
+        }
+        UUID playerId = player.getUniqueId();
+        plugin.runAsync(player, () -> {
+            Optional<Clan> clan = repository.clanForPlayer(playerId);
+            Optional<Member> member = repository.member(playerId);
+            if (clan.isEmpty() || member.isEmpty() || !member.get().canManageMembership()) {
+                return new RequestsOutcome(false, List.of());
+            }
+            return new RequestsOutcome(true, repository.joinRequests(clan.get().id()));
+        }, outcome -> {
+            if (!outcome.allowed()) {
+                player.sendMessage(error("Nur Owner und Co-Owner können Anfragen verwalten."));
+                return;
+            }
+            if (outcome.requests().isEmpty()) {
+                player.sendMessage(Component.text(
+                    "Dein Clan hat keine offenen Beitrittsanfragen.", NamedTextColor.GRAY));
+                return;
+            }
+            player.sendMessage(Component.text(
+                "Offene Beitrittsanfragen:", NamedTextColor.GOLD, TextDecoration.BOLD));
+            for (JoinRequest request : outcome.requests()) {
+                String name = request.player().playerName();
+                player.sendMessage(Component.text(name + " ", NamedTextColor.WHITE)
+                    .append(Component.text("[ANNEHMEN]", NamedTextColor.GREEN)
+                        .clickEvent(ClickEvent.runCommand("/clan request accept " + name))
+                        .hoverEvent(HoverEvent.showText(Component.text(
+                            name + " aufnehmen", NamedTextColor.GREEN))))
+                    .append(Component.text(" "))
+                    .append(Component.text("[ABLEHNEN]", NamedTextColor.RED)
+                        .clickEvent(ClickEvent.runCommand("/clan request deny " + name))
+                        .hoverEvent(HoverEvent.showText(Component.text(
+                            "Anfrage ablehnen", NamedTextColor.RED)))));
+            }
+        });
+    }
+
+    private void acceptRequest(Player player, String playerName) {
+        plugin.runAsync(
+            player,
+            () -> {
+                ClanData.ResolveJoinRequestResult result = repository.acceptJoinRequest(
+                    player.getUniqueId(), playerName, maxMembers, System.currentTimeMillis());
+                PlayerIdentity target = result == ClanData.ResolveJoinRequestResult.ACCEPTED
+                    ? repository.findKnownPlayer(playerName).orElse(null)
+                    : null;
+                return new AcceptRequestOutcome(result, target);
+            },
+            outcome -> {
+                switch (outcome.result()) {
+                    case ACCEPTED -> {
+                        player.sendMessage(success(playerName + " wurde in den Clan aufgenommen."));
+                        if (outcome.target() != null) {
+                            String text = "Deine Clan-Beitrittsanfrage wurde angenommen.";
+                            plugin.notifyPlayer(
+                                outcome.target().playerId(),
+                                Component.text(text, NamedTextColor.GREEN),
+                                text
+                            );
+                            plugin.notifyClanJoined(outcome.target());
+                        }
+                        changed();
+                    }
+                    case NOT_ALLOWED -> player.sendMessage(error(
+                        "Nur Owner und Co-Owner können Anfragen annehmen."));
+                    case NOT_FOUND -> player.sendMessage(error(
+                        "Von diesem Spieler liegt keine offene Anfrage vor."));
+                    case ALREADY_MEMBER -> player.sendMessage(error(
+                        "Dieser Spieler ist bereits Mitglied eines Clans."));
+                    case CLAN_FULL -> player.sendMessage(error("Dein Clan ist voll."));
+                    case DENIED -> throw new IllegalStateException("Unexpected request result");
+                }
+            }
+        );
+    }
+
+    private void denyRequest(Player player, String playerName) {
+        plugin.runAsync(
+            player,
+            () -> {
+                Optional<Clan> clan = repository.clanForPlayer(player.getUniqueId());
+                Optional<PlayerIdentity> target = repository.findKnownPlayer(playerName);
+                ClanData.ResolveJoinRequestResult result = repository.denyJoinRequest(
+                    player.getUniqueId(), playerName);
+                return new DenyRequestOutcome(result, clan.orElse(null), target.orElse(null));
+            },
+            outcome -> {
+                switch (outcome.result()) {
+                    case DENIED -> {
+                        player.sendMessage(success(
+                            "Die Beitrittsanfrage von " + playerName + " wurde abgelehnt."));
+                        if (outcome.target() != null && outcome.clan() != null) {
+                            String text = "Deine Beitrittsanfrage an "
+                                + outcome.clan().name() + " wurde abgelehnt.";
+                            plugin.notifyPlayer(
+                                outcome.target().playerId(),
+                                Component.text(text, NamedTextColor.RED),
+                                text
+                            );
+                        }
+                    }
+                    case NOT_ALLOWED -> player.sendMessage(error(
+                        "Nur Owner und Co-Owner können Anfragen ablehnen."));
+                    case NOT_FOUND -> player.sendMessage(error(
+                        "Von diesem Spieler liegt keine offene Anfrage vor."));
+                    default -> throw new IllegalStateException(
+                        "Unexpected request result: " + outcome.result());
+                }
+            }
+        );
     }
 
     private void accept(Player player, String label, String[] args) {
@@ -442,10 +655,26 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
     }
 
     private void leave(Player player) {
-        plugin.runAsync(player, () -> repository.leaveClan(player.getUniqueId()), result -> {
-            switch (result) {
+        UUID playerId = player.getUniqueId();
+        plugin.runAsync(player, () -> {
+            Optional<ClanDetails> details = repository.clanDetailsForPlayer(playerId);
+            ClanData.RemoveMemberResult result = repository.leaveClan(playerId);
+            return new LeaveOutcome(result, details.orElse(null));
+        }, outcome -> {
+            switch (outcome.result()) {
                 case REMOVED -> {
                     player.sendMessage(success("Du hast den Clan verlassen."));
+                    if (outcome.details() != null) {
+                        Clan clan = outcome.details().clan();
+                        String text = player.getName() + " hat den Clan verlassen.";
+                        plugin.notifyClanMembers(
+                            outcome.details().members(),
+                            playerId,
+                            ClanTagFormatter.prefix(clan.tag(), clan.tagColor())
+                                .append(Component.text(text, NamedTextColor.YELLOW)),
+                            "Clan " + clan.name() + ": " + text
+                        );
+                    }
                     changed();
                 }
                 case NOT_MEMBER -> player.sendMessage(error("Du bist in keinem Clan."));
@@ -492,6 +721,117 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
         });
     }
 
+    private void changeRole(Player player, String label, String[] args) {
+        if (!requirePermission(player, "clan-manage")) {
+            return;
+        }
+        if (args.length != 3) {
+            player.sendMessage(error(
+                "Nutzung: /" + label + " role <Spieler> <co-owner|member>"));
+            return;
+        }
+        String storedRole;
+        String displayRole;
+        if (matches(args[2], "co-owner", "coowner")) {
+            storedRole = "CO_OWNER";
+            displayRole = "Co-Owner";
+        } else if (matches(args[2], "member", "mitglied")) {
+            storedRole = "MEMBER";
+            displayRole = "Member";
+        } else {
+            player.sendMessage(error("Unbekannte Clan-Rolle: " + args[2]));
+            return;
+        }
+
+        UUID playerId = player.getUniqueId();
+        plugin.runAsync(player, () -> {
+            Optional<Clan> clan = repository.clanForPlayer(playerId);
+            if (clan.isEmpty()) {
+                return new RoleOutcome(null, ClanData.ChangeRoleResult.NOT_OWNER);
+            }
+            return new RoleOutcome(
+                clan.get(),
+                repository.changeMemberRole(clan.get().id(), playerId, args[1], storedRole)
+            );
+        }, outcome -> {
+            switch (outcome.result()) {
+                case CHANGED -> {
+                    player.sendMessage(success(
+                        args[1] + " hat jetzt die Clan-Rolle " + displayRole + "."));
+                    Player target = Bukkit.getPlayerExact(args[1]);
+                    if (target != null) {
+                        target.sendMessage(Component.text(
+                            "Deine Clan-Rolle wurde zu " + displayRole + " geändert.",
+                            NamedTextColor.GOLD
+                        ));
+                    }
+                    changed();
+                }
+                case NOT_OWNER -> player.sendMessage(error(
+                    "Nur der Clan-Owner kann Rollen vergeben."));
+                case NOT_MEMBER -> player.sendMessage(error(
+                    "Dieser Spieler ist kein Mitglied deines Clans."));
+                case OWNER_PROTECTED -> player.sendMessage(error(
+                    "Die Owner-Rolle kann nicht geändert werden."));
+            }
+        });
+    }
+
+    private void transfer(Player player, String label, String[] args) {
+        if (!requirePermission(player, "clan-manage")) {
+            return;
+        }
+        if (args.length != 3 || !matches(args[2], "confirm", "bestätigen", "bestaetigen")) {
+            player.sendMessage(error(
+                "Nutzung: /" + label + " transfer <Spieler> confirm"));
+            player.sendMessage(Component.text(
+                "Du wirst danach Co-Owner und der gewählte Spieler übernimmt den Clan.",
+                NamedTextColor.GRAY
+            ));
+            return;
+        }
+        UUID playerId = player.getUniqueId();
+        plugin.runAsync(player, () -> {
+            Optional<ClanDetails> details = repository.clanDetailsForPlayer(playerId);
+            if (details.isEmpty()) {
+                return new TransferOutcome(
+                    ClanData.TransferOwnershipResult.NOT_OWNER, null, null);
+            }
+            Optional<PlayerIdentity> target = repository.findKnownPlayer(args[1]);
+            ClanData.TransferOwnershipResult result = repository.transferOwnership(
+                details.get().clan().id(), playerId, args[1]);
+            return new TransferOutcome(
+                result, details.get(), target.orElse(null));
+        }, outcome -> {
+            switch (outcome.result()) {
+                case TRANSFERRED -> {
+                    String targetName = outcome.target() == null
+                        ? args[1]
+                        : outcome.target().playerName();
+                    player.sendMessage(success(
+                        "Du hast den Clan an " + targetName
+                            + " übertragen und bist jetzt Co-Owner."));
+                    if (outcome.target() != null) {
+                        String text = "Du bist jetzt Owner des Clans "
+                            + outcome.details().clan().name() + ".";
+                        plugin.notifyPlayer(
+                            outcome.target().playerId(),
+                            Component.text(text, NamedTextColor.GOLD),
+                            text
+                        );
+                    }
+                    changed();
+                }
+                case NOT_OWNER -> player.sendMessage(error(
+                    "Nur der Clan-Owner kann den Clan übertragen."));
+                case NOT_MEMBER -> player.sendMessage(error(
+                    "Dieser Spieler ist kein Mitglied deines Clans."));
+                case ALREADY_OWNER -> player.sendMessage(error(
+                    "Du bist bereits Owner dieses Clans."));
+            }
+        });
+    }
+
     private void showClanInfo(Player player, Optional<ClanDetails> details) {
         if (details.isEmpty()) {
             player.sendMessage(error("Clan nicht gefunden."));
@@ -518,7 +858,8 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
                 members = members.append(Component.text(", ", NamedTextColor.DARK_GRAY));
             }
             members = members.append(Component.text(
-                (member.owner() ? "★ " : "") + member.playerName(),
+                (member.owner() ? "★ " : member.coOwner() ? "◆ " : "")
+                    + member.playerName() + " (" + member.displayRole() + ")",
                 online ? NamedTextColor.GREEN : NamedTextColor.GRAY
             ));
         }
@@ -529,7 +870,8 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
     private void showInviteOutcome(Player player, InviteOutcome outcome) {
         switch (outcome.status()) {
             case NO_CLAN -> player.sendMessage(error("Du bist in keinem Clan."));
-            case NOT_OWNER -> player.sendMessage(error("Nur der Clan-Besitzer kann einladen."));
+            case NOT_OWNER -> player.sendMessage(error(
+                "Nur Owner und Co-Owner können Spieler einladen."));
             case FULL -> player.sendMessage(error("Dein Clan ist voll."));
             case UNKNOWN_PLAYER -> player.sendMessage(error(
                 "Dieser Spieler ist dem Server nicht bekannt."));
@@ -561,6 +903,7 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(Component.text("Clan-System", NamedTextColor.GOLD, TextDecoration.BOLD));
         player.sendMessage(Component.text("/" + label + " info [Clan]", NamedTextColor.GRAY));
         player.sendMessage(Component.text("/" + label + " whois <Spieler>", NamedTextColor.GRAY));
+        player.sendMessage(Component.text("/" + label + " request <ClanTag>", NamedTextColor.GRAY));
         player.sendMessage(Component.text("/" + label + " accept <Clan>", NamedTextColor.GRAY));
         player.sendMessage(Component.text("/" + label + " leave", NamedTextColor.GRAY));
         if (player.hasPermission(plugin.permission("clan-create"))) {
@@ -570,6 +913,14 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
         if (player.hasPermission(plugin.permission("clan-manage"))) {
             player.sendMessage(Component.text(
                 "/" + label + " invite|kick <Spieler>", NamedTextColor.GRAY));
+            player.sendMessage(Component.text(
+                "/" + label + " requests", NamedTextColor.GRAY));
+            player.sendMessage(Component.text(
+                "/" + label + " request accept|deny <Spieler>", NamedTextColor.GRAY));
+            player.sendMessage(Component.text(
+                "/" + label + " role <Spieler> <co-owner|member>", NamedTextColor.GRAY));
+            player.sendMessage(Component.text(
+                "/" + label + " transfer <Spieler> confirm", NamedTextColor.GRAY));
             player.sendMessage(Component.text(
                 "/" + label + " rename <NeuerName>", NamedTextColor.GRAY));
             player.sendMessage(Component.text(
@@ -644,5 +995,43 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
     }
 
     private record WhoIsOutcome(PlayerIdentity player, Optional<Clan> clan) {
+    }
+
+    private record RequestsOutcome(boolean allowed, List<JoinRequest> requests) {
+    }
+
+    private record RoleOutcome(Clan clan, ClanData.ChangeRoleResult result) {
+    }
+
+    private record AcceptRequestOutcome(
+        ClanData.ResolveJoinRequestResult result,
+        PlayerIdentity target
+    ) {
+    }
+
+    private record RequestCreationOutcome(
+        ClanData.CreateJoinRequestResult result,
+        Optional<ClanDetails> clan
+    ) {
+    }
+
+    private record DenyRequestOutcome(
+        ClanData.ResolveJoinRequestResult result,
+        Clan clan,
+        PlayerIdentity target
+    ) {
+    }
+
+    private record LeaveOutcome(
+        ClanData.RemoveMemberResult result,
+        ClanDetails details
+    ) {
+    }
+
+    private record TransferOutcome(
+        ClanData.TransferOwnershipResult result,
+        ClanDetails details,
+        PlayerIdentity target
+    ) {
     }
 }

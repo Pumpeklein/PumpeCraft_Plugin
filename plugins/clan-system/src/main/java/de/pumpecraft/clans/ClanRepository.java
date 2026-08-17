@@ -1,17 +1,22 @@
 package de.pumpecraft.clans;
 
 import de.pumpecraft.clans.ClanData.AcceptInviteResult;
+import de.pumpecraft.clans.ClanData.ChangeRoleResult;
 import de.pumpecraft.clans.ClanData.Clan;
 import de.pumpecraft.clans.ClanData.ClanDetails;
 import de.pumpecraft.clans.ClanData.CreateClanResult;
+import de.pumpecraft.clans.ClanData.CreateJoinRequestResult;
 import de.pumpecraft.clans.ClanData.Directory;
 import de.pumpecraft.clans.ClanData.Invitation;
+import de.pumpecraft.clans.ClanData.JoinRequest;
 import de.pumpecraft.clans.ClanData.Member;
 import de.pumpecraft.clans.ClanData.PlayerBase;
 import de.pumpecraft.clans.ClanData.PlayerIdentity;
 import de.pumpecraft.clans.ClanData.RemoveMemberResult;
 import de.pumpecraft.clans.ClanData.RenameClanResult;
+import de.pumpecraft.clans.ClanData.ResolveJoinRequestResult;
 import de.pumpecraft.clans.ClanData.TabEntry;
+import de.pumpecraft.clans.ClanData.TransferOwnershipResult;
 import de.pumpecraft.database.DatabaseService;
 import de.pumpecraft.database.Databases;
 import java.sql.Connection;
@@ -20,6 +25,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -106,6 +112,10 @@ final class ClanRepository {
         return database.withConnection(connection -> clanForPlayer(connection, playerId));
     }
 
+    Optional<Member> member(UUID playerId) {
+        return database.withConnection(connection -> member(connection, playerId));
+    }
+
     Optional<ClanDetails> clanDetails(String nameOrTag) {
         return database.withConnection(connection -> {
             Optional<Clan> clan = findClan(connection, nameOrTag);
@@ -176,6 +186,250 @@ final class ClanRepository {
                 return statement.executeUpdate() > 0
                     ? RenameClanResult.RENAMED
                     : RenameClanResult.NOT_OWNER;
+            }
+        });
+    }
+
+    ChangeRoleResult changeMemberRole(
+        long clanId,
+        UUID ownerId,
+        String memberName,
+        String newRole
+    ) {
+        return database.inTransaction(connection -> {
+            if (!ownsClan(connection, clanId, ownerId)) {
+                return ChangeRoleResult.NOT_OWNER;
+            }
+            Optional<Member> target = member(connection, clanId, memberName);
+            if (target.isEmpty()) {
+                return ChangeRoleResult.NOT_MEMBER;
+            }
+            if (target.get().owner()) {
+                return ChangeRoleResult.OWNER_PROTECTED;
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE pc_clan_members SET member_role = ? WHERE clan_id = ? AND player_uuid = ?"
+            )) {
+                statement.setString(1, newRole);
+                statement.setLong(2, clanId);
+                statement.setString(3, target.get().playerId().toString());
+                statement.executeUpdate();
+                return ChangeRoleResult.CHANGED;
+            }
+        });
+    }
+
+    TransferOwnershipResult transferOwnership(
+        long clanId,
+        UUID ownerId,
+        String newOwnerName
+    ) {
+        return database.inTransaction(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT owner_uuid FROM pc_clans WHERE id = ? FOR UPDATE"
+            )) {
+                statement.setLong(1, clanId);
+                try (ResultSet result = statement.executeQuery()) {
+                    if (!result.next()
+                        || !ownerId.toString().equals(result.getString("owner_uuid"))) {
+                        return TransferOwnershipResult.NOT_OWNER;
+                    }
+                }
+            }
+            Optional<Member> target = member(connection, clanId, newOwnerName);
+            if (target.isEmpty()) {
+                return TransferOwnershipResult.NOT_MEMBER;
+            }
+            if (target.get().owner()) {
+                return TransferOwnershipResult.ALREADY_OWNER;
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE pc_clan_members SET member_role = 'CO_OWNER' WHERE clan_id = ? AND player_uuid = ?"
+            )) {
+                statement.setLong(1, clanId);
+                statement.setString(2, ownerId.toString());
+                statement.executeUpdate();
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE pc_clan_members SET member_role = 'OWNER' WHERE clan_id = ? AND player_uuid = ?"
+            )) {
+                statement.setLong(1, clanId);
+                statement.setString(2, target.get().playerId().toString());
+                statement.executeUpdate();
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE pc_clans SET owner_uuid = ?, owner_name = ? WHERE id = ? AND owner_uuid = ?"
+            )) {
+                statement.setString(1, target.get().playerId().toString());
+                statement.setString(2, target.get().playerName());
+                statement.setLong(3, clanId);
+                statement.setString(4, ownerId.toString());
+                return statement.executeUpdate() > 0
+                    ? TransferOwnershipResult.TRANSFERRED
+                    : TransferOwnershipResult.NOT_OWNER;
+            }
+        });
+    }
+
+    void addNotifications(Collection<UUID> playerIds, String message, long createdAt) {
+        if (playerIds.isEmpty()) {
+            return;
+        }
+        database.withConnection(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                "INSERT INTO pc_clan_notifications (player_uuid, message, created_at) VALUES (?, ?, ?)"
+            )) {
+                for (UUID playerId : playerIds) {
+                    statement.setString(1, playerId.toString());
+                    statement.setString(2, message);
+                    statement.setLong(3, createdAt);
+                    statement.addBatch();
+                }
+                statement.executeBatch();
+            }
+            return null;
+        });
+    }
+
+    List<String> takeNotifications(UUID playerId) {
+        return database.inTransaction(connection -> {
+            List<String> messages = new ArrayList<>();
+            try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT message FROM pc_clan_notifications WHERE player_uuid = ? ORDER BY created_at, id"
+            )) {
+                statement.setString(1, playerId.toString());
+                try (ResultSet result = statement.executeQuery()) {
+                    while (result.next()) {
+                        messages.add(result.getString("message"));
+                    }
+                }
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                "DELETE FROM pc_clan_notifications WHERE player_uuid = ?"
+            )) {
+                statement.setString(1, playerId.toString());
+                statement.executeUpdate();
+            }
+            return List.copyOf(messages);
+        });
+    }
+
+    CreateJoinRequestResult createJoinRequest(
+        PlayerIdentity player,
+        String nameOrTag,
+        long now
+    ) {
+        return database.inTransaction(connection -> {
+            if (clanForPlayer(connection, player.playerId()).isPresent()) {
+                return CreateJoinRequestResult.ALREADY_MEMBER;
+            }
+            Optional<Clan> clan = findClan(connection, nameOrTag);
+            if (clan.isEmpty()) {
+                return CreateJoinRequestResult.CLAN_NOT_FOUND;
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                """
+                INSERT IGNORE INTO pc_clan_join_requests
+                    (clan_id, player_uuid, player_name, created_at)
+                VALUES (?, ?, ?, ?)
+                """
+            )) {
+                statement.setLong(1, clan.get().id());
+                statement.setString(2, player.playerId().toString());
+                statement.setString(3, player.playerName());
+                statement.setLong(4, now);
+                return statement.executeUpdate() > 0
+                    ? CreateJoinRequestResult.REQUESTED
+                    : CreateJoinRequestResult.ALREADY_REQUESTED;
+            }
+        });
+    }
+
+    List<JoinRequest> joinRequests(long clanId) {
+        return database.withConnection(connection -> {
+            List<JoinRequest> requests = new ArrayList<>();
+            try (PreparedStatement statement = connection.prepareStatement(
+                """
+                SELECT player_uuid, player_name, created_at
+                  FROM pc_clan_join_requests
+                 WHERE clan_id = ?
+                 ORDER BY created_at
+                """
+            )) {
+                statement.setLong(1, clanId);
+                try (ResultSet result = statement.executeQuery()) {
+                    while (result.next()) {
+                        requests.add(new JoinRequest(
+                            clanId,
+                            new PlayerIdentity(
+                                UUID.fromString(result.getString("player_uuid")),
+                                result.getString("player_name")
+                            ),
+                            result.getLong("created_at")
+                        ));
+                    }
+                }
+            }
+            return requests;
+        });
+    }
+
+    ResolveJoinRequestResult acceptJoinRequest(
+        UUID actorId,
+        String playerName,
+        int maxMembers,
+        long now
+    ) {
+        return database.inTransaction(connection -> {
+            Optional<Member> actor = member(connection, actorId);
+            Optional<Clan> clan = clanForPlayer(connection, actorId);
+            if (actor.isEmpty() || clan.isEmpty() || !actor.get().canManageMembership()) {
+                return ResolveJoinRequestResult.NOT_ALLOWED;
+            }
+            Optional<PlayerIdentity> target = joinRequestPlayer(
+                connection, clan.get().id(), playerName);
+            if (target.isEmpty()) {
+                return ResolveJoinRequestResult.NOT_FOUND;
+            }
+            if (clanForPlayer(connection, target.get().playerId()).isPresent()) {
+                deleteJoinRequests(connection, target.get().playerId());
+                return ResolveJoinRequestResult.ALREADY_MEMBER;
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT id FROM pc_clans WHERE id = ? FOR UPDATE"
+            )) {
+                statement.setLong(1, clan.get().id());
+                try (ResultSet result = statement.executeQuery()) {
+                    if (!result.next()) {
+                        return ResolveJoinRequestResult.NOT_FOUND;
+                    }
+                }
+            }
+            if (memberCount(connection, clan.get().id()) >= maxMembers) {
+                return ResolveJoinRequestResult.CLAN_FULL;
+            }
+            insertMember(connection, clan.get().id(), target.get(), "MEMBER", now);
+            deleteJoinRequests(connection, target.get().playerId());
+            deleteInvitations(connection, target.get().playerId());
+            return ResolveJoinRequestResult.ACCEPTED;
+        });
+    }
+
+    ResolveJoinRequestResult denyJoinRequest(UUID actorId, String playerName) {
+        return database.inTransaction(connection -> {
+            Optional<Member> actor = member(connection, actorId);
+            Optional<Clan> clan = clanForPlayer(connection, actorId);
+            if (actor.isEmpty() || clan.isEmpty() || !actor.get().canManageMembership()) {
+                return ResolveJoinRequestResult.NOT_ALLOWED;
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                "DELETE FROM pc_clan_join_requests WHERE clan_id = ? AND LOWER(player_name) = LOWER(?)"
+            )) {
+                statement.setLong(1, clan.get().id());
+                statement.setString(2, playerName);
+                return statement.executeUpdate() > 0
+                    ? ResolveJoinRequestResult.DENIED
+                    : ResolveJoinRequestResult.NOT_FOUND;
             }
         });
     }
@@ -269,6 +523,7 @@ final class ClanRepository {
             }
             insertMember(connection, clan.get().id(), player, "MEMBER", now);
             deleteInvitations(connection, player.playerId());
+            deleteJoinRequests(connection, player.playerId());
             return AcceptInviteResult.ACCEPTED;
         });
     }
@@ -421,6 +676,7 @@ final class ClanRepository {
             updatePlayerName(connection, "pc_clan_members", "player_uuid", "player_name", player);
             updatePlayerName(connection, "pc_clans", "owner_uuid", "owner_name", player);
             updatePlayerName(connection, "pc_clan_invitations", "player_uuid", "player_name", player);
+            updatePlayerName(connection, "pc_clan_join_requests", "player_uuid", "player_name", player);
             updatePlayerName(
                 connection,
                 "pc_clan_invitations",
@@ -607,7 +863,13 @@ final class ClanRepository {
             SELECT player_uuid, player_name, member_role, joined_at
               FROM pc_clan_members
              WHERE clan_id = ?
-             ORDER BY member_role = 'OWNER' DESC, joined_at, player_name
+             ORDER BY CASE member_role
+                        WHEN 'OWNER' THEN 0
+                        WHEN 'CO_OWNER' THEN 1
+                        ELSE 2
+                      END,
+                      joined_at,
+                      player_name
             """
         )) {
             statement.setLong(1, clanId);
@@ -642,6 +904,55 @@ final class ClanRepository {
                 return result.next() ? Optional.of(mapMember(result)) : Optional.empty();
             }
         }
+    }
+
+    private Optional<Member> member(
+        Connection connection,
+        long clanId,
+        String playerName
+    ) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+            """
+            SELECT player_uuid, player_name, member_role, joined_at
+              FROM pc_clan_members
+             WHERE clan_id = ? AND LOWER(player_name) = LOWER(?)
+             LIMIT 1
+            """
+        )) {
+            statement.setLong(1, clanId);
+            statement.setString(2, playerName);
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next() ? Optional.of(mapMember(result)) : Optional.empty();
+            }
+        }
+    }
+
+    private Optional<PlayerIdentity> joinRequestPlayer(
+        Connection connection,
+        long clanId,
+        String playerName
+    ) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+            """
+            SELECT player_uuid, player_name
+              FROM pc_clan_join_requests
+             WHERE clan_id = ? AND LOWER(player_name) = LOWER(?)
+             LIMIT 1
+             FOR UPDATE
+            """
+        )) {
+            statement.setLong(1, clanId);
+            statement.setString(2, playerName);
+            try (ResultSet result = statement.executeQuery()) {
+                if (result.next()) {
+                    return Optional.of(new PlayerIdentity(
+                        UUID.fromString(result.getString("player_uuid")),
+                        result.getString("player_name")
+                    ));
+                }
+            }
+        }
+        return Optional.empty();
     }
 
     private void insertMember(
@@ -679,6 +990,15 @@ final class ClanRepository {
     private void deleteInvitations(Connection connection, UUID playerId) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(
             "DELETE FROM pc_clan_invitations WHERE player_uuid = ?"
+        )) {
+            statement.setString(1, playerId.toString());
+            statement.executeUpdate();
+        }
+    }
+
+    private void deleteJoinRequests(Connection connection, UUID playerId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+            "DELETE FROM pc_clan_join_requests WHERE player_uuid = ?"
         )) {
             statement.setString(1, playerId.toString());
             statement.executeUpdate();
@@ -786,6 +1106,7 @@ final class ClanRepository {
             "pc_clan_members",
             "pc_clans",
             "pc_clan_invitations",
+            "pc_clan_join_requests",
             "pc_player_bases",
             "pc_base_visitors",
             "pc_base_likes"
