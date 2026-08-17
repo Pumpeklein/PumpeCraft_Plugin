@@ -4,6 +4,7 @@ import de.pumpecraft.mailbox.box.MailboxIndex;
 import de.pumpecraft.mailbox.box.MailboxInventories;
 import de.pumpecraft.mailbox.box.MailboxRepository;
 import de.pumpecraft.mailbox.command.MailboxCommand;
+import de.pumpecraft.mailbox.craft.MailboxRecipe;
 import de.pumpecraft.mailbox.listener.MailboxInteractListener;
 import de.pumpecraft.mailbox.listener.MailboxInventoryListener;
 import de.pumpecraft.mailbox.listener.MailboxJoinListener;
@@ -18,10 +19,11 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class PumpeMailboxPlugin extends JavaPlugin {
-    private static final int CONFIG_VERSION = 2;
+    private static final int CONFIG_VERSION = 3;
 
     private HingeAnimator animator;
     private MailboxService service;
+    private MailboxRecipe recipe;
 
     @Override
     public void onEnable() {
@@ -43,6 +45,11 @@ public final class PumpeMailboxPlugin extends JavaPlugin {
             this, settings, animations, index, inventories, new DeliveryRepository(this), points);
         service.start();
 
+        recipe = new MailboxRecipe();
+        if (settings.craftingEnabled()) {
+            recipe.register();
+        }
+
         MailboxCommand mailboxCommand = new MailboxCommand(service);
         PluginCommand command = Objects.requireNonNull(getCommand("mailbox"), "Missing command: mailbox");
         command.setExecutor(mailboxCommand);
@@ -51,13 +58,16 @@ public final class PumpeMailboxPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new MailboxPlaceListener(service), this);
         getServer().getPluginManager().registerEvents(new MailboxInteractListener(settings, service), this);
         getServer().getPluginManager().registerEvents(new MailboxInventoryListener(this, service), this);
-        getServer().getPluginManager().registerEvents(new MailboxJoinListener(this, service), this);
+        getServer().getPluginManager().registerEvents(new MailboxJoinListener(this, service, recipe), this);
 
         getLogger().info("PumpeMailbox enabled.");
     }
 
     @Override
     public void onDisable() {
+        if (recipe != null) {
+            recipe.unregister();
+        }
         if (service != null) {
             service.shutdown();
         }

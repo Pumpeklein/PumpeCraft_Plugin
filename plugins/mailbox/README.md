@@ -22,6 +22,24 @@ Datenbank, der Versand kostet PumpePoints.
 
 Aliase: `/briefkasten`, `/bk`.
 
+## Rezept
+
+An einen Briefkasten kommt man über die Werkbank; `/mailbox give` bleibt beim Team. Das Muster im
+Gitter sieht aus wie das fertige Objekt - Eisenkorpus, Truhe als Postfach, rote Fahne an der Seite,
+Zaun als Pfosten:
+
+```
+E E E      E  Eisenbarren (4x)
+E T R      T  Truhe
+  Z        R  roter Farbstoff
+           Z  Holzzaun (jede Holzart)
+```
+
+Das Rezept wird beim Login freigeschaltet, steht also im Rezeptbuch. Das Item ist **nicht
+stapelbar** (`max_stack_size` 1): ein Briefkasten ist ein einzelnes Objekt, kein Baumaterial.
+Abschalten über `crafting.enabled: false` in der `config.yml` - dann kommt man nur noch über das
+Team an einen.
+
 ## Bedienung
 
 | Aktion | Ergebnis |
@@ -94,6 +112,7 @@ Deshalb:
 | --- | --- |
 | `MailboxObject` | Objekt-, Scharnier- und Paketdefinition |
 | `MailboxItems` | Item, Reservierungs-Barriere, Menüknöpfe |
+| `craft/MailboxRecipe` | Werkbank-Rezept, Freischaltung im Rezeptbuch |
 | `MailboxAnimations` | Klappe, Fahne |
 | `MailboxService` | Klammer: Aufstellen, Öffnen, Einwerfen, Abbauen, Label/Fahne/Paket aktualisieren |
 | `box/MailboxIndex` + `MailboxRepository` | ein Briefkasten pro Spieler, `pc_mailboxes` |
@@ -114,6 +133,7 @@ DisplayObjectType.builder("mailbox")
     .part("flag", "pumpecraft:mailbox_flag")
     .hitbox(0.7F, 1.4F)
     .shadow(0.5F)
+    .stackable(false)
     .label(1.7F, 0.16F)
     .build();
 
@@ -134,8 +154,8 @@ Die Zahlen in `fromModel` sind die Scharnierpunkte direkt aus den Modelldateien.
 | `pumpecraft.mailbox.manage` | `false` | fremde Briefkästen öffnen und abbauen |
 
 Spieler brauchen also nichts zugewiesen zu bekommen; nur Team-Ränge bekommen `give` und `manage`
-über LuckPerms. Wer das Item ausgeben darf, entscheidet damit auch, wie Spieler an einen
-Briefkasten kommen - ein Rezept gibt es bewusst noch nicht.
+über LuckPerms. Spieler stellen sich ihren Briefkasten selbst her, `give` und `spawn` erzeugen ihn
+aus dem Nichts und bleiben deshalb beim Team.
 
 ## Datenbank
 

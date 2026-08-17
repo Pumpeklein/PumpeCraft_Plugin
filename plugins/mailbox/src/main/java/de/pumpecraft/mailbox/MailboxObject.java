@@ -20,6 +20,7 @@ public final class MailboxObject {
         .part("flag", "pumpecraft:mailbox_flag")
         .hitbox(0.7F, 1.4F)
         .shadow(0.5F)
+        .stackable(false)
         .label(1.7F, 0.16F)
         .build();
 

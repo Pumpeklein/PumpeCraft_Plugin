@@ -131,7 +131,7 @@ public final class MailboxService {
             contents.forEach(item -> location.getWorld().dropItemNaturally(location, item));
             location.getWorld().playSound(location, Sound.BLOCK_WOOD_BREAK, 1.0F, 1.0F);
             if (returnItem && actor.getGameMode() != GameMode.CREATIVE) {
-                location.getWorld().dropItemNaturally(location, MailboxItems.create(1));
+                location.getWorld().dropItemNaturally(location, MailboxItems.create());
             }
         }
         return true;

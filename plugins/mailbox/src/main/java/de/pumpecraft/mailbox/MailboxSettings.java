@@ -18,6 +18,7 @@ public final class MailboxSettings {
     private final boolean notifyOwner;
     private final int parcelThreshold;
     private final Set<Material> letters;
+    private final boolean craftingEnabled;
 
     private final long costBase;
     private final long costPerItem;
@@ -38,6 +39,7 @@ public final class MailboxSettings {
         this.notifyOwner = config.getBoolean("mail.notify-owner", true);
         this.parcelThreshold = Math.max(1, config.getInt("mail.parcel-threshold", 32));
         this.letters = letters(plugin, config);
+        this.craftingEnabled = config.getBoolean("crafting.enabled", true);
 
         this.costBase = Math.max(0L, config.getLong("delivery.cost.base", 50L));
         this.costPerItem = Math.max(0L, config.getLong("delivery.cost.per-item", 1L));
@@ -80,6 +82,10 @@ public final class MailboxSettings {
 
     public boolean isLetter(Material material) {
         return letters.contains(material);
+    }
+
+    public boolean craftingEnabled() {
+        return craftingEnabled;
     }
 
     public double crossWorldBlocks() {

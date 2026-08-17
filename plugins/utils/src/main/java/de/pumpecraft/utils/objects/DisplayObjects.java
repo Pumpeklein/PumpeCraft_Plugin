@@ -202,9 +202,12 @@ public final class DisplayObjects {
     }
 
     public static ItemStack createItem(DisplayObjectType type, int amount) {
-        ItemStack item = new ItemStack(type.baseMaterial(), amount);
+        ItemStack item = new ItemStack(type.baseMaterial(), type.stackable() ? amount : 1);
         ItemMeta meta = item.getItemMeta();
         meta.setItemModel(type.itemModel());
+        if (!type.stackable()) {
+            meta.setMaxStackSize(1);
+        }
         meta.getPersistentDataContainer().set(ObjectKeys.TYPE, PersistentDataType.STRING, type.id());
         item.setItemMeta(meta);
         return item;

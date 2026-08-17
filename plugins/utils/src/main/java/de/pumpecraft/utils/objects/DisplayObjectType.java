@@ -20,6 +20,7 @@ public final class DisplayObjectType {
     private final float width;
     private final float height;
     private final float shadowRadius;
+    private final boolean stackable;
     private final boolean labelled;
     private final float labelHeight;
     private final float labelViewRange;
@@ -33,6 +34,7 @@ public final class DisplayObjectType {
         this.width = builder.width;
         this.height = builder.height;
         this.shadowRadius = builder.shadowRadius;
+        this.stackable = builder.stackable;
         this.labelled = builder.labelled;
         this.labelHeight = builder.labelHeight;
         this.labelViewRange = builder.labelViewRange;
@@ -74,6 +76,10 @@ public final class DisplayObjectType {
         return shadowRadius;
     }
 
+    public boolean stackable() {
+        return stackable;
+    }
+
     public boolean labelled() {
         return labelled;
     }
@@ -95,6 +101,7 @@ public final class DisplayObjectType {
         private float width = 0.6F;
         private float height = 1.0F;
         private float shadowRadius;
+        private boolean stackable = true;
         private boolean labelled;
         private float labelHeight = 1.6F;
         private float labelViewRange = 0.2F;
@@ -131,6 +138,15 @@ public final class DisplayObjectType {
 
         public Builder shadow(float radius) {
             this.shadowRadius = radius;
+            return this;
+        }
+
+        /**
+         * @param stackable false gives the item {@code max_stack_size} 1, so every piece stays a
+         *                  single object in the inventory
+         */
+        public Builder stackable(boolean stackable) {
+            this.stackable = stackable;
             return this;
         }
 

@@ -73,7 +73,8 @@ public final class MailboxCommand implements CommandExecutor, TabCompleter {
 
     private boolean give(CommandSender sender, String label, String argument) {
         if (!sender.hasPermission(GIVE_PERMISSION)) {
-            sender.sendMessage(error("Briefkästen aus dem Nichts darf nur das Team ausgeben."));
+            sender.sendMessage(error("Briefkästen aus dem Nichts darf nur das Team ausgeben. "
+                + "Stell dir einen her: Eisen um eine Truhe, roter Farbstoff als Fahne, Zaun als Pfosten."));
             return true;
         }
 
@@ -86,7 +87,7 @@ public final class MailboxCommand implements CommandExecutor, TabCompleter {
         }
 
         Player player = target.get();
-        ItemStack item = MailboxItems.create(1);
+        ItemStack item = MailboxItems.create();
         player.getInventory().addItem(item).values()
             .forEach(leftover -> player.getWorld().dropItemNaturally(player.getLocation(), leftover));
         player.sendMessage(text("Du hast einen Briefkasten erhalten."));

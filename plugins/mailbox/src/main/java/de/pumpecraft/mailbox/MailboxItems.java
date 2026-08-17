@@ -24,8 +24,8 @@ public final class MailboxItems {
     private MailboxItems() {
     }
 
-    public static ItemStack create(int amount) {
-        ItemStack item = DisplayObjects.createItem(MailboxObject.TYPE, amount);
+    public static ItemStack create() {
+        ItemStack item = DisplayObjects.createItem(MailboxObject.TYPE, 1);
         ItemMeta meta = item.getItemMeta();
         meta.displayName(name("Briefkasten", NamedTextColor.GOLD));
         meta.lore(lore(

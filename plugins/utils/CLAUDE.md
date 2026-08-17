@@ -27,6 +27,7 @@ Nutzung: `depend: [PumpeUtils]` in der `plugin.yml`. Der Gradle-Classpath kommt 
 | `Staff` | `withPermission`, `broadcast` — Meldungen an Berechtigte |
 | `Teleports` | `playerLink`, `locationLink`, `clickable`, `coordinates` — klickbare Teleport-Ziele in Chatmeldungen |
 | `Configs` | `lowerStringList`, `matchesAny` (exakter Token-Abgleich mit `*`-Präfix) |
+| `Recipes` | `register`, `unregister` — Rezepte unter ihrem Key, ersetzt ein altes statt am Duplikat zu scheitern |
 
 ## Sektion `objects` — Serverobjekte
 
@@ -37,7 +38,7 @@ in ihrer Transformation. Ein Plugin beschreibt sein Objekt, die Sektion erledigt
 
 | Klasse | Inhalt |
 | --- | --- |
-| `DisplayObjectType` | Beschreibung eines Objekts: Basis-Item, Item-Modelle für Korpus und Teile, Hitbox, Schatten. Über `builder(id)` |
+| `DisplayObjectType` | Beschreibung eines Objekts: Basis-Item, Item-Modelle für Korpus und Teile, Hitbox, Schatten, `stackable`. Über `builder(id)` |
 | `DisplayObject` | Ein aufgestelltes Objekt: `body`, `parts`, `hitbox`, `location`, `part(name)` |
 | `DisplayObjects` | `spawn`, `resolve`, `nearest`, `remove`, `isPart`, `createItem`, `isItem`, `baseOf`, `facingYaw` |
 | `ObjectHinge` | Scharnier, per `fromModel(part, x, y, z)` direkt aus den Modellkoordinaten |

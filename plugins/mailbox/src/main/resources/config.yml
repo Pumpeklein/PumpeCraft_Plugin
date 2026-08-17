@@ -1,5 +1,13 @@
 # Briefkasten: Animation, Postfach und Versand. Das Modell steckt im Resourcepack.
-config-version: 2
+config-version: 3
+
+crafting:
+  # Rezept: Eisenkorpus um eine Truhe, roter Farbstoff als Fahne, Holzzaun als Pfosten.
+  #   EEE
+  #   ETR
+  #    Z
+  # Aus heisst: an einen Briefkasten kommt man nur ueber /mailbox give vom Team.
+  enabled: true
 
 animation:
   # Dauer der Klappenbewegung in Ticks. Der Server dreht pro Tick ein Stueck weiter,
