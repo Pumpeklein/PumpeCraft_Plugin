@@ -81,6 +81,7 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
         switch (subcommand) {
             case "erstellen", "create" -> create(player, label, args);
             case "löschen", "loeschen", "delete" -> delete(player, label, args);
+            case "admin-delete", "admindelete" -> adminDelete(player, label, args);
             case "tagfarbe", "farbe", "color" -> setColor(player, label, args);
             case "rename", "umbenennen" -> rename(player, label, args);
             case "info" -> info(player, args);
@@ -132,6 +133,9 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
             if (sender.hasPermission(plugin.permission("clan-color"))) {
                 options.add("color");
             }
+            if (sender.hasPermission(plugin.permission("clan-admin-delete"))) {
+                options.add("admin-delete");
+            }
             return filter(options, args[0]);
         }
         if (args.length == 2) {
@@ -169,6 +173,10 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
             }
             if (matches(subcommand, "löschen", "loeschen", "delete")) {
                 return filter(List.of("confirm"), args[1]);
+            }
+            if (matches(subcommand, "admin-delete", "admindelete")
+                && sender.hasPermission(plugin.permission("clan-admin-delete"))) {
+                return filter(plugin.directory().clanTags(), args[1]);
             }
         }
         if (args.length == 3
@@ -270,6 +278,74 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
                     } else {
                         player.sendMessage(error("Der Clan konnte nicht gelöscht werden."));
                     }
+                }
+            );
+        });
+    }
+
+    private void adminDelete(Player player, String label, String[] args) {
+        if (!requirePermission(player, "clan-admin-delete")) {
+            return;
+        }
+        if (args.length < 3) {
+            player.sendMessage(error(
+                "Nutzung: /" + label + " admin-delete <ClanTag> <Begründung>"));
+            return;
+        }
+
+        String reason = String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length)).trim();
+        if (reason.isEmpty()) {
+            player.sendMessage(error("Für die Löschung muss eine Begründung angegeben werden."));
+            return;
+        }
+        if (reason.length() > 500) {
+            player.sendMessage(error("Die Begründung darf maximal 500 Zeichen lang sein."));
+            return;
+        }
+
+        String clanInput = args[1];
+        PlayerIdentity actor = identity(player);
+        plugin.runAsync(player, () -> repository.clanDetails(clanInput), details -> {
+            if (details.isEmpty()) {
+                player.sendMessage(error("Dieser Clan wurde nicht gefunden."));
+                return;
+            }
+
+            ClanDetails target = details.get();
+            plugin.runAsync(
+                player,
+                () -> repository.adminDeleteClan(
+                    target.clan().id(), actor, reason, System.currentTimeMillis()),
+                deleted -> {
+                    if (!deleted) {
+                        player.sendMessage(error(
+                            "Der Clan existiert nicht mehr oder konnte nicht gelöscht werden."));
+                        return;
+                    }
+
+                    Clan clan = target.clan();
+                    Component memberMessage = Component.text(
+                        "Der Clan " + clan.name() + " [" + clan.tag()
+                            + "] wurde durch das Team gelöscht.",
+                        NamedTextColor.RED
+                    ).append(Component.newline()).append(Component.text(
+                        "Begründung: " + reason,
+                        NamedTextColor.GOLD
+                    ));
+                    plugin.notifyClanMembers(
+                        target.members(),
+                        actor.playerId(),
+                        memberMessage,
+                        "Clan " + clan.name() + " [" + clan.tag()
+                            + "] wurde durch das Team gelöscht. Begründung: " + reason
+                    );
+                    plugin.getLogger().info(
+                        actor.playerName() + " deleted clan " + clan.name() + " ["
+                            + clan.tag() + "]: " + reason
+                    );
+                    player.sendMessage(success(
+                        "Clan " + clan.name() + " [" + clan.tag() + "] wurde gelöscht."));
+                    changed();
                 }
             );
         });
@@ -942,6 +1018,10 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
         if (player.hasPermission(plugin.permission("clan-color"))) {
             player.sendMessage(Component.text(
                 "/" + label + " color <Farbe>", NamedTextColor.GRAY));
+        }
+        if (player.hasPermission(plugin.permission("clan-admin-delete"))) {
+            player.sendMessage(Component.text(
+                "/" + label + " admin-delete <ClanTag> <Begründung>", NamedTextColor.RED));
         }
         player.sendMessage(DIVIDER);
     }

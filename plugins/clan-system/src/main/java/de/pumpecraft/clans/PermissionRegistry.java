@@ -1,6 +1,9 @@
 package de.pumpecraft.clans;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -19,9 +22,18 @@ final class PermissionRegistry {
 
     void load() {
         plugin.saveResource("permissions.yml", false);
-        YamlConfiguration file = YamlConfiguration.loadConfiguration(
-            new File(plugin.getDataFolder(), "permissions.yml")
-        );
+        File permissionsFile = new File(plugin.getDataFolder(), "permissions.yml");
+        YamlConfiguration file = YamlConfiguration.loadConfiguration(permissionsFile);
+        try (InputStreamReader reader = new InputStreamReader(
+            Objects.requireNonNull(plugin.getResource("permissions.yml")),
+            StandardCharsets.UTF_8
+        )) {
+            file.setDefaults(YamlConfiguration.loadConfiguration(reader));
+            file.options().copyDefaults(true);
+            file.save(permissionsFile);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Could not update permissions.yml", exception);
+        }
         ConfigurationSection section = Objects.requireNonNull(
             file.getConfigurationSection("permissions"),
             "permissions.yml must contain a permissions section"

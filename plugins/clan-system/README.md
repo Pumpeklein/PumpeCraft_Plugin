@@ -19,6 +19,7 @@ Persistent clan and player-base system backed by `PumpeDatabase`.
 - `/clan transfer <Spieler> confirm` transfers ownership and makes the previous owner co-owner.
 - `/clan color <Farbe>` changes the colored clan tag in the player list.
 - `/clan delete confirm` permanently deletes the clan.
+- `/clan admin-delete <ClanTag> <Begründung>` allows authorized staff to delete any clan.
 
 New clan names, renamed clans and clan tags are checked against the editable
 `clan-name-blacklist.yml`. The check ignores case, separators, accents, common

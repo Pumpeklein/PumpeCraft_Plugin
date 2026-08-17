@@ -148,6 +148,46 @@ final class ClanRepository {
         });
     }
 
+    boolean adminDeleteClan(
+        long clanId,
+        PlayerIdentity deletedBy,
+        String reason,
+        long deletedAt
+    ) {
+        return database.inTransaction(connection -> {
+            int audited;
+            try (PreparedStatement statement = connection.prepareStatement(
+                """
+                INSERT INTO pc_clan_deletion_audit
+                    (clan_id, clan_name, clan_tag, owner_uuid, owner_name,
+                     deleted_by_uuid, deleted_by_name, reason, deleted_at)
+                SELECT id, clan_name, clan_tag, owner_uuid, owner_name, ?, ?, ?, ?
+                  FROM pc_clans
+                 WHERE id = ?
+                """
+            )) {
+                statement.setString(1, deletedBy.playerId().toString());
+                statement.setString(2, deletedBy.playerName());
+                statement.setString(3, reason);
+                statement.setLong(4, deletedAt);
+                statement.setLong(5, clanId);
+                audited = statement.executeUpdate();
+            }
+            if (audited == 0) {
+                return false;
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                "DELETE FROM pc_clans WHERE id = ?"
+            )) {
+                statement.setLong(1, clanId);
+                if (statement.executeUpdate() != 1) {
+                    throw new SQLException("Audited clan could not be deleted: " + clanId);
+                }
+            }
+            return true;
+        });
+    }
+
     boolean setTagColor(long clanId, UUID ownerId, String color) {
         return database.withConnection(connection -> {
             try (PreparedStatement statement = connection.prepareStatement(

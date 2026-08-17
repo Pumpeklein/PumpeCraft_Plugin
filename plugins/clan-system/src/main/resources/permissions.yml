@@ -15,6 +15,10 @@ permissions:
     node: pumpecraft.clan.tagcolor
     description: Allows a clan owner to change the clan tag color.
     default: true
+  clan-admin-delete:
+    node: pumpecraft.clan.admin.delete
+    description: Allows staff to delete any clan when providing a reason.
+    default: false
   base-use:
     node: pumpecraft.base.use
     description: Allows viewing player base information.
