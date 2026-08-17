@@ -1,5 +1,9 @@
 # PumpeEssentials
 
+`PumpeEssentials` requires `InvSeePlusPlus`. Online inventories use the custom
+live mirror. Offline inventories and ender chests use InvSee++'s persistent
+playerdata implementation so edits are written back safely.
+
 Planned area for basic server commands and quality-of-life features.
 
 ## Commands

@@ -54,11 +54,13 @@ public final class OpenInventoryCommand implements CommandExecutor, TabCompleter
     private static final List<Integer> SHIFT_CLICK_TARGET_SLOTS = buildShiftClickTargets();
 
     private final Plugin plugin;
+    private final OfflineInventoryBridge offlineInventoryBridge;
     private final Map<UUID, MirrorSession> sessions = new LinkedHashMap<>();
     private BukkitTask syncTask;
 
-    OpenInventoryCommand(Plugin plugin) {
+    OpenInventoryCommand(Plugin plugin, OfflineInventoryBridge offlineInventoryBridge) {
         this.plugin = plugin;
+        this.offlineInventoryBridge = offlineInventoryBridge;
     }
 
     @Override
@@ -75,7 +77,12 @@ public final class OpenInventoryCommand implements CommandExecutor, TabCompleter
 
         Player target = TargetPlayers.findOnlinePlayer(args[0]);
         if (target == null) {
-            viewer.sendMessage(error("Der Spieler ist nicht online. Offline-Inventare gibt die Bukkit-API nicht sauber editierbar frei."));
+            org.bukkit.OfflinePlayer offlineTarget = TargetPlayers.findKnownPlayer(args[0]);
+            if (offlineTarget == null) {
+                viewer.sendMessage(error("Dieser Spieler ist dem Server nicht bekannt."));
+                return true;
+            }
+            offlineInventoryBridge.openMainInventory(viewer, offlineTarget);
             return true;
         }
 
@@ -94,7 +101,7 @@ public final class OpenInventoryCommand implements CommandExecutor, TabCompleter
             return List.of();
         }
 
-        return TargetPlayers.completeOnlinePlayers(args[0]);
+        return TargetPlayers.completeKnownPlayers(args[0]);
     }
 
     void shutdown() {

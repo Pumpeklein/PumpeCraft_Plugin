@@ -4,13 +4,15 @@ main: de.pumpecraft.essentials.PumpeEssentialsPlugin
 api-version: '1.21'
 author: PumpeCraft
 description: Essentials plugin for PumpeCraft.
+depend:
+  - InvSeePlusPlus
 commands:
   openinv:
-    description: Opens a live, two-way synced inventory view of an online player.
+    description: Opens and edits the inventory of an online or offline player.
     usage: /openinv <Spieler>
     permission: pumpecraft.essentials.openinv
   opendender:
-    description: Opens the ender chest of an online player.
+    description: Opens and edits the ender chest of an online or offline player.
     usage: /opendender <Spieler>
     aliases:
       - openender

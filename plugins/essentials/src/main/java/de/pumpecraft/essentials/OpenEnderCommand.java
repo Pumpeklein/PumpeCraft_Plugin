@@ -10,6 +10,12 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 
 public final class OpenEnderCommand implements CommandExecutor, TabCompleter {
+    private final OfflineInventoryBridge offlineInventoryBridge;
+
+    OpenEnderCommand(OfflineInventoryBridge offlineInventoryBridge) {
+        this.offlineInventoryBridge = offlineInventoryBridge;
+    }
+
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player viewer)) {
@@ -24,7 +30,12 @@ public final class OpenEnderCommand implements CommandExecutor, TabCompleter {
 
         Player target = TargetPlayers.findOnlinePlayer(args[0]);
         if (target == null) {
-            viewer.sendMessage(error("Der Spieler ist nicht online."));
+            org.bukkit.OfflinePlayer offlineTarget = TargetPlayers.findKnownPlayer(args[0]);
+            if (offlineTarget == null) {
+                viewer.sendMessage(error("Dieser Spieler ist dem Server nicht bekannt."));
+                return true;
+            }
+            offlineInventoryBridge.openEnderChest(viewer, offlineTarget);
             return true;
         }
 
@@ -43,7 +54,7 @@ public final class OpenEnderCommand implements CommandExecutor, TabCompleter {
             return List.of();
         }
 
-        return TargetPlayers.completeOnlinePlayers(args[0]);
+        return TargetPlayers.completeKnownPlayers(args[0]);
     }
 
     private Component error(String message) {

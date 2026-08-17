@@ -9,9 +9,18 @@ public final class PumpeEssentialsPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        openInventoryCommand = new OpenInventoryCommand(this);
+        OfflineInventoryBridge offlineInventoryBridge;
+        try {
+            offlineInventoryBridge = new OfflineInventoryBridge(this);
+        } catch (IllegalStateException exception) {
+            getLogger().severe(exception.getMessage());
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
+
+        openInventoryCommand = new OpenInventoryCommand(this, offlineInventoryBridge);
         registerCommand("openinv", openInventoryCommand);
-        registerCommand("opendender", new OpenEnderCommand());
+        registerCommand("opendender", new OpenEnderCommand(offlineInventoryBridge));
         getServer().getPluginManager().registerEvents(openInventoryCommand, this);
 
         getLogger().info("PumpeEssentials enabled.");
