@@ -1,9 +1,8 @@
 # PumpeEssentials
 
-`PumpeEssentials` requires `InvSeePlusPlus` 0.31.15 or newer for Paper 26.1.2.
-Online inventories use the custom
-live mirror. Offline inventories and ender chests use InvSee++'s persistent
-playerdata implementation so edits are written back safely.
+Online players use the custom live mirror. Offline inventories and ender chests
+are loaded and saved directly through Paper's 26.1.2 playerdata implementation.
+No additional inventory plugin is required.
 
 Planned area for basic server commands and quality-of-life features.
 

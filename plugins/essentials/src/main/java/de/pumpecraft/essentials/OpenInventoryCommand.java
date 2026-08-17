@@ -54,13 +54,13 @@ public final class OpenInventoryCommand implements CommandExecutor, TabCompleter
     private static final List<Integer> SHIFT_CLICK_TARGET_SLOTS = buildShiftClickTargets();
 
     private final Plugin plugin;
-    private final OfflineInventoryBridge offlineInventoryBridge;
+    private final OfflinePlayerDataService offlinePlayerDataService;
     private final Map<UUID, MirrorSession> sessions = new LinkedHashMap<>();
     private BukkitTask syncTask;
 
-    OpenInventoryCommand(Plugin plugin, OfflineInventoryBridge offlineInventoryBridge) {
+    OpenInventoryCommand(Plugin plugin, OfflinePlayerDataService offlinePlayerDataService) {
         this.plugin = plugin;
-        this.offlineInventoryBridge = offlineInventoryBridge;
+        this.offlinePlayerDataService = offlinePlayerDataService;
     }
 
     @Override
@@ -82,11 +82,36 @@ public final class OpenInventoryCommand implements CommandExecutor, TabCompleter
                 viewer.sendMessage(error("Dieser Spieler ist dem Server nicht bekannt."));
                 return true;
             }
-            offlineInventoryBridge.openMainInventory(viewer, offlineTarget);
+            MirrorSession offlineSession = null;
+            try {
+                OfflinePlayerDataService.LoadedPlayer loadedPlayer =
+                    offlinePlayerDataService.load(offlineTarget);
+                offlineSession = openMirror(viewer, loadedPlayer.player(), true);
+                MirrorSession managedSession = offlineSession;
+                offlinePlayerDataService.manage(
+                    viewer,
+                    loadedPlayer,
+                    managedSession.inventory(),
+                    () -> managedSession.pushViewerEdits(loadedPlayer.player())
+                );
+                viewer.sendMessage(
+                    Component.text("Inventar von ", NamedTextColor.GRAY)
+                        .append(Component.text(loadedPlayer.targetName(), NamedTextColor.AQUA))
+                        .append(Component.text(
+                            " geöffnet. Änderungen werden beim Schließen gespeichert.",
+                            NamedTextColor.GRAY))
+                );
+            } catch (OfflinePlayerDataService.OfflineDataException exception) {
+                if (offlineSession != null) {
+                    forget(offlineSession);
+                    viewer.closeInventory();
+                }
+                viewer.sendMessage(error(exception.getMessage()));
+            }
             return true;
         }
 
-        openMirror(viewer, target);
+        openMirror(viewer, target, false);
         viewer.sendMessage(
             Component.text("Inventar von ", NamedTextColor.GRAY)
                 .append(Component.text(target.getName(), NamedTextColor.AQUA))
@@ -179,8 +204,8 @@ public final class OpenInventoryCommand implements CommandExecutor, TabCompleter
 
         // Everything the viewer did was already applied tick by tick; this only covers edits made
         // in the same tick as the close. It writes the changed slots, never the whole inventory.
-        Player target = Bukkit.getPlayer(session.targetId());
-        if (target != null) {
+        Player target = session.target();
+        if (!session.offline() && target != null) {
             session.pushViewerEdits(target);
         }
     }
@@ -191,8 +216,8 @@ public final class OpenInventoryCommand implements CommandExecutor, TabCompleter
 
         // Quitting closes the view, but do not rely on that event for the last edits.
         MirrorSession viewerSession = sessions.remove(quitId);
-        if (viewerSession != null) {
-            Player target = Bukkit.getPlayer(viewerSession.targetId());
+        if (viewerSession != null && !viewerSession.offline()) {
+            Player target = viewerSession.target();
             if (target != null) {
                 viewerSession.pushViewerEdits(target);
             }
@@ -200,7 +225,7 @@ public final class OpenInventoryCommand implements CommandExecutor, TabCompleter
 
         List<MirrorSession> orphaned = new ArrayList<>();
         for (MirrorSession session : sessions.values()) {
-            if (session.targetId().equals(quitId)) {
+            if (!session.offline() && session.targetId().equals(quitId)) {
                 orphaned.add(session);
             }
         }
@@ -218,8 +243,9 @@ public final class OpenInventoryCommand implements CommandExecutor, TabCompleter
         }
     }
 
-    private void openMirror(Player viewer, Player target) {
-        MirrorSession session = new MirrorSession(viewer.getUniqueId(), target.getUniqueId());
+    private MirrorSession openMirror(Player viewer, Player target, boolean offline) {
+        MirrorSession session = new MirrorSession(
+            viewer.getUniqueId(), target.getUniqueId(), target, offline);
         Inventory gui = Bukkit.createInventory(
             session,
             GUI_SIZE,
@@ -234,6 +260,7 @@ public final class OpenInventoryCommand implements CommandExecutor, TabCompleter
         viewer.openInventory(gui);
         sessions.put(viewer.getUniqueId(), session);
         startSyncTask();
+        return session;
     }
 
     private void syncSessions() {
@@ -248,7 +275,7 @@ public final class OpenInventoryCommand implements CommandExecutor, TabCompleter
                 continue;
             }
 
-            Player target = Bukkit.getPlayer(session.targetId());
+            Player target = session.target();
             if (target == null) {
                 iterator.remove();
                 orphaned.add(session);
@@ -463,12 +490,16 @@ public final class OpenInventoryCommand implements CommandExecutor, TabCompleter
     private static final class MirrorSession implements InventoryHolder {
         private final UUID viewerId;
         private final UUID targetId;
+        private final Player target;
+        private final boolean offline;
         private final ItemStack[] mirrored = new ItemStack[GUI_SIZE];
         private Inventory inventory;
 
-        private MirrorSession(UUID viewerId, UUID targetId) {
+        private MirrorSession(UUID viewerId, UUID targetId, Player target, boolean offline) {
             this.viewerId = viewerId;
             this.targetId = targetId;
+            this.target = target;
+            this.offline = offline;
         }
 
         @Override
@@ -490,6 +521,14 @@ public final class OpenInventoryCommand implements CommandExecutor, TabCompleter
 
         private UUID targetId() {
             return targetId;
+        }
+
+        private Player target() {
+            return offline ? target : Bukkit.getPlayer(targetId);
+        }
+
+        private boolean offline() {
+            return offline;
         }
 
         private void pushViewerEdits(Player target) {

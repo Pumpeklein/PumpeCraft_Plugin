@@ -6,21 +6,15 @@ import org.bukkit.command.PluginCommand;
 
 public final class PumpeEssentialsPlugin extends JavaPlugin {
     private OpenInventoryCommand openInventoryCommand;
+    private OfflinePlayerDataService offlinePlayerDataService;
 
     @Override
     public void onEnable() {
-        OfflineInventoryBridge offlineInventoryBridge;
-        try {
-            offlineInventoryBridge = new OfflineInventoryBridge(this);
-        } catch (IllegalStateException exception) {
-            getLogger().severe(exception.getMessage());
-            getServer().getPluginManager().disablePlugin(this);
-            return;
-        }
-
-        openInventoryCommand = new OpenInventoryCommand(this, offlineInventoryBridge);
+        offlinePlayerDataService = new OfflinePlayerDataService(this);
+        openInventoryCommand = new OpenInventoryCommand(this, offlinePlayerDataService);
         registerCommand("openinv", openInventoryCommand);
-        registerCommand("opendender", new OpenEnderCommand(offlineInventoryBridge));
+        registerCommand("opendender", new OpenEnderCommand(offlinePlayerDataService));
+        getServer().getPluginManager().registerEvents(offlinePlayerDataService, this);
         getServer().getPluginManager().registerEvents(openInventoryCommand, this);
 
         getLogger().info("PumpeEssentials enabled.");
@@ -30,6 +24,9 @@ public final class PumpeEssentialsPlugin extends JavaPlugin {
     public void onDisable() {
         if (openInventoryCommand != null) {
             openInventoryCommand.shutdown();
+        }
+        if (offlinePlayerDataService != null) {
+            offlinePlayerDataService.shutdown();
         }
         getLogger().info("PumpeEssentials disabled.");
     }

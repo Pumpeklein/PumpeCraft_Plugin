@@ -10,10 +10,10 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 
 public final class OpenEnderCommand implements CommandExecutor, TabCompleter {
-    private final OfflineInventoryBridge offlineInventoryBridge;
+    private final OfflinePlayerDataService offlinePlayerDataService;
 
-    OpenEnderCommand(OfflineInventoryBridge offlineInventoryBridge) {
-        this.offlineInventoryBridge = offlineInventoryBridge;
+    OpenEnderCommand(OfflinePlayerDataService offlinePlayerDataService) {
+        this.offlinePlayerDataService = offlinePlayerDataService;
     }
 
     @Override
@@ -35,7 +35,32 @@ public final class OpenEnderCommand implements CommandExecutor, TabCompleter {
                 viewer.sendMessage(error("Dieser Spieler ist dem Server nicht bekannt."));
                 return true;
             }
-            offlineInventoryBridge.openEnderChest(viewer, offlineTarget);
+            boolean opened = false;
+            try {
+                OfflinePlayerDataService.LoadedPlayer loadedPlayer =
+                    offlinePlayerDataService.load(offlineTarget);
+                viewer.openInventory(loadedPlayer.player().getEnderChest());
+                opened = true;
+                offlinePlayerDataService.manage(
+                    viewer,
+                    loadedPlayer,
+                    viewer.getOpenInventory().getTopInventory(),
+                    () -> {
+                    }
+                );
+                viewer.sendMessage(
+                    Component.text("Enderchest von ", NamedTextColor.GRAY)
+                        .append(Component.text(loadedPlayer.targetName(), NamedTextColor.AQUA))
+                        .append(Component.text(
+                            " geöffnet. Änderungen werden beim Schließen gespeichert.",
+                            NamedTextColor.GRAY))
+                );
+            } catch (OfflinePlayerDataService.OfflineDataException exception) {
+                if (opened) {
+                    viewer.closeInventory();
+                }
+                viewer.sendMessage(error(exception.getMessage()));
+            }
             return true;
         }
 

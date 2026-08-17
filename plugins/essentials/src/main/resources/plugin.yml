@@ -4,8 +4,6 @@ main: de.pumpecraft.essentials.PumpeEssentialsPlugin
 api-version: '1.21'
 author: PumpeCraft
 description: Essentials plugin for PumpeCraft.
-depend:
-  - InvSeePlusPlus
 commands:
   openinv:
     description: Opens and edits the inventory of an online or offline player.

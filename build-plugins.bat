@@ -24,30 +24,6 @@ if not "%EXIT_CODE%"=="0" (
     goto :finish
 )
 
-set "INVSEE_CACHE=%CD%\.gradle\external-plugins\InvSeePlusPlus-0.31.15.jar"
-set "INVSEE_URL=https://cdn.modrinth.com/data/bYazc7fd/versions/cAOIkpWF/InvSee%%2B%%2B.jar"
-
-if not exist "%INVSEE_CACHE%" (
-    echo Lade InvSeePlusPlus fuer Offline-Inventare...
-    if not exist "%CD%\.gradle\external-plugins" mkdir "%CD%\.gradle\external-plugins"
-    powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command ^
-        "Invoke-WebRequest -UseBasicParsing -Uri '%INVSEE_URL%' -OutFile '%INVSEE_CACHE%'"
-    if errorlevel 1 (
-        echo.
-        echo [FEHLER] InvSeePlusPlus konnte nicht geladen werden.
-        set "EXIT_CODE=1"
-        goto :finish
-    )
-)
-
-copy /Y "%INVSEE_CACHE%" "%CD%\build\plugins\InvSeePlusPlus-0.31.15.jar" >nul
-if errorlevel 1 (
-    echo.
-    echo [FEHLER] InvSeePlusPlus konnte nicht in den Ausgabeordner kopiert werden.
-    set "EXIT_CODE=1"
-    goto :finish
-)
-
 echo.
 echo [ERFOLG] Alle Plugins wurden gebaut.
 echo Ausgabe: "%CD%\build\plugins"
