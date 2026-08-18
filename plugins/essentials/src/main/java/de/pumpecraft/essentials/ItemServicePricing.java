@@ -9,34 +9,43 @@ import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 
 final class ItemServicePricing {
-    private final long renameMinimum;
+    private final long renameBase;
+    private final long renamePerCharacter;
     private final int renamePercent;
-    private final long signMinimum;
+    private final long signBase;
+    private final long signPerCharacter;
     private final int signPercent;
 
     ItemServicePricing(FileConfiguration config) {
-        renameMinimum = Math.max(1L, config.getLong("item-services.rename.minimum-cost", 5L));
-        renamePercent = Math.max(0, config.getInt("item-services.rename.value-percent", 5));
-        signMinimum = Math.max(1L, config.getLong("item-services.sign.minimum-cost", 10L));
+        renameBase = Math.max(1L, config.getLong("item-services.rename.base-cost", 175L));
+        renamePerCharacter = Math.max(1L, config.getLong("item-services.rename.per-character", 15L));
+        renamePercent = Math.max(0, config.getInt("item-services.rename.value-percent", 15));
+        signBase = Math.max(1L, config.getLong("item-services.sign.base-cost", 100L));
+        signPerCharacter = Math.max(1L, config.getLong("item-services.sign.per-character", 8L));
         signPercent = Math.max(0, config.getInt("item-services.sign.value-percent", 10));
     }
 
-    long rename(ItemStack item) {
-        return price(item, renameMinimum, renamePercent);
+    long rename(ItemStack item, String name) {
+        return price(item, renameBase, renamePerCharacter, characters(name), renamePercent);
     }
 
-    long sign(ItemStack item) {
-        return price(item, signMinimum, signPercent);
+    long sign(ItemStack item, String message) {
+        return price(item, signBase, signPerCharacter, characters(message), signPercent);
     }
 
-    private long price(ItemStack item, long minimum, int percent) {
+    private long price(ItemStack item, long base, long perCharacter, long characters, int percent) {
         long value = Math.max(1L, Math.round(unitValue(item.getType()) * durabilityFactor(item)))
             * item.getAmount();
         value += enchantmentValue(item.getEnchantments());
         if (item.getItemMeta() instanceof EnchantmentStorageMeta stored) {
             value += enchantmentValue(stored.getStoredEnchants());
         }
-        return Math.max(minimum, (long) Math.ceil(value * percent / 100.0D));
+        long valueSurcharge = (long) Math.ceil(value * percent / 100.0D);
+        return base + perCharacter * characters + valueSurcharge;
+    }
+
+    private long characters(String text) {
+        return text.codePoints().filter(character -> !Character.isWhitespace(character)).count();
     }
 
     private long enchantmentValue(Map<Enchantment, Integer> enchantments) {

@@ -1,9 +1,11 @@
-config-version: 1
+config-version: 3
 
 item-services:
   rename:
-    minimum-cost: 5
-    value-percent: 5
+    base-cost: 175
+    per-character: 15
+    value-percent: 15
   sign:
-    minimum-cost: 10
+    base-cost: 100
+    per-character: 8
     value-percent: 10

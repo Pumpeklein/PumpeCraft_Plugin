@@ -39,12 +39,12 @@ final class ItemCustomizationService {
         signatureMessageKey = new NamespacedKey(plugin, "item_signature_message");
     }
 
-    void rename(Player player, Component name) {
+    void rename(Player player, String name) {
         ItemStack item = heldItem(player);
         if (item == null) return;
-        purchase(player, item, pricing.rename(item), "Item umbenannt: " + item.getType(), changed -> {
+        purchase(player, item, pricing.rename(item, name), "Item umbenannt: " + item.getType(), changed -> {
             ItemMeta meta = changed.getItemMeta();
-            meta.displayName(name);
+            meta.displayName(Component.text(name, NamedTextColor.WHITE).decoration(TextDecoration.ITALIC, false));
             changed.setItemMeta(meta);
         });
     }
@@ -59,7 +59,7 @@ final class ItemCustomizationService {
         purchase(
             player,
             item,
-            pricing.sign(item),
+            pricing.sign(item, message),
             "Item unterschrieben: " + item.getType(),
             changed -> applySignature(changed, player, message)
         );

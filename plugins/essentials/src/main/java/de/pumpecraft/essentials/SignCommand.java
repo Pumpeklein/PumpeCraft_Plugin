@@ -1,14 +1,16 @@
 package de.pumpecraft.essentials;
 
+import java.util.List;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
-final class SignCommand implements CommandExecutor {
+final class SignCommand implements CommandExecutor, TabCompleter {
     private static final int MAX_MESSAGE_LENGTH = 120;
     private final ItemCustomizationService items;
 
@@ -34,5 +36,15 @@ final class SignCommand implements CommandExecutor {
         }
         items.sign(player, message);
         return true;
+    }
+
+    @Override
+    public List<String> onTabComplete(
+        @NotNull CommandSender sender,
+        @NotNull Command command,
+        @NotNull String alias,
+        @NotNull String[] args
+    ) {
+        return List.of();
     }
 }

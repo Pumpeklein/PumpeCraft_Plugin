@@ -15,8 +15,11 @@ Planned area for basic server commands and quality-of-life features.
 - `/rename <Name>` - benennt das Item in der Haupthand ohne XP-Kosten um.
 - `/sign [Nachricht]` - versieht das Item mit Name, Datum, Uhrzeit und einer optionalen Nachricht.
 
-`/rename` und `/sign` werden mit PP bezahlt. Der Preis berücksichtigt Material,
-Stackgröße, Haltbarkeit und Verzauberungen und lässt sich in `config.yml` anpassen.
+`/rename` und `/sign` werden mit PP bezahlt. Die Formel lautet Grundpreis plus
+Zeichenpreis pro Nicht-Leerzeichen plus Itemwert-Aufschlag. Rename kostet standardmäßig
+175 PP + 15 PP je Zeichen + 15 % des Itemwerts. Sign kostet 100 PP + 8 PP je Zeichen
+der optionalen Nachricht + 10 % des Itemwerts. Material, Stackgröße, Haltbarkeit und
+Verzauberungen bestimmen den Itemwert; alle Faktoren lassen sich in `config.yml` anpassen.
 
 Player names can also be entered with an `@` prefix, for example `/openinv @Fabienne`.
 
