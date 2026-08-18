@@ -21,14 +21,12 @@ public final class PumpeChatControlPlugin extends JavaPlugin {
     private final Map<String, String> permissions = new HashMap<>();
     private final ConcurrentHashMap<String, TrackedChatMessage> trackedMessages = new ConcurrentHashMap<>();
     private String blockedPrefix;
-    private String deletedText;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
         loadPermissions();
         blockedPrefix = getConfig().getString("messages.blocked-prefix", "Deine Nachricht wurde blockiert: ");
-        deletedText = getConfig().getString("messages.deleted-placeholder", "Diese Nachricht gibt's nimmer.");
 
         DatabaseService database = Databases.require(this);
         ChatMessageRepository repository = new ChatMessageRepository(this, database);
@@ -58,10 +56,6 @@ public final class PumpeChatControlPlugin extends JavaPlugin {
     Component blockedMessage(String reason) {
         return Component.text(blockedPrefix, NamedTextColor.RED)
             .append(Component.text(reason, NamedTextColor.GRAY));
-    }
-
-    Component deletedPlaceholder() {
-        return Component.text(deletedText, NamedTextColor.DARK_GRAY);
     }
 
     private void loadPermissions() {

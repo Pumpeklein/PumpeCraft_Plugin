@@ -49,7 +49,7 @@ final class ChatControlCommand implements CommandExecutor, TabCompleter {
         }
         for (var viewer : tracked.viewers()) viewer.deleteMessage(tracked.signedMessage());
         repository.markDeleted(args[1], staff);
-        plugin.getServer().broadcast(plugin.deletedPlaceholder());
+        staff.sendMessage(Component.text("Nachricht gelöscht.", NamedTextColor.GRAY));
         return true;
     }
 

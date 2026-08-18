@@ -29,4 +29,3 @@ filter:
     repeat-seconds: 30
 messages:
   blocked-prefix: "Deine Nachricht wurde blockiert: "
-  deleted-placeholder: "Diese Nachricht gibt's nimmer."
