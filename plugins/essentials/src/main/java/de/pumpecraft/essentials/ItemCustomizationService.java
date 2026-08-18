@@ -1,8 +1,5 @@
 package de.pumpecraft.essentials;
 
-import de.pumpecraft.transactions.core.Currency;
-import de.pumpecraft.transactions.core.PointsService;
-import de.pumpecraft.transactions.core.TransactionType;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -10,15 +7,20 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.logging.Level;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
+
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+
+import de.pumpecraft.transactions.core.Currency;
+import de.pumpecraft.transactions.core.PointsService;
+import de.pumpecraft.transactions.core.TransactionType;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 
 final class ItemCustomizationService {
     private static final DateTimeFormatter SIGNED_AT = DateTimeFormatter.ofPattern("dd.MM.yyyy 'um' HH:mm 'Uhr'");
@@ -53,14 +55,14 @@ final class ItemCustomizationService {
         ItemStack item = heldItem(player);
         if (item == null) return;
         if (isSigned(item)) {
-            player.sendMessage(Component.text("Dieses Item wurde bereits unterschrieben.", NamedTextColor.RED));
+            player.sendMessage(Component.text("Dieses Item wurde bereits Signiert.", NamedTextColor.RED));
             return;
         }
         purchase(
             player,
             item,
             pricing.sign(item, message),
-            "Item unterschrieben: " + item.getType(),
+            "Item signiert: " + item.getType(),
             changed -> applySignature(changed, player, message)
         );
     }
@@ -156,7 +158,7 @@ final class ItemCustomizationService {
         ItemMeta meta = item.getItemMeta();
         List<Component> lore = meta.lore() == null ? new ArrayList<>() : new ArrayList<>(meta.lore());
         if (!lore.isEmpty()) lore.add(Component.empty());
-        lore.add(lore("Unterschrieben von " + player.getName(), NamedTextColor.GOLD));
+        lore.add(lore("Signiert von " + player.getName(), NamedTextColor.GOLD));
         lore.add(lore(SIGNED_AT.format(now), NamedTextColor.GRAY));
         if (!message.isBlank()) lore.add(lore("„" + message + "“", NamedTextColor.WHITE));
         meta.lore(lore);
