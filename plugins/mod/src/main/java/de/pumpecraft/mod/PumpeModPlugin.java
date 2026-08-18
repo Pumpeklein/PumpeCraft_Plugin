@@ -1,5 +1,8 @@
 package de.pumpecraft.mod;
 
+import de.pumpecraft.mod.flight.FlightListener;
+import de.pumpecraft.mod.flight.FlightService;
+import de.pumpecraft.mod.flight.FlyCommand;
 import de.pumpecraft.mod.vanish.VanishListener;
 import de.pumpecraft.mod.vanish.VanishService;
 import de.pumpecraft.utils.messages.ConnectionMessages;
@@ -12,6 +15,7 @@ public final class PumpeModPlugin extends JavaPlugin {
     private ModerationRepository repository;
     private ModerationCommand moderationCommand;
     private VanishService vanishService;
+    private FlightService flightService;
 
     @Override
     public void onEnable() {
@@ -39,6 +43,13 @@ public final class PumpeModPlugin extends JavaPlugin {
         registerCommand("vanish", moderationCommand);
         getServer().getPluginManager().registerEvents(moderationCommand, this);
 
+        flightService = new FlightService();
+        FlyCommand flyCommand = new FlyCommand(flightService, vanishService);
+        PluginCommand fly = Objects.requireNonNull(getCommand("fly"), "Missing command: fly");
+        fly.setExecutor(flyCommand);
+        fly.setTabCompleter(flyCommand);
+        getServer().getPluginManager().registerEvents(new FlightListener(this, flightService), this);
+
         getLogger().info("PumpeMod enabled.");
     }
 
@@ -49,6 +60,9 @@ public final class PumpeModPlugin extends JavaPlugin {
         }
         if (moderationCommand != null) {
             moderationCommand.clearCaches();
+        }
+        if (flightService != null) {
+            flightService.shutdown();
         }
         getLogger().info("PumpeMod disabled.");
     }
