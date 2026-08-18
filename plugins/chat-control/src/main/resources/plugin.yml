@@ -13,4 +13,4 @@ commands:
   chatcontrol:
     aliases: [chatctl]
     description: Internal chat moderation actions.
-    usage: /chatcontrol delete <Nachrichten-ID>
+    usage: /chatcontrol <delete|keep> <Nachrichten-ID>

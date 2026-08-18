@@ -3,7 +3,10 @@ package de.pumpecraft.chatcontrol;
 import de.pumpecraft.database.DatabaseService;
 import de.pumpecraft.database.Databases;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,6 +19,17 @@ import org.bukkit.permissions.PermissionDefault;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class PumpeChatControlPlugin extends JavaPlugin {
+    private static final int CONFIG_VERSION = 2;
+    private static final List<String> REQUIRED_BLOCKED_TERMS = List.of(
+        "hurensohn", "hurentochter", "hure", "nutte", "nutten", "schlampe", "fotze",
+        "wichser", "wixer", "ficker", "bastard", "missgeburt", "arschloch", "arschgeige",
+        "drecksau", "drecksschwein", "scheisskerl", "pissnelke", "spast", "spasti",
+        "behindertenkind", "mongo", "idiot", "vollidiot", "depp", "dummkopf", "opfer",
+        "loser", "lappen", "schwuchtel", "faggot", "retard", "nigger", "nigga", "neger",
+        "kanake", "kanacke", "kameltreiber", "judensau", "bitch", "slut", "whore",
+        "motherfucker", "son of a bitch", "sohn einer hure", "halt die fresse", "halt dein maul",
+        "fick dich", "verpiss dich", "leck mich am arsch"
+    );
     private static final long MESSAGE_RETENTION_MILLIS = 15L * 60L * 1000L;
 
     private final Map<String, String> permissions = new HashMap<>();
@@ -25,6 +39,7 @@ public final class PumpeChatControlPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        migrateConfig();
         loadPermissions();
         blockedPrefix = getConfig().getString("messages.blocked-prefix", "Deine Nachricht wurde blockiert: ");
 
@@ -56,6 +71,17 @@ public final class PumpeChatControlPlugin extends JavaPlugin {
     Component blockedMessage(String reason) {
         return Component.text(blockedPrefix, NamedTextColor.RED)
             .append(Component.text(reason, NamedTextColor.GRAY));
+    }
+
+    private void migrateConfig() {
+        int version = getConfig().getInt("config-version", 1);
+        if (version >= CONFIG_VERSION) return;
+
+        LinkedHashSet<String> terms = new LinkedHashSet<>(getConfig().getStringList("filter.blocked-terms"));
+        terms.addAll(REQUIRED_BLOCKED_TERMS);
+        getConfig().set("filter.blocked-terms", new ArrayList<>(terms));
+        getConfig().set("config-version", CONFIG_VERSION);
+        saveConfig();
     }
 
     private void loadPermissions() {

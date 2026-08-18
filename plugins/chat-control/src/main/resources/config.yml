@@ -1,6 +1,10 @@
+config-version: 2
+
 filter:
   blocked-terms:
     - hurensohn
+    - hurentochter
+    - hure
     - missgeburt
     - bastard
     - arschloch
@@ -17,12 +21,39 @@ filter:
     - mongo
     - schwuchtel
     - nutte
+    - nutten
     - schlampe
     - hundesohn
     - drecksau
+    - drecksschwein
     - arsch
+    - arschgeige
     - pissnelke
+    - scheisskerl
+    - wixer
+    - ficker
+    - spasti
+    - behindertenkind
+    - dummkopf
+    - retard
+    - nigger
+    - nigga
+    - neger
+    - kanake
+    - kanacke
+    - kameltreiber
+    - judensau
+    - bitch
+    - slut
+    - whore
+    - motherfucker
+    - son of a bitch
+    - sohn einer hure
     - halt die fresse
+    - halt dein maul
+    - fick dich
+    - verpiss dich
+    - leck mich am arsch
   spam:
     window-seconds: 8
     max-messages: 5

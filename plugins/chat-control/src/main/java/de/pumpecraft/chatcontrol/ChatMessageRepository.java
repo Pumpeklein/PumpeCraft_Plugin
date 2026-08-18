@@ -22,6 +22,12 @@ final class ChatMessageRepository {
         return messageId;
     }
 
+    String recordFlagged(Player sender, String message, String type, Player recipient, String reason) {
+        String messageId = UUID.randomUUID().toString();
+        persist(messageId, sender, message, type, recipient, true, reason);
+        return messageId;
+    }
+
     void recordBlocked(Player sender, String message, String type, Player recipient, String reason) {
         persist(UUID.randomUUID().toString(), sender, message, type, recipient, true, reason);
     }
@@ -47,6 +53,26 @@ final class ChatMessageRepository {
                 });
             } catch (RuntimeException exception) {
                 plugin.getLogger().log(Level.WARNING, "Could not mark chat message as deleted.", exception);
+            }
+        });
+    }
+
+    void markKept(String messageId) {
+        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+            try {
+                database.withConnection(connection -> {
+                    try (PreparedStatement statement = connection.prepareStatement("""
+                        UPDATE pc_chat_messages
+                           SET blocked = FALSE
+                         WHERE message_id = ? AND deleted_at IS NULL
+                        """)) {
+                        statement.setString(1, messageId);
+                        statement.executeUpdate();
+                    }
+                    return null;
+                });
+            } catch (RuntimeException exception) {
+                plugin.getLogger().log(Level.WARNING, "Could not mark flagged chat message as kept.", exception);
             }
         });
     }

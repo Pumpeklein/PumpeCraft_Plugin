@@ -41,14 +41,31 @@ final class ChatControlCommand implements CommandExecutor, TabCompleter {
             staff.sendMessage(Component.text("Dafür fehlt dir die Berechtigung.", NamedTextColor.RED));
             return true;
         }
-        if (args.length != 2 || !args[0].equalsIgnoreCase("delete")) return false;
-        TrackedChatMessage tracked = trackedMessages.remove(args[1]);
+        if (args.length != 2) return false;
+        String messageId = args[1];
+        if (args[0].equalsIgnoreCase("keep")) {
+            TrackedChatMessage tracked = trackedMessages.get(messageId);
+            if (tracked == null || !tracked.reviewRequired()) {
+                staff.sendMessage(Component.text("Diese Nachricht wartet nicht auf eine Entscheidung.", NamedTextColor.RED));
+                return true;
+            }
+            if (!trackedMessages.replace(messageId, tracked, tracked.reviewed())) {
+                staff.sendMessage(Component.text("Die Nachricht wurde bereits bearbeitet.", NamedTextColor.RED));
+                return true;
+            }
+            repository.markKept(messageId);
+            staff.sendMessage(Component.text("Nachricht bleibt bestehen.", NamedTextColor.GREEN));
+            return true;
+        }
+        if (!args[0].equalsIgnoreCase("delete")) return false;
+
+        TrackedChatMessage tracked = trackedMessages.remove(messageId);
         if (tracked == null) {
             staff.sendMessage(Component.text("Diese Nachricht ist nicht mehr löschbar.", NamedTextColor.RED));
             return true;
         }
         for (var viewer : tracked.viewers()) viewer.deleteMessage(tracked.signedMessage());
-        repository.markDeleted(args[1], staff);
+        repository.markDeleted(messageId, staff);
         staff.sendMessage(Component.text("Nachricht gelöscht.", NamedTextColor.GRAY));
         return true;
     }
@@ -61,7 +78,10 @@ final class ChatControlCommand implements CommandExecutor, TabCompleter {
         @NotNull String[] args
     ) {
         if (!sender.hasPermission(plugin.permission("delete"))) return List.of();
-        if (args.length == 1 && "delete".startsWith(args[0].toLowerCase())) return List.of("delete");
+        if (args.length == 1) {
+            String input = args[0].toLowerCase();
+            return List.of("delete", "keep").stream().filter(option -> option.startsWith(input)).toList();
+        }
         return List.of();
     }
 }

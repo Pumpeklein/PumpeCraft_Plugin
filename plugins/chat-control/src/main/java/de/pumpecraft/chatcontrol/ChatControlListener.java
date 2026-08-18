@@ -38,19 +38,26 @@ final class ChatControlListener implements Listener {
         Player sender = event.getPlayer();
         String message = PlainTextComponentSerializer.plainText().serialize(event.message()).trim();
         FilterResult result = filter.inspect(sender.getUniqueId(), message);
-        if (!result.allowed()) {
+        if (!result.allowed() && !result.reviewRequired()) {
             event.setCancelled(true);
             repository.recordBlocked(sender, message, "GLOBAL", null, result.reason());
             sender.sendMessage(plugin.blockedMessage(result.reason()));
             return;
         }
 
-        String messageId = repository.recordAccepted(sender, message, "GLOBAL", null);
+        String messageId = result.reviewRequired()
+            ? repository.recordFlagged(sender, message, "GLOBAL", null, result.reason())
+            : repository.recordAccepted(sender, message, "GLOBAL", null);
         if (!event.signedMessage().canDelete()) return;
 
         trackedMessages.put(
             messageId,
-            new TrackedChatMessage(event.signedMessage(), Set.copyOf(event.viewers()), System.currentTimeMillis())
+            new TrackedChatMessage(
+                event.signedMessage(),
+                Set.copyOf(event.viewers()),
+                System.currentTimeMillis(),
+                result.reviewRequired()
+            )
         );
         ChatRenderer original = event.renderer();
         event.renderer((source, sourceDisplayName, content, viewer) -> {
@@ -62,6 +69,18 @@ final class ChatControlListener implements Listener {
             Component delete = Component.text("[DEL] ", NamedTextColor.RED)
                 .hoverEvent(HoverEvent.showText(Component.text("Nachricht löschen", NamedTextColor.RED)))
                 .clickEvent(ClickEvent.runCommand("/chatcontrol delete " + messageId));
+            if (result.reviewRequired()) {
+                Component detected = Component.text("[ERKANNT] ", NamedTextColor.GOLD)
+                    .hoverEvent(HoverEvent.showText(Component.text(result.reason(), NamedTextColor.YELLOW)));
+                Component keep = Component.text("[BEHALTEN] ", NamedTextColor.GREEN)
+                    .hoverEvent(HoverEvent.showText(Component.text("Nachricht nicht löschen", NamedTextColor.GREEN)))
+                    .clickEvent(ClickEvent.runCommand("/chatcontrol keep " + messageId));
+                return Component.empty()
+                    .append(detected)
+                    .append(delete)
+                    .append(keep)
+                    .append(rendered);
+            }
             return Component.empty()
                 .append(delete)
                 .append(rendered);

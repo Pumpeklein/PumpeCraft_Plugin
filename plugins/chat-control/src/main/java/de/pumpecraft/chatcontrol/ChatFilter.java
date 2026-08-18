@@ -15,6 +15,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 final class ChatFilter {
     private static final Pattern COMBINING_MARKS = Pattern.compile("\\p{M}+");
     private static final Pattern SEPARATORS = Pattern.compile("[^a-z0-9]+");
+    private static final Pattern REPEATED_CHARACTERS = Pattern.compile("([a-z0-9])\\1+");
 
     private final List<String> blockedTerms;
     private final long windowMillis;
@@ -39,7 +40,7 @@ final class ChatFilter {
         }
         for (String term : blockedTerms) {
             if (containsTerm(normalized, term)) {
-                return FilterResult.block("Der Chatfilter hat eine unzulässige Formulierung erkannt.");
+                return FilterResult.review("Der Chatfilter hat eine unzulässige Formulierung erkannt.");
             }
         }
 
@@ -86,6 +87,7 @@ final class ChatFilter {
             Normalizer.normalize(value, Normalizer.Form.NFKD)
         ).replaceAll("").toLowerCase(Locale.ROOT);
         normalized = normalized
+            .replace("ß", "ss")
             .replace('0', 'o')
             .replace('1', 'i')
             .replace('3', 'e')
@@ -94,6 +96,7 @@ final class ChatFilter {
             .replace('7', 't')
             .replace('$', 's')
             .replace('@', 'a');
+        normalized = REPEATED_CHARACTERS.matcher(normalized).replaceAll("$1");
         return SEPARATORS.matcher(normalized).replaceAll(" ").trim().replaceAll(" +", " ");
     }
 
