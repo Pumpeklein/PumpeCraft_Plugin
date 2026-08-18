@@ -5,6 +5,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -53,13 +55,21 @@ final class PrivateMessageCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        Component outgoing = Component.text("[MSG] ", NamedTextColor.DARK_AQUA)
-            .append(Component.text(player.getName() + " -> " + recipient.getName() + ": ", NamedTextColor.GRAY))
-            .append(Component.text(message, NamedTextColor.WHITE));
-        player.sendMessage(outgoing);
-        recipient.sendMessage(outgoing);
+        player.sendMessage(privateMessage(player, recipient, recipient, message));
+        recipient.sendMessage(privateMessage(player, recipient, player, message));
         repository.recordAccepted(player, message, "MSG", recipient);
         return true;
+    }
+
+    private Component privateMessage(Player sender, Player recipient, Player replyTarget, String message) {
+        return Component.text("[MSG] ", NamedTextColor.DARK_AQUA)
+            .append(Component.text(sender.getName() + " -> " + recipient.getName() + ": ", NamedTextColor.GRAY))
+            .append(Component.text(message, NamedTextColor.WHITE))
+            .hoverEvent(HoverEvent.showText(Component.text(
+                "Klicken, um " + replyTarget.getName() + " zu antworten",
+                NamedTextColor.AQUA
+            )))
+            .clickEvent(ClickEvent.suggestCommand("/msg " + replyTarget.getName() + " "));
     }
 
     @Override

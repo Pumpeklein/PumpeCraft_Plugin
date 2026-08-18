@@ -49,12 +49,13 @@ final class ChatControlCommand implements CommandExecutor, TabCompleter {
                 staff.sendMessage(Component.text("Diese Nachricht wartet nicht auf eine Entscheidung.", NamedTextColor.RED));
                 return true;
             }
-            if (!trackedMessages.replace(messageId, tracked, tracked.reviewed())) {
+            if (!trackedMessages.remove(messageId, tracked)) {
                 staff.sendMessage(Component.text("Die Nachricht wurde bereits bearbeitet.", NamedTextColor.RED));
                 return true;
             }
+            tracked.pendingDeliveries().forEach((viewer, message) -> viewer.sendMessage(message));
             repository.markKept(messageId);
-            staff.sendMessage(Component.text("Nachricht bleibt bestehen.", NamedTextColor.GREEN));
+            staff.sendMessage(Component.text("Nachricht wurde an den All-Chat gesendet.", NamedTextColor.GREEN));
             return true;
         }
         if (!args[0].equalsIgnoreCase("delete")) return false;
