@@ -12,6 +12,11 @@ Planned area for basic server commands and quality-of-life features.
 - `/opendender <Spieler>` - opens the target player's ender chest.
 - `/openender <Spieler>` - alias for `/opendender`.
 - `/openec <Spieler>` - alias for `/opendender`.
+- `/rename <Name>` - benennt das Item in der Haupthand ohne XP-Kosten um.
+- `/sign [Nachricht]` - versieht das Item mit Name, Datum, Uhrzeit und einer optionalen Nachricht.
+
+`/rename` und `/sign` werden mit PP bezahlt. Der Preis berücksichtigt Material,
+Stackgröße, Haltbarkeit und Verzauberungen und lässt sich in `config.yml` anpassen.
 
 Player names can also be entered with an `@` prefix, for example `/openinv @Fabienne`.
 
@@ -20,5 +25,8 @@ Player names can also be entered with an `@` prefix, for example `/openinv @Fabi
 - `pumpecraft.essentials.*`
 - `pumpecraft.essentials.openinv`
 - `pumpecraft.essentials.opendender`
+- `pumpecraft.essentials.rename`
+- `pumpecraft.essentials.sign`
 
-All permissions default to `false` and should be assigned through LuckPerms.
+Die Inventarberechtigungen sind standardmäßig deaktiviert. `rename` und `sign`
+sind als bezahlte Spielerfunktionen standardmäßig aktiviert.

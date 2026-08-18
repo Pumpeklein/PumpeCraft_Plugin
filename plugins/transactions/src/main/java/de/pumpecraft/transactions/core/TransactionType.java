@@ -6,7 +6,8 @@ public enum TransactionType {
     TRANSFER_OUT("Gesendet"),
     ADMIN_GRANT("Team-Gutschrift"),
     ADMIN_TAKE("Team-Abbuchung"),
-    ADMIN_SET("Team-Korrektur");
+    ADMIN_SET("Team-Korrektur"),
+    ESSENTIALS_SERVICE("Essentials-Dienst");
 
     private final String label;
 

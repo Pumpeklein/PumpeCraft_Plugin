@@ -1,0 +1,9 @@
+config-version: 1
+
+item-services:
+  rename:
+    minimum-cost: 5
+    value-percent: 5
+  sign:
+    minimum-cost: 10
+    value-percent: 10

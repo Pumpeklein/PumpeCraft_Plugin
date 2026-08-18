@@ -1,18 +1,20 @@
 package de.pumpecraft.mod.vanish;
 
-import de.pumpecraft.utils.messages.ConnectionMessages;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
+
 import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
+
+import de.pumpecraft.utils.messages.ConnectionMessages;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 
 /**
  * Versteckt Teamler vor normalen Spielern so, als hätten sie den Server verlassen, und zeigt sie

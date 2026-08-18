@@ -1,5 +1,6 @@
 package de.pumpecraft.essentials;
 
+import de.pumpecraft.transactions.core.Points;
 import java.util.Objects;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.command.PluginCommand;
@@ -10,10 +11,18 @@ public final class PumpeEssentialsPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        saveDefaultConfig();
         offlinePlayerDataService = new OfflinePlayerDataService(this);
         openInventoryCommand = new OpenInventoryCommand(this, offlinePlayerDataService);
         registerCommand("openinv", openInventoryCommand);
         registerCommand("opendender", new OpenEnderCommand(offlinePlayerDataService));
+        ItemCustomizationService itemCustomization = new ItemCustomizationService(
+            this,
+            Points.require(this),
+            new ItemServicePricing(getConfig())
+        );
+        registerCommand("rename", new RenameCommand(itemCustomization));
+        registerCommand("sign", new SignCommand(itemCustomization));
         getServer().getPluginManager().registerEvents(offlinePlayerDataService, this);
         getServer().getPluginManager().registerEvents(openInventoryCommand, this);
 
