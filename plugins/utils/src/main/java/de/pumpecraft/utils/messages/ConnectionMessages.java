@@ -64,14 +64,14 @@ public final class ConnectionMessages {
     }
 
     public static Component join(String playerName) {
-        return Messages.render(JOIN, NamedTextColor.GRAY, playerName);
+        return Messages.render(JOIN, NamedTextColor.GREEN, playerName);
     }
 
     public static Component firstJoin(String playerName) {
-        return Messages.render(FIRST_JOIN, NamedTextColor.GREEN, playerName);
+        return Messages.render(FIRST_JOIN, NamedTextColor.AQUA, playerName);
     }
 
     public static Component leave(String playerName) {
-        return Messages.render(LEAVE, NamedTextColor.GRAY, playerName);
+        return Messages.render(LEAVE, NamedTextColor.RED, playerName);
     }
 }

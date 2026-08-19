@@ -163,7 +163,7 @@ public final class TraderCommand implements CommandExecutor, TabCompleter, Liste
         trader.getPersistentDataContainer().set(traderKey, PersistentDataType.BYTE, TRUE);
         trader.setRecipes(createRecipes());
 
-        Bukkit.broadcast(Messages.render(TraderTopics.SPAWNED, NamedTextColor.GOLD,
+        Bukkit.broadcast(Messages.render(TraderTopics.SPAWNED, NamedTextColor.YELLOW,
             Map.of("location", formatLocation(spawnLocation))));
 
         long ticks = Math.max(20L, duration.toSeconds() * 20L);
@@ -180,7 +180,7 @@ public final class TraderCommand implements CommandExecutor, TabCompleter, Liste
 
         Location location = entity.getLocation();
         entity.remove();
-        Bukkit.broadcast(Messages.render(TraderTopics.DESPAWNED, NamedTextColor.GOLD,
+        Bukkit.broadcast(Messages.render(TraderTopics.DESPAWNED, NamedTextColor.YELLOW,
             Map.of("location", formatLocation(location))));
     }
 
