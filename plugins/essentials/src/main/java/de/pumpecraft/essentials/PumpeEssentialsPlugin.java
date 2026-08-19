@@ -31,6 +31,7 @@ public final class PumpeEssentialsPlugin extends JavaPlugin {
         );
         registerCommand("rename", new RenameCommand(itemCustomization));
         registerCommand("sign", new SignCommand(itemCustomization));
+        registerCommand("seen", new SeenCommand());
 
         BackHistoryService backHistory = new BackHistoryService(
             this,

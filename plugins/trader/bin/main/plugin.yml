@@ -4,6 +4,7 @@ main: de.pumpecraft.trader.PumpeTraderPlugin
 api-version: '1.21'
 author: PumpeCraft
 description: Trader plugin for PumpeCraft.
+depend: [PumpeUtils]
 commands:
   trader:
     description: Spawns a temporary PumpeCraft trader at your location.

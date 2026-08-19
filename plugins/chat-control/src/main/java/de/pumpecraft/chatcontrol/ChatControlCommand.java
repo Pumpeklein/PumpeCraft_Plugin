@@ -54,8 +54,8 @@ final class ChatControlCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
             tracked.pendingDeliveries().forEach((viewer, message) -> viewer.sendMessage(message));
-            repository.markKept(messageId);
-            staff.sendMessage(Component.text("Nachricht wurde an den All-Chat gesendet.", NamedTextColor.GREEN));
+            repository.markApproved(messageId, staff);
+            staff.sendMessage(Component.text("Nachricht freigegeben und an den All-Chat gesendet.", NamedTextColor.GREEN));
             return true;
         }
         if (!args[0].equalsIgnoreCase("delete")) return false;

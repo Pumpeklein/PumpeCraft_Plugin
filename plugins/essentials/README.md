@@ -14,6 +14,7 @@ Planned area for basic server commands and quality-of-life features.
 - `/openec <Spieler>` - alias for `/opendender`.
 - `/rename <Name>` - benennt das Item in der Haupthand ohne XP-Kosten um.
 - `/sign [Nachricht]` - versieht das Item mit Name, Datum, Uhrzeit und einer optionalen Nachricht.
+- `/seen <Spieler>` - zeigt, ob ein Spieler online ist oder wann er zuletzt online war.
 - `/back` - teleportiert zum zuletzt verlassenen Punkt.
 - `/back history` - zeigt die letzten Punkte mit anklickbaren Koordinaten und Index.
 - `/back select <Index>` - teleportiert zum Punkt mit diesem Index.
@@ -52,6 +53,7 @@ Player names can also be entered with an `@` prefix, for example `/openinv @Fabi
 - `pumpecraft.essentials.opendender`
 - `pumpecraft.essentials.rename`
 - `pumpecraft.essentials.sign`
+- `pumpecraft.essentials.seen`
 - `pumpecraft.essentials.back`
 - `pumpecraft.essentials.back.death`
 - `pumpecraft.essentials.back.others`

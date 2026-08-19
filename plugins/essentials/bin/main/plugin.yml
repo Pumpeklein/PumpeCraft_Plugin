@@ -1,21 +1,34 @@
 name: PumpeEssentials
 version: ${version}
 main: de.pumpecraft.essentials.PumpeEssentialsPlugin
-api-version: '1.21'
+api-version: "1.21"
 author: PumpeCraft
 description: Essentials plugin for PumpeCraft.
+depend: [PumpeDatabase, PumpeUtils, PumpeTransactions]
 commands:
   openinv:
-    description: Opens a live, two-way synced inventory view of an online player.
+    description: Opens and edits the inventory of an online or offline player.
     usage: /openinv <Spieler>
     permission: pumpecraft.essentials.openinv
   opendender:
-    description: Opens the ender chest of an online player.
+    description: Opens and edits the ender chest of an online or offline player.
     usage: /opendender <Spieler>
     aliases:
       - openender
       - openec
     permission: pumpecraft.essentials.opendender
+  rename:
+    description: Renames the item held in the main hand for PumpePoints.
+    usage: /rename <Name>
+    permission: pumpecraft.essentials.rename
+  sign:
+    description: Signs the item held in the main hand for PumpePoints.
+    usage: /sign [Nachricht]
+    permission: pumpecraft.essentials.sign
+  seen:
+    description: Shows when a known player was last online.
+    usage: /seen <Spieler>
+    permission: pumpecraft.essentials.seen
 permissions:
   pumpecraft.essentials.*:
     description: Allows using all PumpeEssentials staff features.
@@ -23,9 +36,21 @@ permissions:
     children:
       pumpecraft.essentials.openinv: true
       pumpecraft.essentials.opendender: true
+      pumpecraft.essentials.rename: true
+      pumpecraft.essentials.sign: true
+      pumpecraft.essentials.seen: true
   pumpecraft.essentials.openinv:
     description: Allows opening and editing player inventories.
     default: false
   pumpecraft.essentials.opendender:
     description: Allows opening player ender chests.
+    default: false
+  pumpecraft.essentials.rename:
+    description: Allows renaming the held item for PumpePoints.
+    default: true
+  pumpecraft.essentials.sign:
+    description: Allows signing the held item for PumpePoints.
+    default: true
+  pumpecraft.essentials.seen:
+    description: Allows viewing when a known player was last online.
     default: false

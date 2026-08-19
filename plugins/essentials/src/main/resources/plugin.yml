@@ -1,7 +1,7 @@
 name: PumpeEssentials
 version: ${version}
 main: de.pumpecraft.essentials.PumpeEssentialsPlugin
-api-version: '1.21'
+api-version: "1.21"
 author: PumpeCraft
 description: Essentials plugin for PumpeCraft.
 depend: [PumpeDatabase, PumpeUtils, PumpeTransactions]
@@ -25,6 +25,10 @@ commands:
     description: Signs the item held in the main hand for PumpePoints.
     usage: /sign [Nachricht]
     permission: pumpecraft.essentials.sign
+  seen:
+    description: Shows when a known player was last online.
+    usage: /seen <Spieler>
+    permission: pumpecraft.essentials.seen
   back:
     description: Returns to the location left before a teleport or death.
     usage: /back [history | select <Index> | user <Spieler> [history | <Index>]]
@@ -38,6 +42,7 @@ permissions:
       pumpecraft.essentials.opendender: true
       pumpecraft.essentials.rename: true
       pumpecraft.essentials.sign: true
+      pumpecraft.essentials.seen: true
       pumpecraft.essentials.back: true
       pumpecraft.essentials.back.death: true
       pumpecraft.essentials.back.others: true
@@ -53,6 +58,9 @@ permissions:
   pumpecraft.essentials.sign:
     description: Allows signing the held item for PumpePoints.
     default: true
+  pumpecraft.essentials.seen:
+    description: Allows viewing when a known player was last online.
+    default: false
   pumpecraft.essentials.back:
     description: Allows returning to the location left before a teleport.
     default: false

@@ -6,6 +6,11 @@ gives authorized staff a clickable `[DEL]` control for deletable signed global
 messages. Filter detections are held back from public chat until staff chooses to
 delete or publish them.
 
+A held message is not the same as a blocked one, and the table keeps them apart:
+`held_at` marks the hold, `approved_at` plus `approved_by_uuid`/`approved_by_name`
+record who released it. Without those columns a released message was
+indistinguishable from an ordinary one, because releasing only reset `blocked`.
+
 ## Configuration
 
 - `config.yml`: filter terms, spam thresholds and player-facing text
@@ -19,4 +24,4 @@ delete or publish them.
 
 - `/msg <player> <message>` (aliases: `/tell`, `/w`; click a message to reply)
 - `/chatcontrol delete <message-id>` (immediately deletes via the `[DEL]` control)
-- `/chatcontrol keep <message-id>` (keeps a message flagged by the filter)
+- `/chatcontrol keep <message-id>` (releases a message the filter held back)
