@@ -9,8 +9,13 @@ import java.util.Set;
 import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.block.Block;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.type.Slab;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Pose;
 
@@ -23,10 +28,12 @@ import org.bukkit.entity.Pose;
 public final class CrawlService {
     private static final double CRAWL_HEIGHT = 0.6D;
     private static final double STANDING_HEIGHT = 1.8D;
+    private static final double TOP_SLAB_BOTTOM = 0.5D;
+    private static final BlockData TOP_SLAB = topSlab();
 
     private final PoseSettings settings;
     private final Set<UUID> crawlers = new HashSet<>();
-    private final Map<UUID, Block> covers = new HashMap<>();
+    private final Map<UUID, Cover> covers = new HashMap<>();
 
     public CrawlService(PoseSettings settings) {
         this.settings = settings;
@@ -41,7 +48,7 @@ public final class CrawlService {
             return false;
         }
         player.setPose(Pose.SWIMMING, true);
-        cover(player, coverBlock(player, player.getLocation()));
+        showCover(player, cover(player, player.getLocation()));
         return true;
     }
 
@@ -68,12 +75,12 @@ public final class CrawlService {
         if (!crawlers.contains(player.getUniqueId())) {
             return;
         }
-        Block target = coverBlock(player, destination);
+        Cover target = cover(player, destination);
         if (Objects.equals(covers.get(player.getUniqueId()), target)) {
             return;
         }
         uncover(player);
-        cover(player, target);
+        showCover(player, target);
     }
 
     public void clear() {
@@ -90,40 +97,72 @@ public final class CrawlService {
         }
     }
 
-    /** Der virtuelle Deckel bleibt unabhängig von der Spielergröße an derselben Kriechhöhe. */
-    private Block coverBlock(Player player, Location location) {
+    private Cover cover(Player player, Location location) {
         World world = location.getWorld();
         if (world == null) {
             return null;
         }
+        double scale = scale(player);
         double feet = location.getY();
-        int y = (int) Math.floor(feet + CRAWL_HEIGHT) + 1;
-        if (y > feet + STANDING_HEIGHT || y >= world.getMaxHeight()) {
-            return null;
-        }
-        Block block = world.getBlockAt(location.getBlockX(), y, location.getBlockZ());
-        return block.isPassable() && !block.isLiquid() ? block : null;
+        double crawlTop = feet + CRAWL_HEIGHT * scale;
+        double standingTop = feet + STANDING_HEIGHT * scale;
+
+        Cover fullBlock = coverAt(world, location, crawlTop, standingTop, 0.0D, settings.crawlCover());
+        return fullBlock != null
+            ? fullBlock
+            : coverAt(world, location, crawlTop, standingTop, TOP_SLAB_BOTTOM, TOP_SLAB);
     }
 
-    private void cover(Player player, Block target) {
+    private Cover coverAt(
+        World world,
+        Location location,
+        double crawlTop,
+        double standingTop,
+        double collisionBottom,
+        BlockData blockData
+    ) {
+        int blockY = (int) Math.floor(crawlTop - collisionBottom) + 1;
+        double ceiling = blockY + collisionBottom;
+        if (ceiling >= standingTop || blockY < world.getMinHeight() || blockY >= world.getMaxHeight()) {
+            return null;
+        }
+        Block block = world.getBlockAt(location.getBlockX(), blockY, location.getBlockZ());
+        return block.isPassable() && !block.isLiquid() ? new Cover(block, blockData) : null;
+    }
+
+    private void showCover(Player player, Cover target) {
         if (target == null) {
             return;
         }
-        player.sendBlockChange(target.getLocation(), settings.crawlCover());
+        player.sendBlockChange(target.block().getLocation(), target.blockData());
         covers.put(player.getUniqueId(), target);
     }
 
     private void uncover(Player player) {
-        Block covered = covers.remove(player.getUniqueId());
+        Cover covered = covers.remove(player.getUniqueId());
         // Nach einem Weltwechsel lädt der Client die alten Chunks ohnehin neu; ein Paket
         // mit fremden Koordinaten würde dort einen echten Block überschreiben.
-        if (covered != null && covered.getWorld().equals(player.getWorld())) {
-            player.sendBlockChange(covered.getLocation(), covered.getBlockData());
+        if (covered != null && covered.block().getWorld().equals(player.getWorld())) {
+            player.sendBlockChange(covered.block().getLocation(), covered.block().getBlockData());
         }
     }
 
     private void forget(UUID playerId) {
         crawlers.remove(playerId);
         covers.remove(playerId);
+    }
+
+    private static double scale(Player player) {
+        AttributeInstance attribute = player.getAttribute(Attribute.SCALE);
+        return attribute == null ? 1.0D : attribute.getValue();
+    }
+
+    private static BlockData topSlab() {
+        Slab slab = (Slab) Material.SMOOTH_STONE_SLAB.createBlockData();
+        slab.setType(Slab.Type.TOP);
+        return slab;
+    }
+
+    private record Cover(Block block, BlockData blockData) {
     }
 }

@@ -79,10 +79,12 @@ Seine Höhe folgt der genauen Standhöhe, nicht dem Blockraster: Er muss über d
 Auf Pfaden, Ackerland, Platten und Stufen endet die Standfläche zwischen zwei Blockgrenzen,
 weshalb bei jeder Positionsänderung neu gerechnet wird und nicht erst beim Blockwechsel.
 
-Die Deckelhöhe ist bewusst unabhängig von `Attribute.SCALE`, damit die Spielergröße die Nutzung
-von `/crawl` ebenso wenig beeinflusst wie die Nutzung von `/sit`. Schleichen beendet das
-Krabbeln. Beide Haltungen enden außerdem bei Tod, Verlassen des Servers, Flug, Gleitflug, Vanish
-und Wechsel in den Zuschauermodus; sie schließen einander aus.
+Die Deckelform passt sich an `Attribute.SCALE` an: Wenn der unsichtbare volle Deckblock bei einem
+kleinen Spieler zu hoch läge, erzwingt eine nur diesem Client gezeigte obere Halbplatte die
+Kriechhaltung. Damit beeinflusst die Spielergröße die Nutzung von `/crawl` ebenso wenig wie die
+Nutzung von `/sit`. Schleichen beendet das Krabbeln. Beide Haltungen enden außerdem bei Tod,
+Verlassen des Servers, Flug, Gleitflug, Vanish und Wechsel in den Zuschauermodus; sie schließen
+einander aus.
 
 Player names can also be entered with an `@` prefix, for example `/openinv @Fabienne`.
 
