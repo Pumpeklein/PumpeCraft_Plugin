@@ -16,7 +16,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.command.PluginCommand;
 
 public final class PumpeEssentialsPlugin extends JavaPlugin {
-    private static final int CONFIG_VERSION = 7;
+    private static final int CONFIG_VERSION = 8;
 
     private OpenInventoryCommand openInventoryCommand;
     private OfflinePlayerDataService offlinePlayerDataService;
@@ -48,9 +48,9 @@ public final class PumpeEssentialsPlugin extends JavaPlugin {
         );
         registerCommand("back", new BackCommand(backHistory));
 
-        PoseSettings poseSettings = PoseSettings.from(getConfig(), getLogger());
+        PoseSettings poseSettings = PoseSettings.from(getConfig());
         seatService = new SeatService(this, poseSettings);
-        crawlService = new CrawlService(poseSettings);
+        crawlService = new CrawlService();
         PoseCommand poseCommand = new PoseCommand(seatService, crawlService);
         registerCommand("sit", poseCommand);
         registerCommand("crawl", poseCommand);
@@ -123,6 +123,10 @@ public final class PumpeEssentialsPlugin extends JavaPlugin {
             }
             // Neue Abschnitte fehlen in bestehenden Dateien; copyDefaults schreibt sie nach.
             getConfig().options().copyDefaults(true);
+        }
+        if (version < 8) {
+            // Der Deckblock ist einem unsichtbaren Shulker gewichen, der keine Blockform braucht.
+            getConfig().set("crawl", null);
         }
         getConfig().set("config-version", CONFIG_VERSION);
         saveConfig();

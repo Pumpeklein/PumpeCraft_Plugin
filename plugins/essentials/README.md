@@ -68,28 +68,26 @@ Beim Aufstehen wird aktiv auf den Ausgangspunkt zurückgesetzt: Der Rumpf des Si
 0.6 unter der Oberfläche, ohne Rückgabe stünde er anschließend im Boden.
 
 `/crawl` besteht aus zwei Hälften: Die feste `SWIMMING`-Pose regelt, was Server und andere
-Spieler sehen, und ein Deckblock, den nur der krabbelnde Spieler geschickt bekommt, sorgt dafür,
-dass seine eigene Spiellogik ihn nicht aufstehen lässt und durch einen Block hohe Lücken lässt.
-Der Deckblock wird beim Aufstehen durch den echten Blockzustand ersetzt. `crawl.cover-block`
-muss ein kollidierender, unsichtbarer Block sein - alles andere wäre für den Spieler eine Wand,
-die sonst niemand sieht.
+Spieler sehen. Die eigene Pose entscheidet der Client dagegen allein: Passt er stehend nicht
+hin, versucht er es zuerst hockend und erst danach krabbelnd. Es braucht also eine Decke über
+seiner Krabbel- und unter seiner Hockhöhe - eine, die nur das Stehen verbietet, lässt ihn bloß
+hocken, das Bild unter einer Stufe.
 
-Seine Unterkante muss über die Krabbelhöhe des Spielers und **unter dessen Hockhöhe** liegen.
-Der Client wählt die Pose seines eigenen Spielers allein: Passt er stehend nicht hin, versucht
-er es zuerst hockend und erst danach krabbelnd. Ein Deckel, der nur die Standhöhe verbietet,
-lässt ihn deshalb bloß hocken - genau das Bild, das man unter einer Stufe bekommt. Berührt der
-Deckel umgekehrt die Krabbelbox, bricht der Client die Posenwahl ganz ab und der Spieler bleibt
-stehen.
+Diese Decke ist ein unsichtbarer Shulker, der allein an den krabbelnden Spieler geschickt und
+nie in der Welt abgelegt wird. Der Client prüft neben Blöcken auch feste Entities, und ein
+Shulker ist eines davon. Ein Deckblock wäre die naheliegendere Lösung und war es auch, bis
+klar wurde, dass er dort, wo schon ein Block steht - in Türen, an Treppen -, nicht unterzubringen
+ist und dass auf halber Standhöhe nur eine sichtbare Stufe zwischen Krabbel- und Hockhöhe passt.
+Ein Entity kennt diese Grenzen nicht: Es steht auf Bruchteile genau da, wo es gebraucht wird,
+und ersetzt nichts.
 
-Beide Höhen liest der Server aus den Maßen, die er für diesen Spieler führt; damit tragen sie
-`Attribute.SCALE` und die Maße der Serverversion, ohne dass hier Zahlen stehen. Die Höhe folgt
-außerdem der genauen Standfläche, nicht dem Blockraster: Auf Pfaden, Ackerland, Platten und
-Stufen endet sie zwischen zwei Blockgrenzen, weshalb bei jeder Positionsänderung neu gerechnet
-wird und nicht erst beim Blockwechsel.
+Seine Höhe liegt mittig zwischen Krabbel- und Hockhöhe des Spielers, beide aus den Maßen, die
+der Server für ihn führt - damit tragen sie `Attribute.SCALE` und die Maße der Serverversion,
+ohne dass hier Zahlen stehen. Sie folgt der genauen Standfläche, nicht dem Blockraster: Auf
+Pfaden, Ackerland, Platten und Stufen endet die zwischen zwei Blockgrenzen, weshalb bei jeder
+Positionsänderung neu gerechnet wird. Beim Weltwechsel wird der Shulker neu erzeugt, weil der
+Client dort alles vergisst, was er kannte.
 
-Passt in dieses Fenster kein voller Block - weil der Spieler verkleinert ist oder auf halber
-Höhe steht -, tritt eine nur diesem Client gezeigte obere Steinstufe an seine Stelle. Damit
-beeinflusst die Spielergröße die Nutzung von `/crawl` ebenso wenig wie die Nutzung von `/sit`.
 Schleichen beendet das Krabbeln. Beide Haltungen enden außerdem bei
 Tod, Verlassen des Servers, Flug, Gleitflug, Vanish und Wechsel in den Zuschauermodus; sie
 schließen einander aus.

@@ -1,4 +1,4 @@
-config-version: 7
+config-version: 8
 
 item-services:
   rename:
@@ -29,9 +29,3 @@ sit:
   seat-offset: 0.0
   # Verhindert das Sitzen ohne festen Boden unter den Füßen.
   require-ground: true
-
-crawl:
-  # Unsichtbarer Block, der nur dem krabbelnden Spieler über den Kopf gesetzt wird.
-  # Steht er auf halber Höhe (Stufe, Treppe) oder ist er verkleinert, passt kein voller
-  # Block mehr unter die Hockhöhe; dann nimmt der Server sichtbar eine obere Steinstufe.
-  cover-block: BARRIER
