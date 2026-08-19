@@ -9,31 +9,19 @@ import java.util.Set;
 import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.World;
-import org.bukkit.attribute.Attribute;
-import org.bukkit.attribute.AttributeInstance;
-import org.bukkit.block.Block;
-import org.bukkit.block.data.BlockData;
-import org.bukkit.block.data.type.Slab;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Pose;
 
 /**
  * Krabbeln besteht aus zwei Hälften. Die feste {@link Pose#SWIMMING} regelt, was der Server und
  * alle anderen Spieler sehen. Damit der Spieler selbst krabbelt, bekommt nur sein Client einen
- * Block über den Kopf gesetzt: Erst dann verweigert ihm die eigene Spiellogik das Aufstehen und
- * lässt ihn durch einen Block hohe Lücken.
+ * {@link CrawlCover} über den Kopf gesetzt: Erst dann verweigert ihm die eigene Spiellogik das
+ * Aufstehen und lässt ihn durch einen Block hohe Lücken.
  */
 public final class CrawlService {
-    private static final double CRAWL_HEIGHT = 0.6D;
-    private static final double STANDING_HEIGHT = 1.8D;
-    private static final double TOP_SLAB_BOTTOM = 0.5D;
-    private static final BlockData TOP_SLAB = topSlab();
-
     private final PoseSettings settings;
     private final Set<UUID> crawlers = new HashSet<>();
-    private final Map<UUID, Cover> covers = new HashMap<>();
+    private final Map<UUID, CrawlCover> covers = new HashMap<>();
 
     public CrawlService(PoseSettings settings) {
         this.settings = settings;
@@ -48,7 +36,7 @@ public final class CrawlService {
             return false;
         }
         player.setPose(Pose.SWIMMING, true);
-        showCover(player, cover(player, player.getLocation()));
+        showCover(player, CrawlCover.at(player, player.getLocation(), settings.crawlCover()));
         return true;
     }
 
@@ -75,7 +63,7 @@ public final class CrawlService {
         if (!crawlers.contains(player.getUniqueId())) {
             return;
         }
-        Cover target = cover(player, destination);
+        CrawlCover target = CrawlCover.at(player, destination, settings.crawlCover());
         if (Objects.equals(covers.get(player.getUniqueId()), target)) {
             return;
         }
@@ -97,40 +85,7 @@ public final class CrawlService {
         }
     }
 
-    private Cover cover(Player player, Location location) {
-        World world = location.getWorld();
-        if (world == null) {
-            return null;
-        }
-        double scale = scale(player);
-        double feet = location.getY();
-        double crawlTop = feet + CRAWL_HEIGHT * scale;
-        double standingTop = feet + STANDING_HEIGHT * scale;
-
-        Cover fullBlock = coverAt(world, location, crawlTop, standingTop, 0.0D, settings.crawlCover());
-        return fullBlock != null
-            ? fullBlock
-            : coverAt(world, location, crawlTop, standingTop, TOP_SLAB_BOTTOM, TOP_SLAB);
-    }
-
-    private Cover coverAt(
-        World world,
-        Location location,
-        double crawlTop,
-        double standingTop,
-        double collisionBottom,
-        BlockData blockData
-    ) {
-        int blockY = (int) Math.floor(crawlTop - collisionBottom) + 1;
-        double ceiling = blockY + collisionBottom;
-        if (ceiling >= standingTop || blockY < world.getMinHeight() || blockY >= world.getMaxHeight()) {
-            return null;
-        }
-        Block block = world.getBlockAt(location.getBlockX(), blockY, location.getBlockZ());
-        return block.isPassable() && !block.isLiquid() ? new Cover(block, blockData) : null;
-    }
-
-    private void showCover(Player player, Cover target) {
+    private void showCover(Player player, CrawlCover target) {
         if (target == null) {
             return;
         }
@@ -139,7 +94,7 @@ public final class CrawlService {
     }
 
     private void uncover(Player player) {
-        Cover covered = covers.remove(player.getUniqueId());
+        CrawlCover covered = covers.remove(player.getUniqueId());
         // Nach einem Weltwechsel lädt der Client die alten Chunks ohnehin neu; ein Paket
         // mit fremden Koordinaten würde dort einen echten Block überschreiben.
         if (covered != null && covered.block().getWorld().equals(player.getWorld())) {
@@ -150,19 +105,5 @@ public final class CrawlService {
     private void forget(UUID playerId) {
         crawlers.remove(playerId);
         covers.remove(playerId);
-    }
-
-    private static double scale(Player player) {
-        AttributeInstance attribute = player.getAttribute(Attribute.SCALE);
-        return attribute == null ? 1.0D : attribute.getValue();
-    }
-
-    private static BlockData topSlab() {
-        Slab slab = (Slab) Material.SMOOTH_STONE_SLAB.createBlockData();
-        slab.setType(Slab.Type.TOP);
-        return slab;
-    }
-
-    private record Cover(Block block, BlockData blockData) {
     }
 }

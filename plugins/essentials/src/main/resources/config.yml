@@ -32,4 +32,6 @@ sit:
 
 crawl:
   # Unsichtbarer Block, der nur dem krabbelnden Spieler über den Kopf gesetzt wird.
+  # Steht er auf halber Höhe (Stufe, Treppe) oder ist er verkleinert, passt kein voller
+  # Block mehr unter die Hockhöhe; dann nimmt der Server sichtbar eine obere Steinstufe.
   cover-block: BARRIER

@@ -74,17 +74,25 @@ Der Deckblock wird beim Aufstehen durch den echten Blockzustand ersetzt. `crawl.
 muss ein kollidierender, unsichtbarer Block sein - alles andere wäre für den Spieler eine Wand,
 die sonst niemand sieht.
 
-Seine Höhe folgt der genauen Standhöhe, nicht dem Blockraster: Er muss über die Krabbelhöhe
-(0.6) und unter die Standhöhe (1.8) passen, sonst steckt er im Spieler und drückt ihn heraus.
-Auf Pfaden, Ackerland, Platten und Stufen endet die Standfläche zwischen zwei Blockgrenzen,
-weshalb bei jeder Positionsänderung neu gerechnet wird und nicht erst beim Blockwechsel.
+Seine Unterkante muss über die Krabbelhöhe des Spielers und **unter dessen Hockhöhe** liegen.
+Der Client wählt die Pose seines eigenen Spielers allein: Passt er stehend nicht hin, versucht
+er es zuerst hockend und erst danach krabbelnd. Ein Deckel, der nur die Standhöhe verbietet,
+lässt ihn deshalb bloß hocken - genau das Bild, das man unter einer Stufe bekommt. Berührt der
+Deckel umgekehrt die Krabbelbox, bricht der Client die Posenwahl ganz ab und der Spieler bleibt
+stehen.
 
-Die Deckelform passt sich an `Attribute.SCALE` an: Wenn der unsichtbare volle Deckblock bei einem
-kleinen Spieler zu hoch läge, erzwingt eine nur diesem Client gezeigte obere Halbplatte die
-Kriechhaltung. Damit beeinflusst die Spielergröße die Nutzung von `/crawl` ebenso wenig wie die
-Nutzung von `/sit`. Schleichen beendet das Krabbeln. Beide Haltungen enden außerdem bei Tod,
-Verlassen des Servers, Flug, Gleitflug, Vanish und Wechsel in den Zuschauermodus; sie schließen
-einander aus.
+Beide Höhen liest der Server aus den Maßen, die er für diesen Spieler führt; damit tragen sie
+`Attribute.SCALE` und die Maße der Serverversion, ohne dass hier Zahlen stehen. Die Höhe folgt
+außerdem der genauen Standfläche, nicht dem Blockraster: Auf Pfaden, Ackerland, Platten und
+Stufen endet sie zwischen zwei Blockgrenzen, weshalb bei jeder Positionsänderung neu gerechnet
+wird und nicht erst beim Blockwechsel.
+
+Passt in dieses Fenster kein voller Block - weil der Spieler verkleinert ist oder auf halber
+Höhe steht -, tritt eine nur diesem Client gezeigte obere Steinstufe an seine Stelle. Damit
+beeinflusst die Spielergröße die Nutzung von `/crawl` ebenso wenig wie die Nutzung von `/sit`.
+Schleichen beendet das Krabbeln. Beide Haltungen enden außerdem bei
+Tod, Verlassen des Servers, Flug, Gleitflug, Vanish und Wechsel in den Zuschauermodus; sie
+schließen einander aus.
 
 Player names can also be entered with an `@` prefix, for example `/openinv @Fabienne`.
 
