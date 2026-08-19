@@ -20,10 +20,14 @@ public final class PoseListener implements Listener {
         this.crawl = crawl;
     }
 
-    /** Teleports sind ebenfalls Move-Events; der Deckblock zieht deshalb auch dort mit. */
+    /**
+     * Teleports sind ebenfalls Move-Events; der Deckblock zieht deshalb auch dort mit. Der
+     * Blockwechsel taugt nicht als Filter: Der Schritt von einer Stufe auf den vollen Block
+     * daneben verschiebt die Deckposition, ohne den Block unter den Füßen zu wechseln.
+     */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onMove(PlayerMoveEvent event) {
-        if (event.hasChangedBlock()) {
+        if (event.hasChangedPosition()) {
             crawl.follow(event.getPlayer(), event.getTo());
         }
     }
