@@ -26,6 +26,7 @@ public final class PumpeEssentialsPlugin extends JavaPlugin {
         );
         registerCommand("rename", new RenameCommand(itemCustomization));
         registerCommand("sign", new SignCommand(itemCustomization));
+        registerCommand("seen", new SeenCommand());
         getServer().getPluginManager().registerEvents(offlinePlayerDataService, this);
         getServer().getPluginManager().registerEvents(openInventoryCommand, this);
 

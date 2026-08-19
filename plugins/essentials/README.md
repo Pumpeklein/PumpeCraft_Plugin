@@ -14,6 +14,7 @@ Planned area for basic server commands and quality-of-life features.
 - `/openec <Spieler>` - alias for `/opendender`.
 - `/rename <Name>` - benennt das Item in der Haupthand ohne XP-Kosten um.
 - `/sign [Nachricht]` - versieht das Item mit Name, Datum, Uhrzeit und einer optionalen Nachricht.
+- `/seen <Spieler>` - zeigt, ob ein Spieler online ist oder wann er zuletzt online war.
 
 `/rename` und `/sign` werden mit PP bezahlt. Die Formel lautet Grundpreis plus
 Zeichenpreis pro Nicht-Leerzeichen plus Itemwert-Aufschlag. Rename kostet standardmäßig
@@ -30,6 +31,7 @@ Player names can also be entered with an `@` prefix, for example `/openinv @Fabi
 - `pumpecraft.essentials.opendender`
 - `pumpecraft.essentials.rename`
 - `pumpecraft.essentials.sign`
+- `pumpecraft.essentials.seen`
 
 Die Inventarberechtigungen sind standardmäßig deaktiviert. `rename` und `sign`
 sind als bezahlte Spielerfunktionen standardmäßig aktiviert.

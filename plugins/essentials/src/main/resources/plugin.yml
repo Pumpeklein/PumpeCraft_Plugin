@@ -25,6 +25,10 @@ commands:
     description: Signs the item held in the main hand for PumpePoints.
     usage: /sign [Nachricht]
     permission: pumpecraft.essentials.sign
+  seen:
+    description: Shows when a known player was last online.
+    usage: /seen <Spieler>
+    permission: pumpecraft.essentials.seen
 permissions:
   pumpecraft.essentials.*:
     description: Allows using all PumpeEssentials staff features.
@@ -34,6 +38,7 @@ permissions:
       pumpecraft.essentials.opendender: true
       pumpecraft.essentials.rename: true
       pumpecraft.essentials.sign: true
+      pumpecraft.essentials.seen: true
   pumpecraft.essentials.openinv:
     description: Allows opening and editing player inventories.
     default: false
@@ -45,4 +50,7 @@ permissions:
     default: true
   pumpecraft.essentials.sign:
     description: Allows signing the held item for PumpePoints.
+    default: true
+  pumpecraft.essentials.seen:
+    description: Allows viewing when a known player was last online.
     default: true
