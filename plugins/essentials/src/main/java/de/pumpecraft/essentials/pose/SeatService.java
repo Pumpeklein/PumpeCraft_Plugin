@@ -9,6 +9,7 @@ import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.util.BoundingBox;
 
 /**
  * Sitzen heißt reiten: Der Spieler wird Passagier eines unsichtbaren Markers. Nur so sehen
@@ -16,6 +17,9 @@ import org.bukkit.plugin.Plugin;
  * nicht gespeichert, ein Absturz hinterlässt also keine Leichen in der Welt.
  */
 public final class SeatService {
+    private static final double GROUND_PROBE = 0.05D;
+    private static final double GROUND_INSET = 1.0E-3D;
+
     private final Plugin plugin;
     private final PoseSettings settings;
     private final Map<UUID, Seat> seats = new HashMap<>();
@@ -37,7 +41,7 @@ public final class SeatService {
     public boolean sit(Player player) {
         Location origin = player.getLocation();
         World world = origin.getWorld();
-        if (world == null || settings.requireGround() && !player.isOnGround()) {
+        if (world == null || settings.requireGround() && !onGround(player)) {
             return false;
         }
 
@@ -64,6 +68,24 @@ public final class SeatService {
         }
         seats.put(player.getUniqueId(), new Seat(marker, origin));
         return true;
+    }
+
+    /**
+     * {@code Player#isOnGround()} meldet, was der Client behauptet, und ist damit fälschbar.
+     * Gefragt ist ohnehin nur, ob unter der Spielerbox etwas steht - das weiß der Server selbst.
+     * Die Box wird seitlich minimal eingezogen, sonst zählt eine Wand, an der der Spieler bündig
+     * lehnt, als Boden.
+     */
+    private static boolean onGround(Player player) {
+        BoundingBox box = player.getBoundingBox();
+        return player.getWorld().hasCollisionsIn(new BoundingBox(
+            box.getMinX() + GROUND_INSET,
+            box.getMinY() - GROUND_PROBE,
+            box.getMinZ() + GROUND_INSET,
+            box.getMaxX() - GROUND_INSET,
+            box.getMinY(),
+            box.getMaxZ() - GROUND_INSET
+        ));
     }
 
     public void stand(Player player) {
