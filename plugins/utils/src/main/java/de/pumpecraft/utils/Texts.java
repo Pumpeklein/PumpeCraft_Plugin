@@ -41,6 +41,28 @@ public final class Texts {
             + " " + overflowSuffix.replace("{count}", String.valueOf(ordered.size() - limit));
     }
 
+    /**
+     * Relative Zeitangabe für Spielerausgaben, z. B. {@code vor 3 Min.}
+     *
+     * @param elapsedMillis vergangene Zeit in Millisekunden
+     */
+    public static String since(long elapsedMillis) {
+        long seconds = Math.max(0L, elapsedMillis) / 1000L;
+        if (seconds < 60L) {
+            return "gerade eben";
+        }
+        long minutes = seconds / 60L;
+        if (minutes < 60L) {
+            return "vor " + minutes + " Min.";
+        }
+        long hours = minutes / 60L;
+        if (hours < 24L) {
+            return "vor " + hours + " Std.";
+        }
+        long days = hours / 24L;
+        return days == 1L ? "vor 1 Tag" : "vor " + days + " Tagen";
+    }
+
     public static String lower(String value) {
         return value == null ? null : value.toLowerCase(Locale.ROOT);
     }

@@ -1,12 +1,17 @@
 package de.pumpecraft.essentials;
 
+import de.pumpecraft.essentials.back.BackCommand;
+import de.pumpecraft.essentials.back.BackHistoryService;
+import de.pumpecraft.essentials.back.BackListener;
+import de.pumpecraft.essentials.back.BackRepository;
+import de.pumpecraft.essentials.back.BackSettings;
 import de.pumpecraft.transactions.core.Points;
 import java.util.Objects;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.command.PluginCommand;
 
 public final class PumpeEssentialsPlugin extends JavaPlugin {
-    private static final int CONFIG_VERSION = 3;
+    private static final int CONFIG_VERSION = 4;
 
     private OpenInventoryCommand openInventoryCommand;
     private OfflinePlayerDataService offlinePlayerDataService;
@@ -26,8 +31,17 @@ public final class PumpeEssentialsPlugin extends JavaPlugin {
         );
         registerCommand("rename", new RenameCommand(itemCustomization));
         registerCommand("sign", new SignCommand(itemCustomization));
+
+        BackHistoryService backHistory = new BackHistoryService(
+            this,
+            new BackRepository(this),
+            BackSettings.from(getConfig(), getLogger())
+        );
+        registerCommand("back", new BackCommand(backHistory));
+
         getServer().getPluginManager().registerEvents(offlinePlayerDataService, this);
         getServer().getPluginManager().registerEvents(openInventoryCommand, this);
+        getServer().getPluginManager().registerEvents(new BackListener(backHistory), this);
 
         getLogger().info("PumpeEssentials enabled.");
     }
@@ -76,6 +90,10 @@ public final class PumpeEssentialsPlugin extends JavaPlugin {
             replaceDefault("item-services.sign.base-cost", 125L, 100L);
             replaceDefault("item-services.sign.per-character", 10L, 8L);
             replaceDefault("item-services.sign.value-percent", 15L, 10L);
+        }
+        if (version < 4) {
+            // Der Abschnitt back fehlt in bestehenden Dateien; copyDefaults schreibt ihn nach.
+            getConfig().options().copyDefaults(true);
         }
         getConfig().set("config-version", CONFIG_VERSION);
         saveConfig();

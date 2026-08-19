@@ -1,4 +1,4 @@
-config-version: 3
+config-version: 4
 
 item-services:
   rename:
@@ -9,3 +9,15 @@ item-services:
     base-cost: 100
     per-character: 8
     value-percent: 10
+
+back:
+  # Anzahl der gespeicherten Rücksprungpunkte je Spieler.
+  history-size: 10
+  # Teleports unter dieser Distanz innerhalb derselben Welt werden nicht gespeichert.
+  minimum-distance: 8.0
+  # Teleportgründe, die einen Punkt erzeugen. Werte aus PlayerTeleportEvent.TeleportCause.
+  teleport-causes:
+    - COMMAND
+    - PLUGIN
+    - SPECTATE
+  teleport-command: "/tp %x% %y% %z%"

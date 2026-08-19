@@ -19,7 +19,7 @@ Nutzung: `depend: [PumpeUtils]` in der `plugin.yml`. Der Gradle-Classpath kommt 
 
 | Klasse | Inhalt |
 | --- | --- |
-| `Texts` | `decimal`, `percent`, `truncate`, `joinLimited` (Liste mit `(+N)`-Überlauf), `lower` |
+| `Texts` | `decimal`, `number`, `percent`, `truncate`, `joinLimited` (Liste mit `(+N)`-Überlauf), `since` (relative Zeit), `lower` |
 | `Players` | `online`, `known`, `self`, `completeKnownNames`, `completeOnlineNames`, `filterPrefix`, `displayName`, `stripSelector` (`@Name`) |
 | `Locations` | `horizontalDistance`, `samePosition`, `sameWorld`, `distanceToBox`, `aimDot`, `clamp` |
 | `Cooldowns<K>` | Schlüssel-basierte Sperren: `tryAcquire`, `active`, `remainingMillis`, `purgeExpired` |

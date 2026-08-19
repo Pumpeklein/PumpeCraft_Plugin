@@ -25,6 +25,10 @@ commands:
     description: Signs the item held in the main hand for PumpePoints.
     usage: /sign [Nachricht]
     permission: pumpecraft.essentials.sign
+  back:
+    description: Returns to the location left before a teleport or death.
+    usage: /back [history | select <Index> | user <Spieler> [history | <Index>]]
+    permission: pumpecraft.essentials.back
 permissions:
   pumpecraft.essentials.*:
     description: Allows using all PumpeEssentials staff features.
@@ -34,6 +38,9 @@ permissions:
       pumpecraft.essentials.opendender: true
       pumpecraft.essentials.rename: true
       pumpecraft.essentials.sign: true
+      pumpecraft.essentials.back: true
+      pumpecraft.essentials.back.death: true
+      pumpecraft.essentials.back.others: true
   pumpecraft.essentials.openinv:
     description: Allows opening and editing player inventories.
     default: false
@@ -46,3 +53,12 @@ permissions:
   pumpecraft.essentials.sign:
     description: Allows signing the held item for PumpePoints.
     default: true
+  pumpecraft.essentials.back:
+    description: Allows returning to the location left before a teleport.
+    default: false
+  pumpecraft.essentials.back.death:
+    description: Allows returning to own death locations.
+    default: false
+  pumpecraft.essentials.back.others:
+    description: Allows viewing and using the back history of any player.
+    default: false

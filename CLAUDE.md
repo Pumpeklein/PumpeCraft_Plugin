@@ -46,7 +46,7 @@ neue Schlüssel, es korrigiert keine alten.
 | `plugins/utils` | `PumpeUtils` | Statische Helfer ohne Zustand plus Sektionen `messages` und `objects` |
 | `plugins/ai` | `PumpeAI` | DeepSeek-Anbindung als Dienst; erzeugt Textzeilen für andere Plugins |
 | `plugins/anticheat` | `PumpeAntiCheat` | Checks, Client-Erkennung, Item-Validierung |
-| `plugins/essentials` | `PumpeEssentials` | Inventar- und Enderchest-Zugriff für das Team |
+| `plugins/essentials` | `PumpeEssentials` | Inventar- und Enderchest-Zugriff für das Team, Item-Dienste, Rücksprungpunkte (`/back`) |
 | `plugins/mod` | `PumpeMod` | Bans, Mutes, Reports, Notizen |
 | `plugins/clan-system` | `PumpeClanSystem` | Clans, Basen, Tab-Darstellung |
 | `plugins/skills` | `PumpeSkills` | Skill-Level, Belohnungen, GUI |
