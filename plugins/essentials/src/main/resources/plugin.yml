@@ -33,6 +33,14 @@ commands:
     description: Returns to the location left before a teleport or death.
     usage: /back [history | select <Index> | user <Spieler> [history | <Index>]]
     permission: pumpecraft.essentials.back
+  sit:
+    description: Sits the player down on the spot.
+    usage: /sit
+    permission: pumpecraft.essentials.sit
+  crawl:
+    description: Puts the player into the crawling pose.
+    usage: /crawl
+    permission: pumpecraft.essentials.crawl
 permissions:
   pumpecraft.essentials.*:
     description: Allows using all PumpeEssentials staff features.
@@ -46,6 +54,8 @@ permissions:
       pumpecraft.essentials.back: true
       pumpecraft.essentials.back.death: true
       pumpecraft.essentials.back.others: true
+      pumpecraft.essentials.sit: true
+      pumpecraft.essentials.crawl: true
   pumpecraft.essentials.openinv:
     description: Allows opening and editing player inventories.
     default: false
@@ -70,3 +80,9 @@ permissions:
   pumpecraft.essentials.back.others:
     description: Allows viewing and using the back history of any player.
     default: false
+  pumpecraft.essentials.sit:
+    description: Allows sitting down on the spot.
+    default: true
+  pumpecraft.essentials.crawl:
+    description: Allows crawling on the spot.
+    default: true

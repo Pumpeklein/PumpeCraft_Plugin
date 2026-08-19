@@ -1,4 +1,4 @@
-config-version: 4
+config-version: 7
 
 item-services:
   rename:
@@ -21,3 +21,15 @@ back:
     - PLUGIN
     - SPECTATE
   teleport-command: "/tp %x% %y% %z%"
+
+sit:
+  # Lage des unsichtbaren Sitzes gegenüber der Standhöhe des Spielers. Bei 0.0 stehen die
+  # Beine des Sitzenden genau auf der Fläche, auf der er vorher stand; kleinere Werte
+  # versenken ihn darin, größere lassen ihn schweben.
+  seat-offset: 0.0
+  # Verhindert das Sitzen ohne festen Boden unter den Füßen.
+  require-ground: true
+
+crawl:
+  # Unsichtbarer Block, der nur dem krabbelnden Spieler über den Kopf gesetzt wird.
+  cover-block: BARRIER

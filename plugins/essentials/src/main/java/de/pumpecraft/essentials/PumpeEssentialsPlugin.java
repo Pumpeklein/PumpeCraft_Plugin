@@ -5,16 +5,23 @@ import de.pumpecraft.essentials.back.BackHistoryService;
 import de.pumpecraft.essentials.back.BackListener;
 import de.pumpecraft.essentials.back.BackRepository;
 import de.pumpecraft.essentials.back.BackSettings;
+import de.pumpecraft.essentials.pose.CrawlService;
+import de.pumpecraft.essentials.pose.PoseCommand;
+import de.pumpecraft.essentials.pose.PoseListener;
+import de.pumpecraft.essentials.pose.PoseSettings;
+import de.pumpecraft.essentials.pose.SeatService;
 import de.pumpecraft.transactions.core.Points;
 import java.util.Objects;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.command.PluginCommand;
 
 public final class PumpeEssentialsPlugin extends JavaPlugin {
-    private static final int CONFIG_VERSION = 4;
+    private static final int CONFIG_VERSION = 7;
 
     private OpenInventoryCommand openInventoryCommand;
     private OfflinePlayerDataService offlinePlayerDataService;
+    private SeatService seatService;
+    private CrawlService crawlService;
 
     @Override
     public void onEnable() {
@@ -40,9 +47,17 @@ public final class PumpeEssentialsPlugin extends JavaPlugin {
         );
         registerCommand("back", new BackCommand(backHistory));
 
+        PoseSettings poseSettings = PoseSettings.from(getConfig(), getLogger());
+        seatService = new SeatService(this, poseSettings);
+        crawlService = new CrawlService(poseSettings);
+        PoseCommand poseCommand = new PoseCommand(seatService, crawlService);
+        registerCommand("sit", poseCommand);
+        registerCommand("crawl", poseCommand);
+
         getServer().getPluginManager().registerEvents(offlinePlayerDataService, this);
         getServer().getPluginManager().registerEvents(openInventoryCommand, this);
         getServer().getPluginManager().registerEvents(new BackListener(backHistory), this);
+        getServer().getPluginManager().registerEvents(new PoseListener(seatService, crawlService), this);
 
         getLogger().info("PumpeEssentials enabled.");
     }
@@ -54,6 +69,12 @@ public final class PumpeEssentialsPlugin extends JavaPlugin {
         }
         if (offlinePlayerDataService != null) {
             offlinePlayerDataService.shutdown();
+        }
+        if (seatService != null) {
+            seatService.clear();
+        }
+        if (crawlService != null) {
+            crawlService.clear();
         }
         getLogger().info("PumpeEssentials disabled.");
     }
@@ -92,8 +113,14 @@ public final class PumpeEssentialsPlugin extends JavaPlugin {
             replaceDefault("item-services.sign.per-character", 10L, 8L);
             replaceDefault("item-services.sign.value-percent", 15L, 10L);
         }
-        if (version < 4) {
-            // Der Abschnitt back fehlt in bestehenden Dateien; copyDefaults schreibt ihn nach.
+        if (version < 7) {
+            // Beide früheren Standardwerte setzten den Sitzenden zu tief: -0.2 galt noch ab der
+            // Blockgrenze, -0.15 rechnete den Maßstab des Spielermodells nicht mit.
+            double seatOffset = getConfig().getDouble("sit.seat-offset");
+            if (seatOffset == -0.2D || seatOffset == -0.15D) {
+                getConfig().set("sit.seat-offset", PoseSettings.DEFAULT_SEAT_OFFSET);
+            }
+            // Neue Abschnitte fehlen in bestehenden Dateien; copyDefaults schreibt sie nach.
             getConfig().options().copyDefaults(true);
         }
         getConfig().set("config-version", CONFIG_VERSION);

@@ -21,6 +21,8 @@ Planned area for basic server commands and quality-of-life features.
 - `/back user <Spieler>` - setzt einen anderen Spieler auf dessen letzten Punkt zurück.
 - `/back user <Spieler> history` - zeigt den Verlauf eines anderen Spielers, auch offline.
 - `/back user <Spieler> <Index>` - setzt einen anderen Spieler auf den Punkt mit diesem Index zurück.
+- `/sit` - setzt den Spieler an Ort und Stelle hin, erneut aufgerufen steht er wieder auf.
+- `/crawl` - versetzt den Spieler in die Krabbelhaltung, erneut aufgerufen richtet er sich auf.
 
 `/rename` und `/sign` werden mit PP bezahlt. Die Formel lautet Grundpreis plus
 Zeichenpreis pro Nicht-Leerzeichen plus Itemwert-Aufschlag. Rename kostet standardmäßig
@@ -44,6 +46,36 @@ In `config.yml` steuert `back.history-size` die Verlaufslänge, `back.minimum-di
 unterdrückt Kurzsprünge innerhalb derselben Welt, und `back.teleport-causes` legt fest,
 welche Teleportgründe überhaupt einen Punkt erzeugen.
 
+## Haltungen
+
+`/sit` macht den Spieler zum Passagier eines unsichtbaren Markers - nur so sehen die anderen
+die Sitzhaltung und der Sitzende bleibt stehen, wo er ist. Schleichen steigt ab, `/sit` ebenso.
+Der Marker wird nicht gespeichert; ein Absturz hinterlässt keine Reste in der Welt.
+
+Der Sitz steht genau dort, wo der Spieler stand - gleiche Höhe, gleiche X/Z. Das ist kein
+Näherungswert: Ein Reiter wird 0.6 unter dem Anhängepunkt seines Fahrzeugs abgesetzt
+(`Avatar.DEFAULT_VEHICLE_ATTACHMENT`), und genau 0.594 über seiner Entity-Position liegt der
+Fuß eines sitzenden Spielermodells - die Beine knicken auf Hüfthöhe 0.75 um 81° ab, gerendert
+mit Maßstab 0.9375. Beide Werte heben sich auf, `sit.seat-offset` ist deshalb 0.0.
+
+Bezugspunkt ist die Standhöhe des Spielers, nicht das Blockraster: Stufen, Platten, Wege und
+Ackerland enden zwischen zwei Blockgrenzen, und nur die tatsächliche Standhöhe kennt diesen
+Unterschied. Auch X und Z bleiben unverändert - ein Zentrieren auf die Blockmitte würde von
+der unteren Stufe einer Treppe seitlich wegsetzen.
+
+Beim Aufstehen wird aktiv auf den Ausgangspunkt zurückgesetzt: Der Rumpf des Sitzenden liegt
+0.6 unter der Oberfläche, ohne Rückgabe stünde er anschließend im Boden.
+
+`/crawl` besteht aus zwei Hälften: Die feste `SWIMMING`-Pose regelt, was Server und andere
+Spieler sehen, und ein Deckblock, den nur der krabbelnde Spieler geschickt bekommt, sorgt dafür,
+dass seine eigene Spiellogik ihn nicht aufstehen lässt und durch einen Block hohe Lücken lässt.
+Der Deckblock wandert bei jedem Blockwechsel mit und wird beim Aufstehen durch den echten
+Blockzustand ersetzt. `crawl.cover-block` muss ein kollidierender, unsichtbarer Block sein -
+alles andere wäre für den Spieler eine Wand, die sonst niemand sieht.
+
+Beide Haltungen enden bei Tod, Verlassen des Servers und Wechsel in den Zuschauermodus; sie
+schließen einander aus.
+
 Player names can also be entered with an `@` prefix, for example `/openinv @Fabienne`.
 
 ## Permissions
@@ -57,7 +89,10 @@ Player names can also be entered with an `@` prefix, for example `/openinv @Fabi
 - `pumpecraft.essentials.back`
 - `pumpecraft.essentials.back.death`
 - `pumpecraft.essentials.back.others`
+- `pumpecraft.essentials.sit`
+- `pumpecraft.essentials.crawl`
 
 Die Inventarberechtigungen sind standardmäßig deaktiviert. `rename` und `sign`
 sind als bezahlte Spielerfunktionen standardmäßig aktiviert. Die drei `back`-Rechte
-sind standardmäßig deaktiviert und für Moderatoren und Admins gedacht.
+sind standardmäßig deaktiviert und für Moderatoren und Admins gedacht. `sit` und `crawl` sind
+als Spielerfunktionen standardmäßig aktiviert.
