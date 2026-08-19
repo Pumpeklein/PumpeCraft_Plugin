@@ -66,7 +66,7 @@ public final class VanishService {
         announce(
             staff,
             ConnectionMessages.leave(staff.getName()),
-            Component.text(staff.getName() + " ist jetzt im Vanish.", NamedTextColor.DARK_GRAY)
+            Component.text(staff.getName() + " ist jetzt im Vanish.", NamedTextColor.AQUA)
         );
     }
 
@@ -80,7 +80,7 @@ public final class VanishService {
         announce(
             staff,
             ConnectionMessages.join(staff.getName()),
-            Component.text(staff.getName() + " ist nicht mehr im Vanish.", NamedTextColor.DARK_GRAY)
+            Component.text(staff.getName() + " ist nicht mehr im Vanish.", NamedTextColor.AQUA)
         );
     }
 

@@ -33,7 +33,7 @@ public final class DeathMessageListener implements Listener {
 
         event.deathMessage(Messages.render(
             topics.topicFor(context.cause(), deathCount),
-            NamedTextColor.GRAY,
+            NamedTextColor.RED,
             values(context)
         ));
     }

@@ -37,7 +37,7 @@ public final class AdvancementMessageListener implements Listener {
             return;
         }
 
-        event.message(Messages.render(ADVANCEMENT, NamedTextColor.GRAY, Map.of(
+        event.message(Messages.render(ADVANCEMENT, NamedTextColor.LIGHT_PURPLE, Map.of(
             "player", event.getPlayer().getName(),
             "advancement", PlainTextComponentSerializer.plainText().serialize(display.title())
         )));

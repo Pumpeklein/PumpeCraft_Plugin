@@ -3,6 +3,7 @@ package de.pumpecraft.essentials;
 import java.util.List;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -20,7 +21,8 @@ final class BroadcastCommand implements CommandExecutor, TabCompleter {
     ) {
         if (args.length == 0) return false;
 
-        Bukkit.broadcast(Component.text(String.join(" ", args), NamedTextColor.WHITE));
+        Bukkit.broadcast(Component.text(String.join(" ", args), NamedTextColor.GOLD)
+            .decorate(TextDecoration.BOLD));
         return true;
     }
 
