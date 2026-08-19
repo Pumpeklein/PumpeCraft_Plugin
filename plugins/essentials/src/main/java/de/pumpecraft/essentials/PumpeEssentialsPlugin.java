@@ -25,6 +25,8 @@ public final class PumpeEssentialsPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        EssentialsTopics.register();
+
         saveDefaultConfig();
         migrateConfig();
         offlinePlayerDataService = new OfflinePlayerDataService(this);
@@ -39,6 +41,7 @@ public final class PumpeEssentialsPlugin extends JavaPlugin {
         registerCommand("rename", new RenameCommand(itemCustomization));
         registerCommand("sign", new SignCommand(itemCustomization));
         registerCommand("seen", new SeenCommand());
+        registerCommand("bc", new BroadcastCommand());
 
         BackHistoryService backHistory = new BackHistoryService(
             this,

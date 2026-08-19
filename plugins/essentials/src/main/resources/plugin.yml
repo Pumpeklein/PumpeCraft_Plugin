@@ -29,6 +29,12 @@ commands:
     description: Shows when a known player was last online.
     usage: /seen <Spieler>
     permission: pumpecraft.essentials.seen
+  bc:
+    description: Sends a server message to the global chat.
+    usage: /bc <Nachricht>
+    aliases:
+      - broadcast
+    permission: pumpecraft.essentials.broadcast
   back:
     description: Returns to the location left before a teleport or death.
     usage: /back [history | select <Index> | user <Spieler> [history | <Index>]]
@@ -51,6 +57,7 @@ permissions:
       pumpecraft.essentials.rename: true
       pumpecraft.essentials.sign: true
       pumpecraft.essentials.seen: true
+      pumpecraft.essentials.broadcast: true
       pumpecraft.essentials.back: true
       pumpecraft.essentials.back.death: true
       pumpecraft.essentials.back.others: true
@@ -70,6 +77,9 @@ permissions:
     default: true
   pumpecraft.essentials.seen:
     description: Allows viewing when a known player was last online.
+    default: false
+  pumpecraft.essentials.broadcast:
+    description: Allows sending server messages to the global chat.
     default: false
   pumpecraft.essentials.back:
     description: Allows returning to the location left before a teleport.

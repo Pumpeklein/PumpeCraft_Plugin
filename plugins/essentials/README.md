@@ -15,6 +15,7 @@ Planned area for basic server commands and quality-of-life features.
 - `/rename <Name>` - benennt das Item in der Haupthand ohne XP-Kosten um.
 - `/sign [Nachricht]` - versieht das Item mit Name, Datum, Uhrzeit und einer optionalen Nachricht.
 - `/seen <Spieler>` - zeigt, ob ein Spieler online ist oder wann er zuletzt online war.
+- `/bc <Nachricht>` - sendet eine Nachricht ohne Absender in den globalen Chat (`/broadcast` als Alias).
 - `/back` - teleportiert zum zuletzt verlassenen Punkt.
 - `/back history` - zeigt die letzten Punkte mit anklickbaren Koordinaten und Index.
 - `/back select <Index>` - teleportiert zum Punkt mit diesem Index.
@@ -86,13 +87,14 @@ Player names can also be entered with an `@` prefix, for example `/openinv @Fabi
 - `pumpecraft.essentials.rename`
 - `pumpecraft.essentials.sign`
 - `pumpecraft.essentials.seen`
+- `pumpecraft.essentials.broadcast`
 - `pumpecraft.essentials.back`
 - `pumpecraft.essentials.back.death`
 - `pumpecraft.essentials.back.others`
 - `pumpecraft.essentials.sit`
 - `pumpecraft.essentials.crawl`
 
-Die Inventarberechtigungen sind standardmäßig deaktiviert. `rename` und `sign`
+Die Inventar- und Broadcast-Berechtigungen sind standardmäßig deaktiviert. `rename` und `sign`
 sind als bezahlte Spielerfunktionen standardmäßig aktiviert. Die drei `back`-Rechte
-sind standardmäßig deaktiviert und für Moderatoren und Admins gedacht. `sit` und `crawl` sind
-als Spielerfunktionen standardmäßig aktiviert.
+sowie `broadcast` sind für Moderatoren und Admins gedacht. `sit` und `crawl` sind als
+Spielerfunktionen standardmäßig aktiviert.
