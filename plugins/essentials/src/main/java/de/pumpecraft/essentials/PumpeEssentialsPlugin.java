@@ -25,8 +25,6 @@ public final class PumpeEssentialsPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        EssentialsTopics.register();
-
         saveDefaultConfig();
         migrateConfig();
         offlinePlayerDataService = new OfflinePlayerDataService(this);
