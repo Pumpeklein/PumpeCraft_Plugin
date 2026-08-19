@@ -1,7 +1,0 @@
-name: PumpeDatabase
-version: ${version}
-main: de.pumpecraft.database.PumpeDatabasePlugin
-api-version: "1.21"
-load: STARTUP
-author: PumpeCraft
-description: Shared MariaDB connection pool and database migrations.

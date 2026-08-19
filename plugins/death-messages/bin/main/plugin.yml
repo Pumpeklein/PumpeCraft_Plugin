@@ -1,7 +1,0 @@
-name: PumpeDeathMessages
-version: ${version}
-main: de.pumpecraft.deathmessages.PumpeDeathMessagesPlugin
-api-version: '1.21'
-author: PumpeCraft
-description: Death, join, leave and advancement messages for PumpeCraft.
-depend: [PumpeDatabase, PumpeUtils]

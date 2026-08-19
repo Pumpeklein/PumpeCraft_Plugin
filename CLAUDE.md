@@ -1,7 +1,8 @@
 # PumpeCraft Plugins
 
 Gradle-Multiprojekt mit Paper-Plugins für den PumpeCraft-Server. Java 21, Paper-API aus
-`gradle.properties` (`paperApiVersion`).
+`gradle.properties` (`paperApiVersion`). `plugins/essentials` baut als einziges Modul gegen
+Java 25, weil das Paperweight-Dev-Bundle es verlangt.
 
 ## Verbindliche Konventionen
 
@@ -91,3 +92,23 @@ warten, nie ungeprüft in den Chat schreiben. Referenz: `AiMessagePool` in `plug
 
 Neues Modul: in `settings.gradle.kts` includen und in `pluginModulePaths` in
 `build.gradle.kts` eintragen. Bibliotheks-Module zusätzlich in `libraryModulePaths`.
+
+## IDE
+
+```bash
+./gradlew syncIdeConfig
+```
+
+Schreibt die JDKs, mit denen dieser Build arbeitet, als `java.configuration.runtimes` in die
+VS-Code-Einstellungen — in `.vscode/settings.json` und zusätzlich in jede `*.code-workspace`
+im übergeordneten Ordner, die dieses Projekt einbindet. Nötig ist das, weil ein Multi-Root-Workspace
+die Java-Einstellungen nur aus der Workspace-Datei liest und die Ordner-Einstellungen ignoriert.
+Ohne passende Runtime bleibt der Classpath-Container eines Moduls ungebunden ("Unbound classpath
+container: JRE System Library [JavaSE-25]") und die IDE findet danach nicht einmal mehr
+`java.lang.Object`, während `./gradlew build` sauber durchläuft. Erneut ausführen, sobald sich
+eine Toolchain oder eine JDK-Installation ändert.
+
+Klassen aus einem anderen Modul, die die IDE nicht auflöst, der Compiler aber schon: Das Eclipse-Modell
+von Gradle lässt `compileOnly`-Projektabhängigkeiten fallen. Der Build spiegelt sie deshalb in die
+Konfiguration `ideClasspath` — das gilt für jedes Modul, auch für neue. Ist eine Abhängigkeit trotzdem
+unsichtbar, hilft "Java: Clean Java Language Server Workspace" und danach ein Reload.
