@@ -69,9 +69,19 @@ Beim Aufstehen wird aktiv auf den Ausgangspunkt zurückgesetzt: Der Rumpf des Si
 `/crawl` besteht aus zwei Hälften: Die feste `SWIMMING`-Pose regelt, was Server und andere
 Spieler sehen, und ein Deckblock, den nur der krabbelnde Spieler geschickt bekommt, sorgt dafür,
 dass seine eigene Spiellogik ihn nicht aufstehen lässt und durch einen Block hohe Lücken lässt.
-Der Deckblock wandert bei jedem Blockwechsel mit und wird beim Aufstehen durch den echten
-Blockzustand ersetzt. `crawl.cover-block` muss ein kollidierender, unsichtbarer Block sein -
-alles andere wäre für den Spieler eine Wand, die sonst niemand sieht.
+Der Deckblock wird beim Aufstehen durch den echten Blockzustand ersetzt. `crawl.cover-block`
+muss ein kollidierender, unsichtbarer Block sein - alles andere wäre für den Spieler eine Wand,
+die sonst niemand sieht.
+
+Seine Höhe folgt der genauen Standhöhe, nicht dem Blockraster: Er muss über die Krabbelhöhe
+(0.6) und unter die Standhöhe (1.8) passen, sonst steckt er im Spieler und drückt ihn heraus.
+Auf Pfaden, Ackerland, Platten und Stufen endet die Standfläche zwischen zwei Blockgrenzen,
+weshalb bei jeder Positionsänderung neu gerechnet wird und nicht erst beim Blockwechsel.
+
+Beide Höhen hängen an `Attribute.SCALE`. Ein auf 0.4 verkleinerter Spieler ist stehend nur
+0.72 hoch; für ihn existiert meist gar keine gültige Blockposition, weil jeder Deckel entweder
+in ihm steckt oder ihn stehen lässt. Dann bleibt es bei der Pose - für seinen eigenen Client
+ohne Wirkung, aber ohne ihn durch die Gegend zu schieben.
 
 Beide Haltungen enden bei Tod, Verlassen des Servers und Wechsel in den Zuschauermodus; sie
 schließen einander aus.

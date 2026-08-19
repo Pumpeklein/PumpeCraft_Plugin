@@ -100,7 +100,15 @@ public final class SeatService {
         }
     }
 
+    /**
+     * Der leere Fall steigt aus, bevor das Lambda aufgelöst wird: Sonst müsste {@link Seat}
+     * beim Herunterfahren zum ersten Mal geladen werden, und dort ist der Klassenpfad des
+     * Plugins nicht mehr verlässlich - ein während des Betriebs ersetztes Jar reicht schon.
+     */
     public void clear() {
+        if (seats.isEmpty()) {
+            return;
+        }
         seats.values().forEach(seat -> seat.marker().remove());
         seats.clear();
     }
