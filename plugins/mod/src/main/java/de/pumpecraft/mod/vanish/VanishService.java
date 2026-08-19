@@ -12,6 +12,7 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 
+import de.pumpecraft.utils.events.PlayerVanishChangeEvent;
 import de.pumpecraft.utils.messages.ConnectionMessages;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -58,6 +59,7 @@ public final class VanishService {
         staff.getPersistentDataContainer()
             .set(interruptedKey, PersistentDataType.BOOLEAN, staff.getAllowFlight());
 
+        Bukkit.getPluginManager().callEvent(new PlayerVanishChangeEvent(staff, true));
         applyVanishedState(staff);
         heads.spawn(staff);
         applyViewers(staff);
@@ -77,6 +79,7 @@ public final class VanishService {
         }
 
         deactivate(staff, state);
+        Bukkit.getPluginManager().callEvent(new PlayerVanishChangeEvent(staff, false));
         announce(
             staff,
             ConnectionMessages.join(staff.getName()),

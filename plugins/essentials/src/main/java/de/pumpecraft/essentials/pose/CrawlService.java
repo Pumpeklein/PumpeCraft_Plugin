@@ -10,8 +10,6 @@ import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.attribute.Attribute;
-import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Pose;
@@ -92,22 +90,15 @@ public final class CrawlService {
         }
     }
 
-    /**
-     * Der Deckel muss über die Krabbelhöhe und unter die Standhöhe passen, sonst steckt er im
-     * Spieler und drückt ihn heraus. Beide Höhen hängen an {@link Attribute#SCALE}: Ein auf 0.4
-     * verkleinerter Spieler ist stehend nur 0.72 hoch, für ihn gibt es meist gar keine gültige
-     * Blockposition. Dann bleibt es bei der Pose - für seinen eigenen Client ohne Wirkung, aber
-     * ohne ihn durch die Gegend zu schieben.
-     */
+    /** Der virtuelle Deckel bleibt unabhängig von der Spielergröße an derselben Kriechhöhe. */
     private Block coverBlock(Player player, Location location) {
         World world = location.getWorld();
         if (world == null) {
             return null;
         }
-        double scale = scale(player);
         double feet = location.getY();
-        int y = (int) Math.floor(feet + CRAWL_HEIGHT * scale) + 1;
-        if (y > feet + STANDING_HEIGHT * scale || y >= world.getMaxHeight()) {
+        int y = (int) Math.floor(feet + CRAWL_HEIGHT) + 1;
+        if (y > feet + STANDING_HEIGHT || y >= world.getMaxHeight()) {
             return null;
         }
         Block block = world.getBlockAt(location.getBlockX(), y, location.getBlockZ());
@@ -134,10 +125,5 @@ public final class CrawlService {
     private void forget(UUID playerId) {
         crawlers.remove(playerId);
         covers.remove(playerId);
-    }
-
-    private static double scale(Player player) {
-        AttributeInstance attribute = player.getAttribute(Attribute.SCALE);
-        return attribute == null ? 1.0D : attribute.getValue();
     }
 }

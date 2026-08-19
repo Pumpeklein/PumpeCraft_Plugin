@@ -1,10 +1,7 @@
 package de.pumpecraft.deathmessages;
 
-import de.pumpecraft.utils.messages.Messages;
 import java.util.Map;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
@@ -15,6 +12,11 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.projectiles.ProjectileSource;
+
+import de.pumpecraft.utils.messages.Messages;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
 public final class DeathMessageListener implements Listener {
     private final DeathCounterRepository repository;
@@ -33,7 +35,7 @@ public final class DeathMessageListener implements Listener {
 
         event.deathMessage(Messages.render(
             topics.topicFor(context.cause(), deathCount),
-            NamedTextColor.RED,
+            NamedTextColor.DARK_GRAY,
             values(context)
         ));
     }

@@ -1,11 +1,9 @@
 package de.pumpecraft.essentials.pose;
 
-import de.pumpecraft.utils.Players;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
+
 import org.bukkit.GameMode;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -13,6 +11,10 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
+
+import de.pumpecraft.utils.Players;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 
 public final class PoseCommand implements CommandExecutor, TabCompleter {
     private final SeatService seats;
@@ -70,14 +72,14 @@ public final class PoseCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(error("Hier kannst du dich nicht hinsetzen."));
             return true;
         }
-        player.sendMessage(info("Du sitzt. Schleichen oder /sit lässt dich wieder aufstehen."));
+        player.sendMessage(info("Du sitzt. Mit schleichen oder /sit kannst du wieder aufstehen."));
         return true;
     }
 
     private boolean crawl(Player player) {
         if (crawl.isCrawling(player)) {
             crawl.stop(player);
-            player.sendMessage(info("Du krabbelst nicht mehr."));
+            player.sendMessage(info("Du bist aufgestanden."));
             return true;
         }
         String blocker = blocker(player);
@@ -88,7 +90,7 @@ public final class PoseCommand implements CommandExecutor, TabCompleter {
 
         seats.stand(player);
         crawl.start(player);
-        player.sendMessage(info("Du krabbelst. /crawl beendet es wieder."));
+        player.sendMessage(info("Du liegst. Mit schleichen oder /crawl kannst du wieder aufstehen."));
         return true;
     }
 

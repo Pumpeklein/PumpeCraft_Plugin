@@ -79,13 +79,10 @@ Seine Höhe folgt der genauen Standhöhe, nicht dem Blockraster: Er muss über d
 Auf Pfaden, Ackerland, Platten und Stufen endet die Standfläche zwischen zwei Blockgrenzen,
 weshalb bei jeder Positionsänderung neu gerechnet wird und nicht erst beim Blockwechsel.
 
-Beide Höhen hängen an `Attribute.SCALE`. Ein auf 0.4 verkleinerter Spieler ist stehend nur
-0.72 hoch; für ihn existiert meist gar keine gültige Blockposition, weil jeder Deckel entweder
-in ihm steckt oder ihn stehen lässt. Dann bleibt es bei der Pose - für seinen eigenen Client
-ohne Wirkung, aber ohne ihn durch die Gegend zu schieben.
-
-Beide Haltungen enden bei Tod, Verlassen des Servers und Wechsel in den Zuschauermodus; sie
-schließen einander aus.
+Die Deckelhöhe ist bewusst unabhängig von `Attribute.SCALE`, damit die Spielergröße die Nutzung
+von `/crawl` ebenso wenig beeinflusst wie die Nutzung von `/sit`. Schleichen beendet das
+Krabbeln. Beide Haltungen enden außerdem bei Tod, Verlassen des Servers, Flug, Gleitflug, Vanish
+und Wechsel in den Zuschauermodus; sie schließen einander aus.
 
 Player names can also be entered with an `@` prefix, for example `/openinv @Fabienne`.
 
