@@ -18,18 +18,20 @@ final class ChatMessageRepository {
 
     String recordAccepted(Player sender, String message, String type, Player recipient) {
         String messageId = UUID.randomUUID().toString();
-        persist(messageId, sender, message, type, recipient, false, null);
+        persist(messageId, sender, message, type, recipient, false, null, null);
         return messageId;
     }
 
+    // Angehalten heisst: noch nicht zugestellt, aber auch nicht verworfen. held_at
+    // trennt diesen Zustand vom harten Block, der nie beim Team landet.
     String recordFlagged(Player sender, String message, String type, Player recipient, String reason) {
         String messageId = UUID.randomUUID().toString();
-        persist(messageId, sender, message, type, recipient, true, reason);
+        persist(messageId, sender, message, type, recipient, true, reason, System.currentTimeMillis());
         return messageId;
     }
 
     void recordBlocked(Player sender, String message, String type, Player recipient, String reason) {
-        persist(UUID.randomUUID().toString(), sender, message, type, recipient, true, reason);
+        persist(UUID.randomUUID().toString(), sender, message, type, recipient, true, reason, null);
     }
 
     void markDeleted(String messageId, Player staff) {
@@ -57,22 +59,30 @@ final class ChatMessageRepository {
         });
     }
 
-    void markKept(String messageId) {
+    void markApproved(String messageId, Player staff) {
+        String staffId = staff.getUniqueId().toString();
+        String staffName = staff.getName();
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
                 database.withConnection(connection -> {
                     try (PreparedStatement statement = connection.prepareStatement("""
                         UPDATE pc_chat_messages
-                           SET blocked = FALSE
-                         WHERE message_id = ? AND deleted_at IS NULL
+                           SET blocked = FALSE,
+                               approved_at = ?,
+                               approved_by_uuid = ?,
+                               approved_by_name = ?
+                         WHERE message_id = ? AND deleted_at IS NULL AND approved_at IS NULL
                         """)) {
-                        statement.setString(1, messageId);
+                        statement.setLong(1, System.currentTimeMillis());
+                        statement.setString(2, staffId);
+                        statement.setString(3, staffName);
+                        statement.setString(4, messageId);
                         statement.executeUpdate();
                     }
                     return null;
                 });
             } catch (RuntimeException exception) {
-                plugin.getLogger().log(Level.WARNING, "Could not mark flagged chat message as kept.", exception);
+                plugin.getLogger().log(Level.WARNING, "Could not mark held chat message as approved.", exception);
             }
         });
     }
@@ -84,7 +94,8 @@ final class ChatMessageRepository {
         String type,
         Player recipient,
         boolean blocked,
-        String blockReason
+        String blockReason,
+        Long heldAt
     ) {
         long createdAt = System.currentTimeMillis();
         String senderId = sender.getUniqueId().toString();
@@ -97,8 +108,8 @@ final class ChatMessageRepository {
                     try (PreparedStatement statement = connection.prepareStatement("""
                         INSERT INTO pc_chat_messages
                             (message_id, player_uuid, player_name, message, message_type,
-                             recipient_uuid, recipient_name, blocked, block_reason, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                             recipient_uuid, recipient_name, blocked, block_reason, created_at, held_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """)) {
                         statement.setString(1, messageId);
                         statement.setString(2, senderId);
@@ -116,6 +127,8 @@ final class ChatMessageRepository {
                         if (blockReason == null) statement.setNull(9, Types.VARCHAR);
                         else statement.setString(9, blockReason);
                         statement.setLong(10, createdAt);
+                        if (heldAt == null) statement.setNull(11, Types.BIGINT);
+                        else statement.setLong(11, heldAt);
                         statement.executeUpdate();
                     }
                     return null;
