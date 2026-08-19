@@ -1,7 +1,7 @@
 name: PumpeEssentials
 version: ${version}
 main: de.pumpecraft.essentials.PumpeEssentialsPlugin
-api-version: '1.21'
+api-version: "1.21"
 author: PumpeCraft
 description: Essentials plugin for PumpeCraft.
 depend: [PumpeDatabase, PumpeUtils, PumpeTransactions]
@@ -53,4 +53,4 @@ permissions:
     default: true
   pumpecraft.essentials.seen:
     description: Allows viewing when a known player was last online.
-    default: true
+    default: false
