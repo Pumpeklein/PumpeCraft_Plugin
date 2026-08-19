@@ -78,15 +78,27 @@ nie in der Welt abgelegt wird. Der Client prüft neben Blöcken auch feste Entit
 Shulker ist eines davon. Ein Deckblock wäre die naheliegendere Lösung und war es auch, bis
 klar wurde, dass er dort, wo schon ein Block steht - in Türen, an Treppen -, nicht unterzubringen
 ist und dass auf halber Standhöhe nur eine sichtbare Stufe zwischen Krabbel- und Hockhöhe passt.
-Ein Entity kennt diese Grenzen nicht: Es steht auf Bruchteile genau da, wo es gebraucht wird,
-und ersetzt nichts.
 
-Seine Höhe liegt mittig zwischen Krabbel- und Hockhöhe des Spielers, beide aus den Maßen, die
-der Server für ihn führt - damit tragen sie `Attribute.SCALE` und die Maße der Serverversion,
-ohne dass hier Zahlen stehen. Sie folgt der genauen Standfläche, nicht dem Blockraster: Auf
-Pfaden, Ackerland, Platten und Stufen endet die zwischen zwei Blockgrenzen, weshalb bei jeder
-Positionsänderung neu gerechnet wird. Beim Weltwechsel wird der Shulker neu erzeugt, weil der
-Client dort alles vergisst, was er kannte.
+Frei setzen lässt sich der Shulker allerdings nicht: Sein `setPos` rundet die Höhe auf ganze
+Blöcke und zentriert ihn in der Blockmitte. Unter eine Blockgrenze kommt seine Unterkante nur
+über den Öffnungsgrad - nach oben angehängt wächst seine Kollisionsbox nach unten, um
+`0.5 - sin((0.5 + peek) * PI) * 0.5`. Der Öffnungsgrad wird deshalb aus der gewünschten Höhe
+zurückgerechnet. Ohne das läge die Decke immer auf einer Blockgrenze, und wer kleiner ist als
+ein Block hoch, fände dort entweder nichts - er hockt - oder steckte in der Box fest.
+
+Fällt eine Blockgrenze ohnehin in das Fenster zwischen Krabbel- und Hockhöhe, bleibt der
+Shulker geschlossen; das ist der Normalfall für einen ungeskalierten Spieler auf ebenem Boden.
+Sonst liegt die Decke im oberen Viertel des Fensters: Ein Fehler nach oben kostet nur eine
+Hockhaltung für ein paar Ticks, einer nach unten schlösse den Spieler in der Box ein. Aus
+demselben Grund wird der Shulker neu erzeugt, statt ihn nachzuführen, wenn er sich schließen
+müsste - der Client fährt den Öffnungsgrad mit 0.05 je Tick nach, ein neuer beginnt geschlossen
+und öffnet sich nur nach unten.
+
+Beide Höhen kommen aus den Maßen, die der Server für den Spieler führt - damit tragen sie
+`Attribute.SCALE` und die Maße der Serverversion, ohne dass hier Zahlen stehen. Sie folgen der
+genauen Standfläche, nicht dem Blockraster: Auf Pfaden, Ackerland, Platten und Stufen endet die
+zwischen zwei Blockgrenzen, weshalb bei jeder Positionsänderung neu gerechnet wird. Beim
+Weltwechsel wird der Shulker neu erzeugt, weil der Client dort alles vergisst, was er kannte.
 
 Schleichen beendet das Krabbeln. Beide Haltungen enden außerdem bei
 Tod, Verlassen des Servers, Flug, Gleitflug, Vanish und Wechsel in den Zuschauermodus; sie

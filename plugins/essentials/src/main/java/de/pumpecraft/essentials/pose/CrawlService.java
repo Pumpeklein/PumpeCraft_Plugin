@@ -40,7 +40,7 @@ public final class CrawlService {
         if (box == null) {
             return;
         }
-        box.remove();
+        box.hide();
         player.setPose(Pose.STANDING, false);
     }
 
