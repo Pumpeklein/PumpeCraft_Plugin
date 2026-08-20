@@ -7,7 +7,8 @@ public enum TransactionType {
     ADMIN_GRANT("Team-Gutschrift"),
     ADMIN_TAKE("Team-Abbuchung"),
     ADMIN_SET("Team-Korrektur"),
-    ESSENTIALS_SERVICE("Essentials-Dienst");
+    ESSENTIALS_SERVICE("Essentials-Dienst"),
+    TRADER_PURCHASE("Trader-Kauf");
 
     private final String label;
 

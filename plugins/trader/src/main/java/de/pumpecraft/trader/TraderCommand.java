@@ -30,34 +30,43 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.hanging.HangingBreakEvent;
 import org.bukkit.event.hanging.HangingPlaceEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.MerchantRecipe;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitTask;
 
 public final class TraderCommand implements CommandExecutor, TabCompleter, Listener {
     private static final byte TRUE = 1;
+    private static final String SPAWN_PERMISSION = "pumpecraft.trader.spawn";
+    private static final String DELETE_PERMISSION = "pumpecraft.trader.delete";
 
     private final PumpeTraderPlugin plugin;
+    private final TraderItems items;
+    private final TraderShop shop;
     private final NamespacedKey traderKey;
-    private final NamespacedKey invisibleFrameKey;
     private final Map<UUID, BukkitTask> despawnTasks = new HashMap<>();
 
-    public TraderCommand(PumpeTraderPlugin plugin) {
+    public TraderCommand(PumpeTraderPlugin plugin, TraderItems items, TraderShop shop) {
         this.plugin = plugin;
+        this.items = items;
+        this.shop = shop;
         this.traderKey = new NamespacedKey(plugin, "event_trader");
-        this.invisibleFrameKey = new NamespacedKey(plugin, "invisible_item_frame");
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (args.length == 1 && args[0].equalsIgnoreCase("del")) {
+            return deleteTraders(sender);
+        }
         if (!(sender instanceof Player player)) {
             sender.sendMessage(error("Dieser Befehl kann nur von Spielern genutzt werden."));
             return true;
         }
+        if (!player.hasPermission(SPAWN_PERMISSION)) {
+            player.sendMessage(error("Dafür hast du keine Berechtigung."));
+            return true;
+        }
 
         if (args.length != 1) {
-            player.sendMessage(error("Nutzung: /" + label + " <Zeit>"));
+            player.sendMessage(error("Nutzung: /" + label + " <Zeit|del>"));
             player.sendMessage(error("Beispiele: /" + label + " 30m, /" + label + " 2h, /" + label + " 1d"));
             return true;
         }
@@ -74,12 +83,19 @@ public final class TraderCommand implements CommandExecutor, TabCompleter, Liste
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length != 1 || !command.testPermissionSilent(sender)) {
+        if (args.length != 1) {
             return List.of();
         }
 
         String input = args[0].toLowerCase(Locale.ROOT);
-        return List.of("15m", "30m", "1h", "2h", "6h").stream()
+        List<String> options = new ArrayList<>();
+        if (sender.hasPermission(SPAWN_PERMISSION)) {
+            options.addAll(List.of("15m", "30m", "1h", "2h", "6h"));
+        }
+        if (sender.hasPermission(DELETE_PERMISSION)) {
+            options.add("del");
+        }
+        return options.stream()
             .filter(option -> option.startsWith(input))
             .toList();
     }
@@ -98,13 +114,13 @@ public final class TraderCommand implements CommandExecutor, TabCompleter, Liste
         }
 
         ItemStack placedItem = event.getItemStack();
-        if (!isInvisibleFrameItem(placedItem)) {
+        if (!items.isInvisibleFrame(placedItem)) {
             return;
         }
 
         itemFrame.setVisible(false);
         itemFrame.setFixed(false);
-        itemFrame.getPersistentDataContainer().set(invisibleFrameKey, PersistentDataType.BYTE, TRUE);
+        items.markInvisibleFrame(itemFrame);
     }
 
     @EventHandler
@@ -113,35 +129,42 @@ public final class TraderCommand implements CommandExecutor, TabCompleter, Liste
             return;
         }
 
-        if (!isMarkedInvisibleFrame(itemFrame)) {
+        if (!items.isMarkedInvisibleFrame(itemFrame)) {
             return;
         }
 
         event.setCancelled(true);
-        Material dropType = itemFrame.getType() == EntityType.GLOW_ITEM_FRAME ? Material.GLOW_ITEM_FRAME : Material.ITEM_FRAME;
         ItemStack displayedItem = itemFrame.getItem();
         if (displayedItem != null && displayedItem.getType() != Material.AIR) {
             itemFrame.getWorld().dropItemNaturally(itemFrame.getLocation(), displayedItem.clone());
             itemFrame.setItem(new ItemStack(Material.AIR));
         }
-        itemFrame.getWorld().dropItemNaturally(itemFrame.getLocation(), invisibleFrameItem(dropType, 1));
-        itemFrame.getPersistentDataContainer().remove(invisibleFrameKey);
+        itemFrame.getWorld().dropItemNaturally(itemFrame.getLocation(), items.frameDrop(itemFrame));
+        items.unmarkInvisibleFrame(itemFrame);
         itemFrame.remove();
     }
 
-    void removeAllTraders() {
+    int removeAllTraders(boolean announce) {
         for (BukkitTask task : despawnTasks.values()) {
             task.cancel();
         }
         despawnTasks.clear();
 
+        int removed = 0;
         for (World world : Bukkit.getWorlds()) {
             for (WanderingTrader trader : world.getEntitiesByClass(WanderingTrader.class)) {
                 if (isEventTrader(trader)) {
+                    Location location = trader.getLocation();
                     trader.remove();
+                    removed++;
+                    if (announce) {
+                        Bukkit.broadcast(Messages.render(TraderTopics.DESPAWNED, NamedTextColor.YELLOW,
+                            Map.of("location", formatLocation(location))));
+                    }
                 }
             }
         }
+        return removed;
     }
 
     private void spawnTrader(Location location, Duration duration) {
@@ -161,7 +184,7 @@ public final class TraderCommand implements CommandExecutor, TabCompleter, Liste
         trader.setRemoveWhenFarAway(false);
         trader.setPersistent(true);
         trader.getPersistentDataContainer().set(traderKey, PersistentDataType.BYTE, TRUE);
-        trader.setRecipes(createRecipes());
+        trader.setRecipes(shop.createRecipes());
 
         Bukkit.broadcast(Messages.render(TraderTopics.SPAWNED, NamedTextColor.YELLOW,
             Map.of("location", formatLocation(spawnLocation))));
@@ -184,79 +207,21 @@ public final class TraderCommand implements CommandExecutor, TabCompleter, Liste
             Map.of("location", formatLocation(location))));
     }
 
-    private List<MerchantRecipe> createRecipes() {
-        List<MerchantRecipe> recipes = new ArrayList<>();
-        recipes.add(recipe(
-            item(Material.LIGHT, 1, "Light Block", "Unsichtbare Lichtquelle für Builder."),
-            new ItemStack(Material.SOUL_SAND, 5),
-            new ItemStack(Material.CAULDRON, 1)
-        ));
-        recipes.add(recipe(
-            invisibleFrameItem(Material.ITEM_FRAME, 2),
-            new ItemStack(Material.LEATHER, 6),
-            new ItemStack(Material.GLASS_PANE, 8)
-        ));
-        recipes.add(recipe(
-            invisibleFrameItem(Material.GLOW_ITEM_FRAME, 1),
-            new ItemStack(Material.GLOW_INK_SAC, 2),
-            new ItemStack(Material.GLASS_PANE, 8)
-        ));
-        recipes.add(recipe(
-            item(Material.SPONGE, 2, "Sponges", "Wasser weg, Problem kleiner."),
-            new ItemStack(Material.PRISMARINE_SHARD, 12),
-            new ItemStack(Material.KELP, 32)
-        ));
-        return recipes;
-    }
-
-    private MerchantRecipe recipe(ItemStack result, ItemStack firstIngredient, ItemStack secondIngredient) {
-        MerchantRecipe recipe = new MerchantRecipe(result, 999999);
-        recipe.addIngredient(firstIngredient);
-        recipe.addIngredient(secondIngredient);
-        return recipe;
-    }
-
-    private ItemStack item(Material material, int amount, String name, String lore) {
-        ItemStack item = new ItemStack(material, amount);
-        ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text(name, NamedTextColor.GOLD));
-        meta.lore(List.of(Component.text(lore, NamedTextColor.GRAY)));
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    private ItemStack invisibleFrameItem(Material material, int amount) {
-        ItemStack item = new ItemStack(material, amount);
-        ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text(material == Material.GLOW_ITEM_FRAME ? "Invisible Glow Item Frame" : "Invisible Item Frame", NamedTextColor.GOLD));
-        meta.lore(List.of(
-            Component.text("Bleibt beim Platzieren unsichtbar.", NamedTextColor.GRAY),
-            Component.text("Kann normal abgebaut und wieder genutzt werden.", NamedTextColor.GRAY)
-        ));
-        meta.getPersistentDataContainer().set(invisibleFrameKey, PersistentDataType.BYTE, TRUE);
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    private boolean isInvisibleFrameItem(ItemStack item) {
-        if (item == null || !item.hasItemMeta()) {
-            return false;
-        }
-
-        Material type = item.getType();
-        if (type != Material.ITEM_FRAME && type != Material.GLOW_ITEM_FRAME) {
-            return false;
-        }
-
-        return item.getItemMeta().getPersistentDataContainer().has(invisibleFrameKey, PersistentDataType.BYTE);
-    }
-
-    private boolean isMarkedInvisibleFrame(ItemFrame itemFrame) {
-        return itemFrame.getPersistentDataContainer().has(invisibleFrameKey, PersistentDataType.BYTE);
-    }
-
     private boolean isEventTrader(Entity entity) {
         return entity.getPersistentDataContainer().has(traderKey, PersistentDataType.BYTE);
+    }
+
+    private boolean deleteTraders(CommandSender sender) {
+        if (!sender.hasPermission(DELETE_PERMISSION)) {
+            sender.sendMessage(error("Dafür hast du keine Berechtigung."));
+            return true;
+        }
+        int removed = removeAllTraders(true);
+        sender.sendMessage(removed == 0
+            ? error("Es ist kein Event-Trader aktiv.")
+            : Component.text(removed == 1 ? "Der Event-Trader wurde gelöscht." : removed + " Event-Trader wurden gelöscht.",
+                NamedTextColor.GREEN));
+        return true;
     }
 
     private Duration parseDuration(String input) {

@@ -4,18 +4,21 @@ main: de.pumpecraft.trader.PumpeTraderPlugin
 api-version: '1.21'
 author: PumpeCraft
 description: Trader plugin for PumpeCraft.
-depend: [PumpeUtils]
+depend: [PumpeUtils, PumpeTransactions]
 commands:
   trader:
-    description: Spawns a temporary PumpeCraft trader at your location.
-    usage: /trader <Zeit>
-    permission: pumpecraft.trader.spawn
+    description: Spawns or removes the temporary PumpeCraft trader.
+    usage: /trader <Zeit|del>
 permissions:
   pumpecraft.trader.*:
     description: Allows using all PumpeTrader staff features.
     default: false
     children:
       pumpecraft.trader.spawn: true
+      pumpecraft.trader.delete: true
   pumpecraft.trader.spawn:
     description: Allows spawning temporary traders.
+    default: false
+  pumpecraft.trader.delete:
+    description: Allows removing active temporary traders.
     default: false
