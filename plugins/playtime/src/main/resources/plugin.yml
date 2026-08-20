@@ -8,7 +8,7 @@ depend: [PumpeDatabase]
 commands:
   playtime:
     description: Shows your tracked playtime.
-    usage: /playtime
+    usage: /playtime [Spieler]
     permission: pumpecraft.playtime.use
 permissions:
   pumpecraft.playtime.use:

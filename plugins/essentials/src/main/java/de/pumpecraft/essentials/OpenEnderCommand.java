@@ -18,19 +18,32 @@ public final class OpenEnderCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!(sender instanceof Player viewer)) {
-            sender.sendMessage(error("Dieser Befehl kann nur von Spielern genutzt werden."));
+        Player viewer;
+        int targetArgument;
+        if (sender instanceof Player player) {
+            viewer = player;
+            targetArgument = 0;
+        } else {
+            if (args.length != 2) {
+                sender.sendMessage(error("Nutzung: /" + label + " <Viewer> <Zielspieler>"));
+                return true;
+            }
+            viewer = TargetPlayers.findOnlinePlayer(args[0]);
+            if (viewer == null) {
+                sender.sendMessage(error("Der Viewer muss online sein."));
+                return true;
+            }
+            targetArgument = 1;
+        }
+
+        if (args.length != targetArgument + 1) {
+            sender.sendMessage(error("Nutzung: /" + label + " <Spieler>"));
             return true;
         }
 
-        if (args.length != 1) {
-            viewer.sendMessage(error("Nutzung: /" + label + " <Spieler>"));
-            return true;
-        }
-
-        Player target = TargetPlayers.findOnlinePlayer(args[0]);
+        Player target = TargetPlayers.findOnlinePlayer(args[targetArgument]);
         if (target == null) {
-            org.bukkit.OfflinePlayer offlineTarget = TargetPlayers.findKnownPlayer(args[0]);
+            org.bukkit.OfflinePlayer offlineTarget = TargetPlayers.findKnownPlayer(args[targetArgument]);
             if (offlineTarget == null) {
                 viewer.sendMessage(error("Dieser Spieler ist dem Server nicht bekannt."));
                 return true;
@@ -75,11 +88,16 @@ public final class OpenEnderCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length != 1 || !command.testPermissionSilent(sender)) {
+        if (!command.testPermissionSilent(sender)) {
             return List.of();
         }
-
-        return TargetPlayers.completeKnownPlayers(args[0]);
+        if (!(sender instanceof Player) && args.length == 1) {
+            return de.pumpecraft.utils.Players.completeOnlineNames(args[0], 50);
+        }
+        if (args.length == (sender instanceof Player ? 1 : 2)) {
+            return TargetPlayers.completeKnownPlayers(args[args.length - 1]);
+        }
+        return List.of();
     }
 
     private Component error(String message) {

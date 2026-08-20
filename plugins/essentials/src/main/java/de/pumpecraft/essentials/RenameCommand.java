@@ -1,5 +1,6 @@
 package de.pumpecraft.essentials;
 
+import de.pumpecraft.utils.Players;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import java.util.List;
@@ -25,14 +26,24 @@ final class RenameCommand implements CommandExecutor, TabCompleter {
         @NotNull String label,
         @NotNull String[] args
     ) {
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage("Dieser Befehl ist nur für Spieler verfügbar.");
-            return true;
+        Player player;
+        int nameStart;
+        if (sender instanceof Player self) {
+            player = self;
+            nameStart = 0;
+        } else {
+            if (args.length < 2) return false;
+            player = Players.online(args[0]).orElse(null);
+            if (player == null) {
+                sender.sendMessage(Component.text("Dieser Spieler ist nicht online.", NamedTextColor.RED));
+                return true;
+            }
+            nameStart = 1;
         }
-        if (args.length == 0) return false;
-        String name = String.join(" ", args).trim();
+        if (args.length <= nameStart) return false;
+        String name = String.join(" ", java.util.Arrays.copyOfRange(args, nameStart, args.length)).trim();
         if (name.length() > MAX_NAME_LENGTH) {
-            player.sendMessage(Component.text("Der Name darf höchstens 50 Zeichen lang sein.", NamedTextColor.RED));
+            sender.sendMessage(Component.text("Der Name darf höchstens 50 Zeichen lang sein.", NamedTextColor.RED));
             return true;
         }
         items.rename(player, name);
@@ -46,6 +57,8 @@ final class RenameCommand implements CommandExecutor, TabCompleter {
         @NotNull String alias,
         @NotNull String[] args
     ) {
-        return List.of();
+        return !(sender instanceof Player) && args.length == 1
+            ? Players.completeOnlineNames(args[0], 50)
+            : List.of();
     }
 }

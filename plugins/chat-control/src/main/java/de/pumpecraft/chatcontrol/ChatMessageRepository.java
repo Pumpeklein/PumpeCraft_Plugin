@@ -5,6 +5,7 @@ import java.sql.PreparedStatement;
 import java.sql.Types;
 import java.util.UUID;
 import java.util.logging.Level;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 final class ChatMessageRepository {
@@ -16,7 +17,7 @@ final class ChatMessageRepository {
         this.database = database;
     }
 
-    String recordAccepted(Player sender, String message, String type, Player recipient) {
+    String recordAccepted(CommandSender sender, String message, String type, Player recipient) {
         String messageId = UUID.randomUUID().toString();
         persist(messageId, sender, message, type, recipient, false, null, null);
         return messageId;
@@ -24,19 +25,20 @@ final class ChatMessageRepository {
 
     // Angehalten heisst: noch nicht zugestellt, aber auch nicht verworfen. held_at
     // trennt diesen Zustand vom harten Block, der nie beim Team landet.
-    String recordFlagged(Player sender, String message, String type, Player recipient, String reason) {
+    String recordFlagged(CommandSender sender, String message, String type, Player recipient, String reason) {
         String messageId = UUID.randomUUID().toString();
         persist(messageId, sender, message, type, recipient, true, reason, System.currentTimeMillis());
         return messageId;
     }
 
-    void recordBlocked(Player sender, String message, String type, Player recipient, String reason) {
+    void recordBlocked(CommandSender sender, String message, String type, Player recipient, String reason) {
         persist(UUID.randomUUID().toString(), sender, message, type, recipient, true, reason, null);
     }
 
-    void markDeleted(String messageId, Player staff) {
-        String staffId = staff.getUniqueId().toString();
-        String staffName = staff.getName();
+    void markDeleted(String messageId, CommandSender staff) {
+        ChatActor actor = ChatActor.of(staff);
+        String staffId = actor.id().toString();
+        String staffName = actor.name();
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
                 database.withConnection(connection -> {
@@ -59,9 +61,10 @@ final class ChatMessageRepository {
         });
     }
 
-    void markApproved(String messageId, Player staff) {
-        String staffId = staff.getUniqueId().toString();
-        String staffName = staff.getName();
+    void markApproved(String messageId, CommandSender staff) {
+        ChatActor actor = ChatActor.of(staff);
+        String staffId = actor.id().toString();
+        String staffName = actor.name();
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
                 database.withConnection(connection -> {
@@ -89,7 +92,7 @@ final class ChatMessageRepository {
 
     private void persist(
         String messageId,
-        Player sender,
+        CommandSender sender,
         String message,
         String type,
         Player recipient,
@@ -98,8 +101,9 @@ final class ChatMessageRepository {
         Long heldAt
     ) {
         long createdAt = System.currentTimeMillis();
-        String senderId = sender.getUniqueId().toString();
-        String senderName = sender.getName();
+        ChatActor actor = ChatActor.of(sender);
+        String senderId = actor.id().toString();
+        String senderName = actor.name();
         String recipientId = recipient == null ? null : recipient.getUniqueId().toString();
         String recipientName = recipient == null ? null : recipient.getName();
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {

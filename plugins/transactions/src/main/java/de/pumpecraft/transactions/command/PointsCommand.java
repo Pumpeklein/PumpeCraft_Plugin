@@ -52,7 +52,17 @@ public final class PointsCommand implements CommandExecutor, TabCompleter {
         }
 
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(Messages.error("Dieser Befehl kann nur von Spielern genutzt werden."));
+            if (args.length == 0) {
+                sender.sendMessage(Messages.error("Nutzung: /" + label + " <Spieler|top|history>"));
+                return true;
+            }
+            switch (args[0].toLowerCase(Locale.ROOT)) {
+                case "top" -> handleTop(sender);
+                case "history", "verlauf" -> handleHistory(sender, args);
+                case "help", "hilfe" -> sendHelp(sender, label);
+                case "pay", "senden" -> handleConsolePay(sender, label, args);
+                default -> handleOtherPlayer(sender, args[0]);
+            }
             return true;
         }
 
@@ -93,7 +103,9 @@ public final class PointsCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("pay")) {
-            return Players.completeOnlineNames(args[1], 40);
+            return sender instanceof Player
+                ? Players.completeOnlineNames(args[1], 40)
+                : Players.completeKnownNames(args[1], 40);
         }
 
         if (args.length == 2 && (args[0].equalsIgnoreCase("history") || args[0].equalsIgnoreCase("verlauf"))
@@ -102,7 +114,13 @@ public final class PointsCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 3 && args[0].equalsIgnoreCase("pay")) {
-            return Players.filterPrefix(List.of("100", "500", "1000"), args[2]);
+            return sender instanceof Player
+                ? Players.filterPrefix(List.of("100", "500", "1000"), args[2])
+                : Players.completeKnownNames(args[2], 40);
+        }
+
+        if (!(sender instanceof Player) && args.length == 4 && args[0].equalsIgnoreCase("pay")) {
+            return Players.filterPrefix(List.of("100", "500", "1000"), args[3]);
         }
 
         return List.of();
@@ -134,14 +152,14 @@ public final class PointsCommand implements CommandExecutor, TabCompleter {
         });
     }
 
-    private void handleOtherPlayer(Player player, String targetName) {
-        if (!player.hasPermission(OTHERS_PERMISSION)) {
-            player.sendMessage(Messages.error("Unbekannter Unterbefehl: " + targetName));
+    private void handleOtherPlayer(CommandSender sender, String targetName) {
+        if (!sender.hasPermission(OTHERS_PERMISSION)) {
+            sender.sendMessage(Messages.error("Unbekannter Unterbefehl: " + targetName));
             return;
         }
         Optional<OfflinePlayer> target = Players.known(targetName);
         if (target.isEmpty()) {
-            player.sendMessage(Messages.error("Der Spieler " + targetName + " ist nicht bekannt."));
+            sender.sendMessage(Messages.error("Der Spieler " + targetName + " ist nicht bekannt."));
             return;
         }
 
@@ -149,11 +167,9 @@ public final class PointsCommand implements CommandExecutor, TabCompleter {
         points.runAsync(() -> {
             long balance = points.balance(resolved.getUniqueId());
             points.runSync(() -> {
-                if (player.isOnline()) {
-                    player.sendMessage(Component.text(
-                            "Kontostand von " + Players.displayName(resolved) + ": ", NamedTextColor.GRAY)
-                        .append(Currency.component(balance)));
-                }
+                sender.sendMessage(Component.text(
+                        "Kontostand von " + Players.displayName(resolved) + ": ", NamedTextColor.GRAY)
+                    .append(Currency.component(balance)));
             });
         });
     }
@@ -195,6 +211,70 @@ public final class PointsCommand implements CommandExecutor, TabCompleter {
         });
     }
 
+    private void handleConsolePay(CommandSender sender, String label, String[] args) {
+        if (args.length != 4) {
+            sender.sendMessage(Messages.error(
+                "Nutzung: /" + label + " pay <Absender> <Empfänger> <Betrag>"));
+            return;
+        }
+        Optional<OfflinePlayer> source = Players.known(args[1]);
+        Optional<OfflinePlayer> target = Players.known(args[2]);
+        if (source.isEmpty() || target.isEmpty()) {
+            sender.sendMessage(Messages.error("Absender oder Empfänger ist nicht bekannt."));
+            return;
+        }
+        OptionalLong amount = Currency.parseAmount(args[3]);
+        if (amount.isEmpty()) {
+            sender.sendMessage(Messages.error("Ungültiger Betrag: " + args[3]));
+            return;
+        }
+
+        OfflinePlayer payer = source.get();
+        OfflinePlayer receiver = target.get();
+        String payerName = Players.displayName(payer);
+        String receiverName = Players.displayName(receiver);
+        long value = amount.getAsLong();
+        points.runAsync(() -> {
+            TransferResult result = points.transfer(
+                payer.getUniqueId(),
+                payerName,
+                receiver.getUniqueId(),
+                receiverName,
+                value,
+                "Konsolenüberweisung"
+            );
+            points.runSync(() -> announceConsoleTransfer(
+                sender, payerName, receiver, receiverName, value, result));
+        });
+    }
+
+    private void announceConsoleTransfer(
+        CommandSender sender,
+        String payerName,
+        OfflinePlayer receiver,
+        String receiverName,
+        long amount,
+        TransferResult result
+    ) {
+        if (!result.success()) {
+            TransactionsSettings settings = points.settings();
+            sender.sendMessage(Messages.transferError(
+                result.outcome(), settings.transferMinimum(), settings.transferMaximum()));
+            return;
+        }
+        sender.sendMessage(Messages.success(
+                "Überweisung von " + payerName + " an " + receiverName + ": ")
+            .append(Currency.component(amount)));
+        Player online = receiver.getPlayer();
+        if (online != null) {
+            online.sendMessage(Component.text(payerName + " hat dir ", NamedTextColor.GRAY)
+                .append(Currency.component(amount))
+                .append(Component.text(" überwiesen. ", NamedTextColor.GRAY))
+                .append(Component.text("Kontostand: ", NamedTextColor.DARK_GRAY))
+                .append(Currency.component(result.receiverBalance())));
+        }
+    }
+
     private void announceTransfer(
         Player sender,
         OfflinePlayer receiver,
@@ -228,30 +308,27 @@ public final class PointsCommand implements CommandExecutor, TabCompleter {
         }
     }
 
-    private void handleTop(Player player) {
+    private void handleTop(CommandSender sender) {
         int limit = points.settings().leaderboardSize();
         points.runAsync(() -> {
             List<BalanceEntry> entries = points.top(limit);
-            points.runSync(() -> sendLeaderboard(player, entries));
+            points.runSync(() -> sendLeaderboard(sender, entries));
         });
     }
 
-    private void sendLeaderboard(Player player, List<BalanceEntry> entries) {
-        if (!player.isOnline()) {
-            return;
-        }
-        player.sendMessage(Messages.DIVIDER);
-        player.sendMessage(Messages.header("Bestenliste · " + Currency.NAME));
-        player.sendMessage(Messages.DIVIDER);
+    private void sendLeaderboard(CommandSender sender, List<BalanceEntry> entries) {
+        sender.sendMessage(Messages.DIVIDER);
+        sender.sendMessage(Messages.header("Bestenliste · " + Currency.NAME));
+        sender.sendMessage(Messages.DIVIDER);
         if (entries.isEmpty()) {
-            player.sendMessage(Messages.hint("Hier hat noch niemand Punkte gesammelt."));
+            sender.sendMessage(Messages.hint("Hier hat noch niemand Punkte gesammelt."));
             return;
         }
 
         int position = 1;
         for (BalanceEntry entry : entries) {
-            boolean self = entry.playerId().equals(player.getUniqueId());
-            player.sendMessage(Component.text("#" + position + " ", rankColor(position))
+            boolean self = sender instanceof Player player && entry.playerId().equals(player.getUniqueId());
+            sender.sendMessage(Component.text("#" + position + " ", rankColor(position))
                 .append(Component.text(entry.playerName() + "  ",
                     self ? NamedTextColor.WHITE : NamedTextColor.GRAY))
                 .append(Currency.component(entry.balance())));
@@ -259,17 +336,21 @@ public final class PointsCommand implements CommandExecutor, TabCompleter {
         }
     }
 
-    private void handleHistory(Player player, String[] args) {
-        UUID targetId = player.getUniqueId();
-        String targetName = player.getName();
+    private void handleHistory(CommandSender sender, String[] args) {
+        UUID targetId = sender instanceof Player player ? player.getUniqueId() : null;
+        String targetName = sender.getName();
+        if (targetId == null && args.length < 2) {
+            sender.sendMessage(Messages.error("Nutzung: /pp history <Spieler>"));
+            return;
+        }
         if (args.length >= 2) {
-            if (!player.hasPermission(OTHERS_PERMISSION)) {
-                player.sendMessage(Messages.error("Dir fehlt die Berechtigung für fremde Verläufe."));
+            if (!sender.hasPermission(OTHERS_PERMISSION)) {
+                sender.sendMessage(Messages.error("Dir fehlt die Berechtigung für fremde Verläufe."));
                 return;
             }
             Optional<OfflinePlayer> target = Players.known(args[1]);
             if (target.isEmpty()) {
-                player.sendMessage(Messages.error("Der Spieler " + args[1] + " ist nicht bekannt."));
+                sender.sendMessage(Messages.error("Der Spieler " + args[1] + " ist nicht bekannt."));
                 return;
             }
             targetId = target.get().getUniqueId();
@@ -281,19 +362,16 @@ public final class PointsCommand implements CommandExecutor, TabCompleter {
         int limit = points.settings().historySize();
         points.runAsync(() -> {
             List<Transaction> entries = points.history(resolvedId, limit);
-            points.runSync(() -> sendHistory(player, resolvedName, entries));
+            points.runSync(() -> sendHistory(sender, resolvedName, entries));
         });
     }
 
-    private void sendHistory(Player player, String targetName, List<Transaction> entries) {
-        if (!player.isOnline()) {
-            return;
-        }
-        player.sendMessage(Messages.DIVIDER);
-        player.sendMessage(Messages.header("Verlauf · " + targetName));
-        player.sendMessage(Messages.DIVIDER);
+    private void sendHistory(CommandSender sender, String targetName, List<Transaction> entries) {
+        sender.sendMessage(Messages.DIVIDER);
+        sender.sendMessage(Messages.header("Verlauf · " + targetName));
+        sender.sendMessage(Messages.DIVIDER);
         if (entries.isEmpty()) {
-            player.sendMessage(Messages.hint("Für diesen Spieler gibt es noch keine Buchungen."));
+            sender.sendMessage(Messages.hint("Für diesen Spieler gibt es noch keine Buchungen."));
             return;
         }
 
@@ -302,33 +380,34 @@ public final class PointsCommand implements CommandExecutor, TabCompleter {
             String detail = entry.counterpartyName() == null
                 ? (type == null ? "Buchung" : type.label())
                 : (type == null ? "Buchung" : type.label()) + " · " + entry.counterpartyName();
-            player.sendMessage(Component.text(
+            sender.sendMessage(Component.text(
                     TIMESTAMP.format(Instant.ofEpochMilli(entry.createdAt())) + "  ", NamedTextColor.DARK_GRAY)
                 .append(Currency.signed(entry.amount()))
                 .append(Component.text("  " + detail, NamedTextColor.GRAY)));
         }
     }
 
-    private void sendHelp(Player player, String label) {
+    private void sendHelp(CommandSender sender, String label) {
         TransactionsSettings settings = points.settings();
-        player.sendMessage(Messages.DIVIDER);
-        player.sendMessage(Messages.header(Currency.NAME + " (" + Currency.SYMBOL + ")"));
-        player.sendMessage(Messages.DIVIDER);
-        player.sendMessage(Messages.hint("/" + label + " — dein Kontostand"));
-        player.sendMessage(Messages.hint("/" + label + " pay <Spieler> <Betrag> — überweisen"));
-        player.sendMessage(Messages.hint("/" + label + " top — Bestenliste"));
-        player.sendMessage(Messages.hint("/" + label + " history — deine letzten Buchungen"));
-        if (player.hasPermission(OTHERS_PERMISSION)) {
-            player.sendMessage(Messages.hint("/" + label + " <Spieler> — Kontostand eines Spielers"));
-            player.sendMessage(Messages.hint("/" + label + " history <Spieler> — fremder Verlauf"));
+        sender.sendMessage(Messages.DIVIDER);
+        sender.sendMessage(Messages.header(Currency.NAME + " (" + Currency.SYMBOL + ")"));
+        sender.sendMessage(Messages.DIVIDER);
+        if (sender instanceof Player) {
+            sender.sendMessage(Messages.hint("/" + label + " — dein Kontostand"));
+            sender.sendMessage(Messages.hint("/" + label + " pay <Spieler> <Betrag> — überweisen"));
         }
-        if (player.hasPermission(PointsAdmin.PERMISSION)) {
-            player.sendMessage(Messages.hint(
+        sender.sendMessage(Messages.hint("/" + label + " top — Bestenliste"));
+        sender.sendMessage(Messages.hint("/" + label + " history <Spieler> — letzte Buchungen"));
+        if (sender.hasPermission(OTHERS_PERMISSION)) {
+            sender.sendMessage(Messages.hint("/" + label + " <Spieler> — Kontostand eines Spielers"));
+        }
+        if (sender.hasPermission(PointsAdmin.PERMISSION)) {
+            sender.sendMessage(Messages.hint(
                 "/" + label + " give|take|set <Spieler> <Betrag> [Grund] — Team"));
         }
-        if (settings.payoutEnabled()) {
-            player.sendMessage(Component.empty());
-            player.sendMessage(Messages.hint("Alle " + settings.payoutIntervalMinutes()
+        if (settings.payoutEnabled() && sender instanceof Player) {
+            sender.sendMessage(Component.empty());
+            sender.sendMessage(Messages.hint("Alle " + settings.payoutIntervalMinutes()
                 + " Minuten aktive Spielzeit gibt es " + Currency.format(settings.payoutAmount()) + "."));
         }
     }

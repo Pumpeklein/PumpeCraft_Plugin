@@ -32,12 +32,21 @@ public final class PoseCommand implements CommandExecutor, TabCompleter {
         @NotNull String label,
         @NotNull String[] args
     ) {
-        Optional<Player> self = Players.self(sender);
-        if (self.isEmpty()) {
-            sender.sendMessage(error("Dieser Befehl kann nur von Spielern genutzt werden."));
-            return true;
+        Player player;
+        if (sender instanceof Player self) {
+            if (args.length != 0) return false;
+            player = self;
+        } else {
+            if (args.length != 1) {
+                sender.sendMessage(error("Nutzung: /" + label + " <Spieler>"));
+                return true;
+            }
+            player = Players.online(args[0]).orElse(null);
+            if (player == null) {
+                sender.sendMessage(error("Dieser Spieler ist nicht online."));
+                return true;
+            }
         }
-        Player player = self.get();
         return switch (command.getName().toLowerCase(Locale.ROOT)) {
             case "sit" -> sit(player);
             case "crawl" -> crawl(player);
@@ -52,7 +61,9 @@ public final class PoseCommand implements CommandExecutor, TabCompleter {
         @NotNull String alias,
         @NotNull String[] args
     ) {
-        return List.of();
+        return !(sender instanceof Player) && args.length == 1
+            ? Players.completeOnlineNames(args[0], 50)
+            : List.of();
     }
 
     private boolean sit(Player player) {

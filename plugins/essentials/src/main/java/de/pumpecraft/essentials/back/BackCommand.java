@@ -127,7 +127,8 @@ public final class BackCommand implements CommandExecutor, TabCompleter {
     private boolean teleportSelf(CommandSender sender, String label, int index) {
         Optional<Player> self = Players.self(sender);
         if (self.isEmpty()) {
-            sender.sendMessage(BackView.error("Dieser Befehl kann nur von Spielern genutzt werden."));
+            sender.sendMessage(BackView.error(
+                "Konsolennutzung: /" + label + " user <Spieler> [history|<Index>]"));
             return true;
         }
         Player player = self.get();

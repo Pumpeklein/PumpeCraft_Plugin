@@ -45,10 +45,10 @@ public final class MailboxCommand implements CommandExecutor, TabCompleter {
 
         return switch (action) {
             case "give" -> give(sender, label, argument);
-            case "spawn" -> spawn(sender);
-            case "remove" -> remove(sender);
-            case "send" -> send(sender, label, argument);
-            case "status" -> status(sender);
+            case "spawn" -> spawn(sender, label, argument);
+            case "remove" -> remove(sender, label, argument);
+            case "send" -> send(sender, label, args);
+            case "status" -> status(sender, label, argument);
             case "info" -> info(sender);
             default -> usage(sender, label);
         };
@@ -65,8 +65,15 @@ public final class MailboxCommand implements CommandExecutor, TabCompleter {
                 : ACTIONS.stream().filter(action -> !action.equals("give") && !action.equals("spawn")).toList();
             return Players.filterPrefix(actions, args[0]);
         }
-        if (args.length == 2 && (args[0].equalsIgnoreCase("give") || args[0].equalsIgnoreCase("send"))) {
+        if (args.length == 2 && (args[0].equalsIgnoreCase("give")
+            || args[0].equalsIgnoreCase("send")
+            || args[0].equalsIgnoreCase("spawn")
+            || args[0].equalsIgnoreCase("remove")
+            || args[0].equalsIgnoreCase("status"))) {
             return Players.completeKnownNames(args[1], MAX_COMPLETIONS);
+        }
+        if (!(sender instanceof Player) && args.length == 3 && args[0].equalsIgnoreCase("send")) {
+            return Players.completeKnownNames(args[2], MAX_COMPLETIONS);
         }
         return List.of();
     }
@@ -97,15 +104,17 @@ public final class MailboxCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
-    private boolean spawn(CommandSender sender) {
+    private boolean spawn(CommandSender sender, String label, String argument) {
         if (!sender.hasPermission(GIVE_PERMISSION)) {
             sender.sendMessage(error("Nutze das Briefkasten-Item zum Aufstellen."));
             return true;
         }
 
-        Optional<Player> self = Players.self(sender);
+        Optional<Player> self = sender instanceof Player
+            ? Players.self(sender)
+            : argument == null ? Optional.empty() : Players.online(argument);
         if (self.isEmpty()) {
-            sender.sendMessage(error("Dieser Befehl kann nur von Spielern genutzt werden."));
+            sender.sendMessage(error("Nutzung: /" + label + " spawn <Spieler>"));
             return true;
         }
 
@@ -119,10 +128,12 @@ public final class MailboxCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
-    private boolean remove(CommandSender sender) {
-        Optional<Player> self = Players.self(sender);
+    private boolean remove(CommandSender sender, String label, String argument) {
+        Optional<Player> self = sender instanceof Player
+            ? Players.self(sender)
+            : argument == null ? Optional.empty() : Players.online(argument);
         if (self.isEmpty()) {
-            sender.sendMessage(error("Dieser Befehl kann nur von Spielern genutzt werden."));
+            sender.sendMessage(error("Nutzung: /" + label + " remove <Spieler>"));
             return true;
         }
 
@@ -135,7 +146,7 @@ public final class MailboxCommand implements CommandExecutor, TabCompleter {
         }
 
         DisplayObject mailbox = nearest.get();
-        if (!service.isOwner(player, mailbox) && !player.hasPermission(MANAGE_PERMISSION)) {
+        if (!service.isOwner(player, mailbox) && !sender.hasPermission(MANAGE_PERMISSION)) {
             player.sendMessage(error("Das ist nicht dein Briefkasten."));
             return true;
         }
@@ -149,18 +160,24 @@ public final class MailboxCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
-    private boolean send(CommandSender sender, String label, String argument) {
-        Optional<Player> self = Players.self(sender);
+    private boolean send(CommandSender sender, String label, String[] args) {
+        int recipientArgument = sender instanceof Player ? 1 : 2;
+        Optional<Player> self = sender instanceof Player
+            ? Players.self(sender)
+            : args.length >= 2 ? Players.online(args[1]) : Optional.empty();
         if (self.isEmpty()) {
-            sender.sendMessage(error("Dieser Befehl kann nur von Spielern genutzt werden."));
+            sender.sendMessage(error("Nutzung: /" + label + " send "
+                + (sender instanceof Player ? "<Empfänger>" : "<Absender> <Empfänger>")));
             return true;
         }
-        if (argument == null) {
-            sender.sendMessage(error("Nutzung: /" + label + " send <Spieler>"));
+        if (args.length <= recipientArgument) {
+            sender.sendMessage(error("Nutzung: /" + label + " send "
+                + (sender instanceof Player ? "<Empfänger>" : "<Absender> <Empfänger>")));
             return true;
         }
 
         Player player = self.get();
+        String argument = args[recipientArgument];
         Optional<OfflinePlayer> target = Players.known(argument);
         if (target.isEmpty()) {
             player.sendMessage(error("Spieler " + argument + " ist unbekannt."));
@@ -183,34 +200,40 @@ public final class MailboxCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
-    private boolean status(CommandSender sender) {
-        Optional<Player> self = Players.self(sender);
-        if (self.isEmpty()) {
-            sender.sendMessage(error("Dieser Befehl kann nur von Spielern genutzt werden."));
+    private boolean status(CommandSender sender, String label, String argument) {
+        Optional<OfflinePlayer> target = sender instanceof Player player
+            ? Optional.of(player)
+            : argument == null ? Optional.empty() : Players.known(argument);
+        if (target.isEmpty()) {
+            sender.sendMessage(error("Nutzung: /" + label + " status <Spieler>"));
             return true;
         }
 
-        Player player = self.get();
+        OfflinePlayer player = target.get();
+        String playerName = Players.displayName(player);
         Optional<MailboxEntry> entry = service.index().of(player.getUniqueId());
         if (entry.isEmpty()) {
-            player.sendMessage(text("Du hast noch keinen Briefkasten aufgestellt."));
+            sender.sendMessage(text((sender.equals(player) ? "Du hast" : playerName + " hat")
+                + " noch keinen Briefkasten aufgestellt."));
             return true;
         }
 
-        player.sendMessage(text("Dein Briefkasten steht bei ")
+        sender.sendMessage(text(sender.equals(player)
+            ? "Dein Briefkasten steht bei "
+            : "Der Briefkasten von " + playerName + " steht bei ")
             .append(Teleports.locationLink(
                 entry.get().location(), NamedTextColor.AQUA, Teleports.DEFAULT_LOCATION_COMMAND))
             .append(Component.text(".", NamedTextColor.GRAY)));
 
         List<Delivery> pending = service.deliveries().pendingFor(player.getUniqueId());
         if (pending.isEmpty()) {
-            player.sendMessage(text("Es ist nichts unterwegs."));
+            sender.sendMessage(text("Es ist nichts unterwegs."));
             return true;
         }
 
         long now = System.currentTimeMillis();
         for (Delivery delivery : pending) {
-            player.sendMessage(text("Von " + delivery.senderName() + ": " + delivery.itemCount()
+            sender.sendMessage(text("Von " + delivery.senderName() + ": " + delivery.itemCount()
                 + " Items, Ankunft in " + DeliveryEstimate.format(delivery.remainingSeconds(now)) + "."));
         }
         return true;

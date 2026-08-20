@@ -34,10 +34,11 @@ final class ChatFilter {
     }
 
     FilterResult inspect(UUID playerId, String message) {
-        String normalized = normalize(message);
-        if (normalized.isBlank()) {
+        String original = message.trim();
+        if (original.isBlank()) {
             return FilterResult.block("Die Nachricht enthält keinen lesbaren Inhalt.");
         }
+        String normalized = normalize(original);
         for (String term : blockedTerms) {
             if (containsTerm(normalized, term)) {
                 return FilterResult.review("Der Chatfilter hat eine unzulässige Formulierung erkannt.");
@@ -53,11 +54,14 @@ final class ChatFilter {
             if (history.timestamps.size() >= maxMessages) {
                 return FilterResult.block("Du schreibst zu viele Nachrichten in kurzer Zeit.");
             }
-            if (normalized.equals(history.lastMessage) && now - history.lastMessageAt <= repeatMillis) {
+            String comparisonKey = normalized.isBlank()
+                ? original.toLowerCase(Locale.ROOT)
+                : normalized;
+            if (comparisonKey.equals(history.lastMessage) && now - history.lastMessageAt <= repeatMillis) {
                 return FilterResult.block("Bitte wiederhole nicht mehrfach dieselbe Nachricht.");
             }
             history.timestamps.addLast(now);
-            history.lastMessage = normalized;
+            history.lastMessage = comparisonKey;
             history.lastMessageAt = now;
         }
         return FilterResult.allow();

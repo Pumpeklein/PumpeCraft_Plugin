@@ -12,6 +12,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
+import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -152,13 +153,13 @@ public final class PumpeClanSystemPlugin extends JavaPlugin {
         }
     }
 
-    <T> void runAsync(Player recipient, Supplier<T> work, Consumer<T> callback) {
+    <T> void runAsync(CommandSender recipient, Supplier<T> work, Consumer<T> callback) {
         String recipientName = recipient.getName();
         getServer().getScheduler().runTaskAsynchronously(this, () -> {
             try {
                 T result = work.get();
                 getServer().getScheduler().runTask(this, () -> {
-                    if (recipient.isOnline()) {
+                    if (!(recipient instanceof Player player) || player.isOnline()) {
                         callback.accept(result);
                     }
                 });
@@ -168,7 +169,7 @@ public final class PumpeClanSystemPlugin extends JavaPlugin {
                         + exception.getMessage()
                 );
                 getServer().getScheduler().runTask(this, () -> {
-                    if (recipient.isOnline()) {
+                    if (!(recipient instanceof Player player) || player.isOnline()) {
                         recipient.sendMessage(Component.text(
                             "Die Clan-Datenbank konnte nicht verarbeitet werden.",
                             NamedTextColor.RED

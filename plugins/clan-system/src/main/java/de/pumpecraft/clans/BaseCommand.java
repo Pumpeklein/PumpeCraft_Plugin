@@ -4,6 +4,7 @@ import de.pumpecraft.clans.ClanData.PlayerBase;
 import de.pumpecraft.clans.ClanData.PlayerIdentity;
 import de.pumpecraft.clans.ClanRepository.BaseLocation;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -38,8 +39,30 @@ final class BaseCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(Component.text(
-                "Dieser Befehl kann nur von Spielern genutzt werden.", NamedTextColor.RED));
+            if (args.length == 0 || matches(args[0], "help", "hilfe")) {
+                sendHelp(sender, label);
+            } else if (matches(args[0], "as")) {
+                if (args.length < 3) {
+                    sender.sendMessage(error("Nutzung: /" + label + " as <Spieler> <Unterbefehl> ..."));
+                    return true;
+                }
+                Player target = Bukkit.getPlayerExact(args[1]);
+                if (target == null) {
+                    sender.sendMessage(error("Dieser Spieler ist nicht online."));
+                    return true;
+                }
+                onCommand(
+                    target,
+                    plugin.getCommand("base"),
+                    label,
+                    Arrays.copyOfRange(args, 2, args.length)
+                );
+                sender.sendMessage(success("Base-Befehl als " + target.getName() + " ausgeführt."));
+            } else if (matches(args[0], "info")) {
+                info(sender, args);
+            } else {
+                sender.sendMessage(error("Konsolennutzung: /" + label + " <as|info> ..."));
+            }
             return true;
         }
         if (!player.hasPermission(plugin.permission("base-use"))) {
@@ -79,6 +102,9 @@ final class BaseCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length == 1) {
             List<String> options = new ArrayList<>(List.of("info", "help"));
+            if (!(sender instanceof Player)) {
+                options.add("as");
+            }
             if (sender.hasPermission(plugin.permission("base-set"))) {
                 options.addAll(List.of("set", "public", "private", "delete"));
             }
@@ -92,6 +118,9 @@ final class BaseCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length == 2) {
             String subcommand = args[0].toLowerCase(Locale.ROOT);
+            if (!(sender instanceof Player) && matches(subcommand, "as")) {
+                return filter(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), args[1]);
+            }
             if (matches(subcommand, "setzen", "set")) {
                 return filter(List.of("public", "private"), args[1]);
             }
@@ -238,9 +267,13 @@ final class BaseCommand implements CommandExecutor, TabCompleter {
         });
     }
 
-    private void info(Player player, String[] args) {
+    private void info(CommandSender player, String[] args) {
         if (args.length > 2) {
             player.sendMessage(error("Nutzung: /base info [Spieler]"));
+            return;
+        }
+        if (!(player instanceof Player) && args.length != 2) {
+            player.sendMessage(error("Nutzung: /base info <Spieler>"));
             return;
         }
         String targetName = args.length == 2 ? args[1] : player.getName();
@@ -276,8 +309,8 @@ final class BaseCommand implements CommandExecutor, TabCompleter {
         );
     }
 
-    private void showBaseInfo(Player viewer, PlayerBase base, boolean admin) {
-        boolean owner = viewer.getUniqueId().equals(base.ownerId());
+    private void showBaseInfo(CommandSender viewer, PlayerBase base, boolean admin) {
+        boolean owner = viewer instanceof Player player && player.getUniqueId().equals(base.ownerId());
         boolean showCoordinates = base.publicBase() || owner || admin;
         playerMessage(viewer, DIVIDER);
         playerMessage(viewer, Component.text(
@@ -311,7 +344,7 @@ final class BaseCommand implements CommandExecutor, TabCompleter {
         playerMessage(viewer, DIVIDER);
     }
 
-    private void sendHelp(Player player, String label) {
+    private void sendHelp(CommandSender player, String label) {
         player.sendMessage(DIVIDER);
         player.sendMessage(Component.text("Base-System", NamedTextColor.GOLD, TextDecoration.BOLD));
         player.sendMessage(Component.text("/" + label + " info [Spieler]", NamedTextColor.GRAY));
@@ -383,7 +416,7 @@ final class BaseCommand implements CommandExecutor, TabCompleter {
         return String.format(Locale.GERMANY, "%,d", value);
     }
 
-    private void playerMessage(Player player, Component message) {
+    private void playerMessage(CommandSender player, Component message) {
         player.sendMessage(message);
     }
 

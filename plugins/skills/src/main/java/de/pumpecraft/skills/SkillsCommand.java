@@ -3,6 +3,7 @@ package de.pumpecraft.skills;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -45,8 +46,15 @@ final class SkillsCommand implements CommandExecutor, TabCompleter {
         }
 
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(Component.text(
-                "Dieser Befehl kann nur von Spielern genutzt werden.", NamedTextColor.RED));
+            if (args.length == 0) {
+                sender.sendMessage(error("Nutzung: /" + label + " <Spieler|top|help> [Skill]"));
+            } else if (args[0].equalsIgnoreCase("top")) {
+                handleTop(sender, label, args);
+            } else if (args[0].equalsIgnoreCase("help")) {
+                sendHelp(sender, label);
+            } else {
+                showConsoleTarget(sender, args);
+            }
             return true;
         }
 
@@ -107,7 +115,7 @@ final class SkillsCommand implements CommandExecutor, TabCompleter {
 
     // ── Unterbefehle ──
 
-    private void handleTop(Player player, String label, String[] args) {
+    private void handleTop(CommandSender player, String label, String[] args) {
         if (args.length < 2) {
             player.sendMessage(error("Nutzung: /" + label + " top <Skill>"));
             player.sendMessage(hint("Skills: " + String.join(", ", skillIds())));
@@ -177,13 +185,10 @@ final class SkillsCommand implements CommandExecutor, TabCompleter {
     }
 
     private void sendLeaderboard(
-        Player player,
+        CommandSender player,
         Skill skill,
         List<SkillRepository.LeaderboardEntry> entries
     ) {
-        if (!player.isOnline()) {
-            return;
-        }
         player.sendMessage(DIVIDER);
         player.sendMessage(Component.text("Bestenliste · ", NamedTextColor.GOLD)
             .append(Component.text(skill.displayName(), skill.color(), TextDecoration.BOLD)));
@@ -196,7 +201,7 @@ final class SkillsCommand implements CommandExecutor, TabCompleter {
 
         int position = 1;
         for (SkillRepository.LeaderboardEntry entry : entries) {
-            boolean self = entry.playerId().equals(player.getUniqueId());
+            boolean self = player instanceof Player viewer && entry.playerId().equals(viewer.getUniqueId());
             player.sendMessage(Component.text(rankLabel(position), rankColor(position))
                 .append(Component.text(" " + entry.playerName(),
                     self ? NamedTextColor.WHITE : NamedTextColor.GRAY))
@@ -207,12 +212,14 @@ final class SkillsCommand implements CommandExecutor, TabCompleter {
         }
     }
 
-    private void sendHelp(Player player, String label) {
+    private void sendHelp(CommandSender player, String label) {
         player.sendMessage(DIVIDER);
         player.sendMessage(Component.text("Skills", NamedTextColor.GOLD, TextDecoration.BOLD));
         player.sendMessage(DIVIDER);
-        player.sendMessage(hint("/" + label + " — öffnet deine Skill-Übersicht als GUI"));
-        player.sendMessage(hint("/" + label + " <Skill> — öffnet die Skill-Details als GUI"));
+        if (player instanceof Player) {
+            player.sendMessage(hint("/" + label + " — öffnet deine Skill-Übersicht als GUI"));
+            player.sendMessage(hint("/" + label + " <Skill> — öffnet die Skill-Details als GUI"));
+        }
         player.sendMessage(hint("/" + label + " top <Skill> — Bestenliste"));
         if (player.hasPermission(OTHERS_PERMISSION)) {
             player.sendMessage(hint("/" + label + " <Spieler> [Skill] — Werte eines Spielers"));
@@ -222,6 +229,36 @@ final class SkillsCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(Component.text("  " + pad(skill.id(), 12), skill.color())
                 .append(Component.text(skill.description(), NamedTextColor.DARK_GRAY)));
         }
+    }
+
+    private void showConsoleTarget(CommandSender sender, String[] args) {
+        String targetName = args[0];
+        Skill selected = args.length >= 2 ? Skill.byId(args[1]) : null;
+        if (args.length >= 2 && selected == null) {
+            sender.sendMessage(error("Unbekannter Skill: " + args[1]));
+            return;
+        }
+        service.runAsync(() -> {
+            UUID targetId = repository.findPlayerByName(targetName);
+            if (targetId == null) {
+                service.runSync(() -> sender.sendMessage(error(
+                    "Der Spieler " + targetName + " ist nicht bekannt.")));
+                return;
+            }
+            Map<StatKey, Long> stats = repository.loadPlayer(targetId);
+            service.runSync(() -> {
+                sender.sendMessage(DIVIDER);
+                sender.sendMessage(Component.text("Skills · " + targetName, NamedTextColor.GOLD));
+                sender.sendMessage(DIVIDER);
+                List<Skill> shown = selected == null ? Skill.LEVELED : List.of(selected);
+                for (Skill skill : shown) {
+                    long score = stats.getOrDefault(StatKey.score(skill), 0L);
+                    sender.sendMessage(Component.text(skill.displayName() + ": ", skill.color())
+                        .append(Component.text("Level " + SkillLevel.levelOf(score) + " · " + number(score),
+                            NamedTextColor.GRAY)));
+                }
+            });
+        });
     }
 
     // ── Hilfsmethoden ──

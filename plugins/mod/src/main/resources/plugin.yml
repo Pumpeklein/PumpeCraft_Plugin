@@ -36,7 +36,7 @@ commands:
     permission: pumpecraft.mod.unban
   vanish:
     description: Toggles staff vanish.
-    usage: /vanish
+    usage: /vanish [Spieler]
     permission: pumpecraft.mod.vanish
   fly:
     description: Toggles flight without changing the game mode.

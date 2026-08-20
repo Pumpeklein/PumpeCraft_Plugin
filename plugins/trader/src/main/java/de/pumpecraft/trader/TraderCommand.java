@@ -1,6 +1,7 @@
 package de.pumpecraft.trader;
 
 import de.pumpecraft.utils.messages.Messages;
+import de.pumpecraft.utils.Players;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -54,36 +55,41 @@ public final class TraderCommand implements CommandExecutor, TabCompleter, Liste
         if (args.length == 1 && args[0].equalsIgnoreCase("del")) {
             return deleteTraders(sender);
         }
-        if (!(sender instanceof Player player)) {
-            sender.sendMessage(error("Dieser Befehl kann nur von Spielern genutzt werden."));
-            return true;
-        }
-        if (!player.hasPermission(SPAWN_PERMISSION)) {
-            player.sendMessage(error("Dafür hast du keine Berechtigung."));
+        if (!sender.hasPermission(SPAWN_PERMISSION)) {
+            sender.sendMessage(error("Dafür hast du keine Berechtigung."));
             return true;
         }
 
-        if (args.length != 1) {
-            player.sendMessage(error("Nutzung: /" + label + " <Zeit|del>"));
-            player.sendMessage(error("Beispiele: /" + label + " 30m, /" + label + " 2h, /" + label + " 1d"));
+        int expectedArgs = sender instanceof Player ? 1 : 2;
+        if (args.length != expectedArgs) {
+            sender.sendMessage(error("Nutzung: /" + label + " <Zeit>" + (expectedArgs == 2 ? " <Spieler>" : "")));
+            sender.sendMessage(error("Beispiele: /" + label + " 30m, /" + label + " 2h, /" + label + " 1d"));
             return true;
         }
 
         Duration duration = parseDuration(args[0]);
         if (duration == null || duration.isZero() || duration.isNegative()) {
-            player.sendMessage(error("Die Zeit muss z.B. 30m, 2h oder 1d sein."));
+            sender.sendMessage(error("Die Zeit muss z.B. 30m, 2h oder 1d sein."));
             return true;
         }
 
-        spawnTrader(player.getLocation(), duration);
+        Player locationTarget = sender instanceof Player player
+            ? player
+            : Players.online(args[1]).orElse(null);
+        if (locationTarget == null) {
+            sender.sendMessage(error("Dieser Spieler ist nicht online."));
+            return true;
+        }
+        spawnTrader(locationTarget.getLocation(), duration);
         return true;
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length != 1) {
-            return List.of();
+        if (!(sender instanceof Player) && args.length == 2) {
+            return Players.completeOnlineNames(args[1], 50);
         }
+        if (args.length != 1) return List.of();
 
         String input = args[0].toLowerCase(Locale.ROOT);
         List<String> options = new ArrayList<>();

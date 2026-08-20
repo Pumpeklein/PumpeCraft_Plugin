@@ -7,9 +7,11 @@ import de.pumpecraft.clans.ClanData.JoinRequest;
 import de.pumpecraft.clans.ClanData.Member;
 import de.pumpecraft.clans.ClanData.PlayerIdentity;
 import java.time.Instant;
+import java.nio.charset.StandardCharsets;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -30,6 +32,9 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 
 final class ClanCommand implements CommandExecutor, TabCompleter {
+    private static final UUID CONSOLE_ID = UUID.nameUUIDFromBytes(
+        "PumpeClans:CONSOLE".getBytes(StandardCharsets.UTF_8)
+    );
     private static final Pattern CLAN_NAME = Pattern.compile("[\\p{L}\\p{N}_-]{3,24}");
     private static final Pattern CLAN_TAG = Pattern.compile("[A-Za-z0-9]{2,4}");
     private static final Component DIVIDER = Component.text("─".repeat(36), NamedTextColor.DARK_GRAY);
@@ -64,14 +69,13 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(Component.text(
-                "Dieser Befehl kann nur von Spielern genutzt werden.", NamedTextColor.RED));
-            return true;
+            return handleConsole(sender, label, args);
         }
         if (!player.hasPermission(plugin.permission("clan-use"))) {
             player.sendMessage(error("Dafür fehlt dir die Berechtigung."));
             return true;
         }
+
         if (args.length == 0 || matches(args[0], "help", "hilfe")) {
             sendHelp(player, label);
             return true;
@@ -109,6 +113,48 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    private boolean handleConsole(CommandSender sender, String label, String[] args) {
+        if (args.length == 0 || matches(args[0], "help", "hilfe")) {
+            sendHelp(sender, label);
+            return true;
+        }
+        String subcommand = args[0].toLowerCase(Locale.ROOT);
+        switch (subcommand) {
+            case "as" -> {
+                if (args.length < 3) {
+                    sender.sendMessage(error("Nutzung: /" + label + " as <Spieler> <Unterbefehl> ..."));
+                    return true;
+                }
+                Player target = Bukkit.getPlayerExact(args[1]);
+                if (target == null) {
+                    sender.sendMessage(error("Dieser Spieler ist nicht online."));
+                    return true;
+                }
+                boolean handled = onCommand(
+                    target,
+                    plugin.getCommand("clan"),
+                    label,
+                    Arrays.copyOfRange(args, 2, args.length)
+                );
+                sender.sendMessage(success("Clan-Befehl als " + target.getName() + " ausgeführt."));
+                return handled;
+            }
+            case "admin-delete", "admindelete" -> adminDelete(sender, label, args);
+            case "info" -> info(sender, args);
+            case "whois", "werist" -> whoIs(sender, label, args, 1);
+            case "who" -> {
+                if (args.length >= 2 && args[1].equalsIgnoreCase("is")) {
+                    whoIs(sender, label, args, 2);
+                } else {
+                    sender.sendMessage(error("Nutzung: /" + label + " who is <Spieler>"));
+                }
+            }
+            default -> sender.sendMessage(error(
+                "Konsolennutzung: /" + label + " <as|info|whois|admin-delete> ..."));
+        }
+        return true;
+    }
+
     @Override
     public List<String> onTabComplete(
         CommandSender sender,
@@ -123,6 +169,9 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
             List<String> options = new ArrayList<>(List.of(
                 "info", "whois", "request", "accept", "leave", "help"
             ));
+            if (!(sender instanceof Player)) {
+                options.add("as");
+            }
             if (sender.hasPermission(plugin.permission("clan-create"))) {
                 options.add("create");
             }
@@ -140,6 +189,9 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length == 2) {
             String subcommand = args[0].toLowerCase(Locale.ROOT);
+            if (!(sender instanceof Player) && matches(subcommand, "as")) {
+                return filter(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), args[1]);
+            }
             if (matches(subcommand, "info", "annehmen", "accept")) {
                 return filter(plugin.directory().clanTags(), args[1]);
             }
@@ -283,7 +335,7 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
         });
     }
 
-    private void adminDelete(Player player, String label, String[] args) {
+    private void adminDelete(CommandSender player, String label, String[] args) {
         if (!requirePermission(player, "clan-admin-delete")) {
             return;
         }
@@ -435,7 +487,7 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
         });
     }
 
-    private void whoIs(Player player, String label, String[] args, int playerArgument) {
+    private void whoIs(CommandSender player, String label, String[] args, int playerArgument) {
         if (args.length != playerArgument + 1) {
             player.sendMessage(error("Nutzung: /" + label + " whois <Spieler>"));
             return;
@@ -472,7 +524,7 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
         });
     }
 
-    private void info(Player player, String[] args) {
+    private void info(CommandSender player, String[] args) {
         if (args.length > 2) {
             player.sendMessage(error("Nutzung: /clan info [Clanname|Tag]"));
             return;
@@ -480,12 +532,14 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
         if (args.length == 2) {
             plugin.runAsync(player, () -> repository.clanDetails(args[1]), result ->
                 showClanInfo(player, result));
-        } else {
+        } else if (player instanceof Player onlinePlayer) {
             plugin.runAsync(
                 player,
-                () -> repository.clanDetailsForPlayer(player.getUniqueId()),
+                () -> repository.clanDetailsForPlayer(onlinePlayer.getUniqueId()),
                 result -> showClanInfo(player, result)
             );
+        } else {
+            player.sendMessage(error("Nutzung: /clan info <Clanname|Tag>"));
         }
     }
 
@@ -921,7 +975,7 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
         });
     }
 
-    private void showClanInfo(Player player, Optional<ClanDetails> details) {
+    private void showClanInfo(CommandSender player, Optional<ClanDetails> details) {
         if (details.isEmpty()) {
             player.sendMessage(error("Clan nicht gefunden."));
             return;
@@ -987,7 +1041,7 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
         }
     }
 
-    private void sendHelp(Player player, String label) {
+    private void sendHelp(CommandSender player, String label) {
         player.sendMessage(DIVIDER);
         player.sendMessage(Component.text("Clan-System", NamedTextColor.GOLD, TextDecoration.BOLD));
         player.sendMessage(Component.text("/" + label + " info [Clan]", NamedTextColor.GRAY));
@@ -1026,7 +1080,7 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(DIVIDER);
     }
 
-    private boolean requirePermission(Player player, String key) {
+    private boolean requirePermission(CommandSender player, String key) {
         if (player.hasPermission(plugin.permission(key))) {
             return true;
         }
@@ -1039,8 +1093,9 @@ final class ClanCommand implements CommandExecutor, TabCompleter {
         tabService.refresh();
     }
 
-    private PlayerIdentity identity(Player player) {
-        return new PlayerIdentity(player.getUniqueId(), player.getName());
+    private PlayerIdentity identity(CommandSender player) {
+        UUID playerId = player instanceof Player online ? online.getUniqueId() : CONSOLE_ID;
+        return new PlayerIdentity(playerId, player.getName());
     }
 
     private boolean matches(String value, String... options) {

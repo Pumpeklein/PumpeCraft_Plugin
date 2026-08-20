@@ -5,6 +5,7 @@ import de.pumpecraft.utils.messages.Messages;
 import io.papermc.paper.ban.BanListType;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import java.time.Duration;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -38,6 +39,9 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
 public final class ModerationCommand implements CommandExecutor, TabCompleter, Listener {
+    private static final UUID CONSOLE_ID = UUID.nameUUIDFromBytes(
+        "PumpeMod:CONSOLE".getBytes(StandardCharsets.UTF_8)
+    );
     private static final DateTimeFormatter REPORT_TIME_FORMAT = DateTimeFormatter
         .ofPattern("dd.MM.yyyy HH:mm:ss")
         .withZone(ZoneId.systemDefault());
@@ -73,7 +77,7 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
             case "unmute" -> handleUnmute(sender, label, args);
             case "ban" -> handleBan(sender, label, args);
             case "unban" -> handleUnban(sender, label, args);
-            case "vanish" -> handleVanish(sender);
+            case "vanish" -> handleVanish(sender, label, args);
             default -> false;
         };
     }
@@ -90,7 +94,7 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
             case "reports" -> completeReports(args);
             case "mute" -> completeMute(args);
             case "ban" -> completeBan(args);
-            case "vanish" -> List.of();
+            case "vanish" -> args.length == 1 ? de.pumpecraft.utils.Players.completeOnlineNames(args[0], 50) : List.of();
             default -> List.of();
         };
     }
@@ -179,10 +183,7 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
     }
 
     private boolean handleReport(CommandSender sender, String label, String[] args) {
-        if (!(sender instanceof Player reporter)) {
-            sender.sendMessage(error("Dieser Befehl kann nur von Spielern genutzt werden."));
-            return true;
-        }
+        CommandSender reporter = sender;
 
         if (args.length < 2) {
             reporter.sendMessage(error("Nutzung: /" + label + " <Spieler> <Grund>"));
@@ -195,14 +196,14 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
             return true;
         }
 
-        if (target.uniqueId().equals(reporter.getUniqueId())) {
+        if (reporter instanceof Player player && target.uniqueId().equals(player.getUniqueId())) {
             reporter.sendMessage(error("Du kannst dich nicht selbst reporten."));
             //return true;
         }
 
         String reason = joinArgs(args, 1);
         ReportRecord report = repository.createReport(
-            reporter.getUniqueId(),
+            actorId(reporter),
             reporter.getName(),
             target.uniqueId(),
             target.name(),
@@ -215,17 +216,14 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
     }
 
     private boolean handleReports(CommandSender sender, String[] args) {
-        if (!(sender instanceof Player staff)) {
-            sender.sendMessage(error("Dieser Befehl kann nur von Spielern genutzt werden."));
-            return true;
-        }
+        CommandSender staff = sender;
 
         boolean showAll = args.length > 0 && args[0].equalsIgnoreCase("all");
-        List<ReportRecord> reports = showAll ? repository.getOpenReports() : repository.getUnseenOpenReports(staff.getUniqueId());
+        List<ReportRecord> reports = showAll ? repository.getOpenReports() : repository.getUnseenOpenReports(actorId(staff));
 
         if (reports.isEmpty()) {
             staff.sendMessage(success(showAll ? "Es gibt keine offenen Reports." : "Du hast keine ungesehenen offenen Reports."));
-            repository.markOpenReportsSeen(staff.getUniqueId());
+            repository.markOpenReportsSeen(actorId(staff));
             return true;
         }
 
@@ -234,15 +232,12 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
             sendReportLine(staff, report);
         }
 
-        repository.markOpenReportsSeen(staff.getUniqueId());
+        repository.markOpenReportsSeen(actorId(staff));
         return true;
     }
 
     private boolean handleWarn(CommandSender sender, String label, String[] args) {
-        if (!(sender instanceof Player staff)) {
-            sender.sendMessage(error("Dieser Befehl kann nur von Spielern genutzt werden."));
-            return true;
-        }
+        CommandSender staff = sender;
 
         if (args.length < 2) {
             staff.sendMessage(error("Nutzung: /" + label + " <Spieler> <Grund>"));
@@ -269,10 +264,7 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
     }
 
     private boolean handleMute(CommandSender sender, String label, String[] args) {
-        if (!(sender instanceof Player staff)) {
-            sender.sendMessage(error("Dieser Befehl kann nur von Spielern genutzt werden."));
-            return true;
-        }
+        CommandSender staff = sender;
 
         if (args.length < 2) {
             staff.sendMessage(error("Nutzung: /" + label + " <Spieler> <Zeit> [Grund]"));
@@ -286,7 +278,7 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
             return true;
         }
 
-        if (target.uniqueId().equals(staff.getUniqueId())) {
+        if (staff instanceof Player player && target.uniqueId().equals(player.getUniqueId())) {
             staff.sendMessage(error("Du kannst dich nicht selbst muten."));
             //return true;
         }
@@ -323,10 +315,7 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
     }
 
     private boolean handleUnmute(CommandSender sender, String label, String[] args) {
-        if (!(sender instanceof Player staff)) {
-            sender.sendMessage(error("Dieser Befehl kann nur von Spielern genutzt werden."));
-            return true;
-        }
+        CommandSender staff = sender;
 
         if (args.length < 1) {
             staff.sendMessage(error("Nutzung: /" + label + " <Spieler>"));
@@ -358,10 +347,7 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
     }
 
     private boolean handleBan(CommandSender sender, String label, String[] args) {
-        if (!(sender instanceof Player staff)) {
-            sender.sendMessage(error("Dieser Befehl kann nur von Spielern genutzt werden."));
-            return true;
-        }
+        CommandSender staff = sender;
 
         if (args.length < 2) {
             staff.sendMessage(error("Nutzung: /" + label + " <Spieler> <Grund> [Zeit]"));
@@ -375,7 +361,7 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
             return true;
         }
 
-        if (target.uniqueId().equals(staff.getUniqueId())) {
+        if (staff instanceof Player player && target.uniqueId().equals(player.getUniqueId())) {
             staff.sendMessage(error("Du kannst dich nicht selbst bannen."));
             //return true;
         }
@@ -407,10 +393,7 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
     }
 
     private boolean handleUnban(CommandSender sender, String label, String[] args) {
-        if (!(sender instanceof Player staff)) {
-            sender.sendMessage(error("Dieser Befehl kann nur von Spielern genutzt werden."));
-            return true;
-        }
+        CommandSender staff = sender;
 
         if (args.length < 1) {
             staff.sendMessage(error("Nutzung: /" + label + " <Spieler> [Grund]"));
@@ -453,15 +436,31 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
         return wasBanned;
     }
 
-    private boolean handleVanish(CommandSender sender) {
-        if (!(sender instanceof Player staff)) {
-            sender.sendMessage(error("Dieser Befehl kann nur von Spielern genutzt werden."));
-            return true;
+    private boolean handleVanish(CommandSender sender, String label, String[] args) {
+        Player staff;
+        if (sender instanceof Player player) {
+            if (args.length != 0) return false;
+            staff = player;
+        } else {
+            if (args.length != 1) {
+                sender.sendMessage(error("Nutzung: /" + label + " <Spieler>"));
+                return true;
+            }
+            staff = Bukkit.getPlayerExact(args[0]);
+            if (staff == null) {
+                sender.sendMessage(error("Dieser Spieler ist nicht online."));
+                return true;
+            }
         }
 
-        staff.sendMessage(vanish.toggle(staff)
+        boolean enabled = vanish.toggle(staff);
+        staff.sendMessage(enabled
             ? success("Vanish aktiviert. Das Team sieht dich ausgegraut als Spec.")
             : success("Vanish deaktiviert."));
+        if (!sender.equals(staff)) {
+            sender.sendMessage(success("Vanish für " + staff.getName()
+                + (enabled ? " aktiviert." : " deaktiviert.")));
+        }
         return true;
     }
 
@@ -591,7 +590,7 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
             );
     }
 
-    private void sendReportLine(Player staff, ReportRecord report) {
+    private void sendReportLine(CommandSender staff, ReportRecord report) {
         staff.sendMessage(
             Component.text("#" + report.id() + " ", NamedTextColor.DARK_GRAY)
                 .append(Component.text(report.targetName(), NamedTextColor.AQUA))
@@ -606,6 +605,10 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
             Component.text("  Zeit: ", NamedTextColor.GRAY)
                 .append(Component.text(REPORT_TIME_FORMAT.format(Instant.ofEpochMilli(report.createdAt())), NamedTextColor.WHITE))
         );
+    }
+
+    private UUID actorId(CommandSender sender) {
+        return sender instanceof Player player ? player.getUniqueId() : CONSOLE_ID;
     }
 
     private Component muteMessage(MuteRecord mute) {

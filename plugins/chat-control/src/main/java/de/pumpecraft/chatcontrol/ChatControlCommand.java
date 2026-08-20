@@ -7,8 +7,8 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.command.TabCompleter;
-import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
 final class ChatControlCommand implements CommandExecutor, TabCompleter {
@@ -33,12 +33,9 @@ final class ChatControlCommand implements CommandExecutor, TabCompleter {
         @NotNull String label,
         @NotNull String[] args
     ) {
-        if (!(sender instanceof Player staff)) {
-            sender.sendMessage("Dieser Befehl ist nur für Spieler verfügbar.");
-            return true;
-        }
-        if (!staff.hasPermission(plugin.permission("delete"))) {
-            staff.sendMessage(Component.text("Dafür fehlt dir die Berechtigung.", NamedTextColor.RED));
+        if (!(sender instanceof ConsoleCommandSender)
+            && !sender.hasPermission(plugin.permission("delete"))) {
+            sender.sendMessage(Component.text("Dafür fehlt dir die Berechtigung.", NamedTextColor.RED));
             return true;
         }
         if (args.length != 2) return false;
@@ -46,28 +43,28 @@ final class ChatControlCommand implements CommandExecutor, TabCompleter {
         if (args[0].equalsIgnoreCase("keep")) {
             TrackedChatMessage tracked = trackedMessages.get(messageId);
             if (tracked == null || !tracked.reviewRequired()) {
-                staff.sendMessage(Component.text("Diese Nachricht wartet nicht auf eine Entscheidung.", NamedTextColor.RED));
+                sender.sendMessage(Component.text("Diese Nachricht wartet nicht auf eine Entscheidung.", NamedTextColor.RED));
                 return true;
             }
             if (!trackedMessages.remove(messageId, tracked)) {
-                staff.sendMessage(Component.text("Die Nachricht wurde bereits bearbeitet.", NamedTextColor.RED));
+                sender.sendMessage(Component.text("Die Nachricht wurde bereits bearbeitet.", NamedTextColor.RED));
                 return true;
             }
             tracked.pendingDeliveries().forEach((viewer, message) -> viewer.sendMessage(message));
-            repository.markApproved(messageId, staff);
-            staff.sendMessage(Component.text("Nachricht freigegeben und an den All-Chat gesendet.", NamedTextColor.GREEN));
+            repository.markApproved(messageId, sender);
+            sender.sendMessage(Component.text("Nachricht freigegeben und an den All-Chat gesendet.", NamedTextColor.GREEN));
             return true;
         }
         if (!args[0].equalsIgnoreCase("delete")) return false;
 
         TrackedChatMessage tracked = trackedMessages.remove(messageId);
         if (tracked == null) {
-            staff.sendMessage(Component.text("Diese Nachricht ist nicht mehr löschbar.", NamedTextColor.RED));
+            sender.sendMessage(Component.text("Diese Nachricht ist nicht mehr löschbar.", NamedTextColor.RED));
             return true;
         }
         for (var viewer : tracked.viewers()) viewer.deleteMessage(tracked.signedMessage());
-        repository.markDeleted(messageId, staff);
-        staff.sendMessage(Component.text("Nachricht gelöscht.", NamedTextColor.GRAY));
+        repository.markDeleted(messageId, sender);
+        sender.sendMessage(Component.text("Nachricht gelöscht.", NamedTextColor.GRAY));
         return true;
     }
 

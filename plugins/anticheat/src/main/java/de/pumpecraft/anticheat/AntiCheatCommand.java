@@ -264,7 +264,10 @@ public final class AntiCheatCommand implements CommandExecutor, TabCompleter {
     private boolean alerts(CommandSender sender) {
         Optional<Player> staff = Players.self(sender);
         if (staff.isEmpty()) {
-            sender.sendMessage(Component.text("Nur für Spieler.", NamedTextColor.RED));
+            sender.sendMessage(Component.text(
+                "Die Serverkonsole erhält AntiCheat-Meldungen dauerhaft über das Log.",
+                NamedTextColor.GRAY
+            ));
             return true;
         }
         boolean muted = alerts.toggleMute(staff.get());

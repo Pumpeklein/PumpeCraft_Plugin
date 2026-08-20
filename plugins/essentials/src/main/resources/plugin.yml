@@ -8,22 +8,22 @@ depend: [PumpeDatabase, PumpeUtils, PumpeTransactions]
 commands:
   openinv:
     description: Opens and edits the inventory of an online or offline player.
-    usage: /openinv <Spieler>
+    usage: "/openinv <Spieler> | Konsole: /openinv <Viewer> <Spieler>"
     permission: pumpecraft.essentials.openinv
   opendender:
     description: Opens and edits the ender chest of an online or offline player.
-    usage: /opendender <Spieler>
+    usage: "/opendender <Spieler> | Konsole: /opendender <Viewer> <Spieler>"
     aliases:
       - openender
       - openec
     permission: pumpecraft.essentials.opendender
   rename:
     description: Renames the item held in the main hand for PumpePoints.
-    usage: /rename <Name>
+    usage: "/rename <Name> | Konsole: /rename <Spieler> <Name>"
     permission: pumpecraft.essentials.rename
   sign:
     description: Signs the item held in the main hand for PumpePoints.
-    usage: /sign [Nachricht]
+    usage: "/sign [Nachricht] | Konsole: /sign <Spieler> [Nachricht]"
     permission: pumpecraft.essentials.sign
   seen:
     description: Shows when a known player was last online.
@@ -41,11 +41,11 @@ commands:
     permission: pumpecraft.essentials.back
   sit:
     description: Sits the player down on the spot.
-    usage: /sit
+    usage: "/sit | Konsole: /sit <Spieler>"
     permission: pumpecraft.essentials.sit
   crawl:
     description: Puts the player into the crawling pose.
-    usage: /crawl
+    usage: "/crawl | Konsole: /crawl <Spieler>"
     permission: pumpecraft.essentials.crawl
 permissions:
   pumpecraft.essentials.*:

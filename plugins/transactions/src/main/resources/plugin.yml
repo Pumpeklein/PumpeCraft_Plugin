@@ -8,7 +8,7 @@ depend: [PumpeDatabase, PumpeUtils]
 commands:
   pp:
     description: Shows and moves PumpePoints.
-    usage: /pp [pay|top|history|give|take|set]
+    usage: "/pp [pay|top|history|give|take|set] | Konsole: /pp pay <Absender> <Empfänger> <Betrag>"
     aliases: [points, pumpepoints]
     permission: pumpecraft.points.use
 permissions:

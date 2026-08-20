@@ -25,3 +25,5 @@ indistinguishable from an ordinary one, because releasing only reset `blocked`.
 - `/msg <player> <message>` (aliases: `/tell`, `/w`; click a message to reply)
 - `/chatcontrol delete <message-id>` (immediately deletes via the `[DEL]` control)
 - `/chatcontrol keep <message-id>` (releases a message the filter held back)
+
+All commands can also be executed from the server console.

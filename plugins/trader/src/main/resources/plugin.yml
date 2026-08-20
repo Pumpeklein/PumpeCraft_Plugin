@@ -8,7 +8,7 @@ depend: [PumpeUtils, PumpeTransactions]
 commands:
   trader:
     description: Spawns or removes the temporary PumpeCraft trader.
-    usage: /trader <Zeit|del>
+    usage: "/trader <Zeit|del> | Konsole: /trader <Zeit> <Spieler>"
 permissions:
   pumpecraft.trader.*:
     description: Allows using all PumpeTrader staff features.
