@@ -38,14 +38,14 @@ final class TraderShop implements Listener {
     private static final long SPONGE_PRICE = 500L;
     private static final int MAX_AMOUNT = 64;
     private static final int CART_SIZE = 45;
-    private static final int CONFIRM_SIZE = 27;
-    private static final int PRICE_SLOT = 4;
+    private static final int CONFIRM_SIZE = 45;
+    private static final int PRICE_SLOT = 38;
     private static final int CLEAR_SLOT = 36;
     private static final int CART_CONFIRM_SLOT = 40;
-    private static final int CART_CLOSE_SLOT = 44;
-    private static final int CONFIRM_BACK_SLOT = 18;
-    private static final int CONFIRM_BUY_SLOT = 22;
-    private static final int CONFIRM_CLOSE_SLOT = 26;
+    private static final int CART_CLOSE_SLOT = 42;
+    private static final int CONFIRM_BACK_SLOT = 36;
+    private static final int CONFIRM_BUY_SLOT = 40;
+    private static final int CONFIRM_CLOSE_SLOT = 42;
     private static final int[] PRODUCT_SLOTS = {10, 12, 14, 16};
 
     private final PumpeTraderPlugin plugin;
@@ -192,22 +192,22 @@ final class TraderShop implements Listener {
         }
         inventory.setItem(PRICE_SLOT, pricePaper(total));
         inventory.setItem(CLEAR_SLOT, button(
-            Material.RED_DYE,
+            Material.ORANGE_DYE,
             "Warenkorb leeren",
-            NamedTextColor.RED,
+            NamedTextColor.GOLD,
             List.of(Component.text("Setzt alle Mengen auf 0.", NamedTextColor.GRAY))
         ));
         inventory.setItem(CART_CONFIRM_SLOT, button(
-            total > 0L ? Material.LIME_CONCRETE : Material.GRAY_CONCRETE,
-            total > 0L ? "Weiter zur Bestätigung" : "Noch nichts ausgewählt",
+            total > 0L ? Material.LIME_DYE : Material.GRAY_DYE,
+            total > 0L ? "Kauf prüfen" : "Noch nichts ausgewählt",
             total > 0L ? NamedTextColor.GREEN : NamedTextColor.GRAY,
             List.of(Component.text("Endpreis: ", NamedTextColor.GRAY).append(Currency.component(total)))
         ));
         inventory.setItem(CART_CLOSE_SLOT, button(
-            Material.BARRIER,
-            "Schließen",
+            Material.RED_DYE,
+            "Abbrechen",
             NamedTextColor.RED,
-            List.of()
+            List.of(Component.text("Es wird nichts gekauft.", NamedTextColor.GRAY))
         ));
         inventory.getViewers().forEach(viewer -> updateTitle(viewer.getOpenInventory(), total));
     }
@@ -222,11 +222,11 @@ final class TraderShop implements Listener {
         );
         holder.inventory(inventory);
         inventory.setItem(PRICE_SLOT, pricePaper(total));
-        int summarySlot = 10;
+        int summaryIndex = 0;
         for (int index = 0; index < products.size(); index++) {
             int amount = holder.amounts()[index];
             if (amount > 0) {
-                inventory.setItem(summarySlot++, summaryItem(products.get(index), amount));
+                inventory.setItem(PRODUCT_SLOTS[summaryIndex++], summaryItem(products.get(index), amount));
             }
         }
         inventory.setItem(CONFIRM_BACK_SLOT, button(
@@ -236,16 +236,16 @@ final class TraderShop implements Listener {
             List.of(Component.text("Mengen noch einmal ändern", NamedTextColor.GRAY))
         ));
         inventory.setItem(CONFIRM_BUY_SLOT, button(
-            Material.LIME_CONCRETE,
-            "Für " + Currency.format(total) + " kaufen",
+            Material.LIME_DYE,
+            "Kaufen",
             NamedTextColor.GREEN,
             confirmationLore(holder.amounts(), total)
         ));
         inventory.setItem(CONFIRM_CLOSE_SLOT, button(
-            Material.BARRIER,
+            Material.RED_DYE,
             "Abbrechen",
             NamedTextColor.RED,
-            List.of()
+            List.of(Component.text("Es wird nichts gekauft.", NamedTextColor.GRAY))
         ));
         player.openInventory(inventory);
     }
