@@ -12,20 +12,23 @@ Supported times: `30s`, `15m`, `1h`, `2h`, `1d`. Plain numbers are treated as mi
 ## Behavior
 
 - Broadcasts the trader location when spawned; the wording comes from `TraderTopics` over
-  `Messages.render`, so [PumpeAI](../ai/README.md) can take it over when it runs.
+  `Messages.render`.
 - Trader does not move, is silent, non-collidable and invulnerable.
 - Trader despawns after the given time and broadcasts a despawn message.
-- Trades are paid directly with PumpePoints. The protected price item in the merchant input is
-  supplied by the server and cannot be removed.
+- Trades are paid directly with PumpePoints through a protected cart menu.
+- Left click adds one item, shift-left-click adds ten, right click removes one, and
+  shift-right-click deselects that product completely.
+- The paper and window title show the exact total. A separate confirmation window lists the
+  selected quantities and final price before PumpePoints are charged.
 
 ## Special Items
 
 Current trades:
 
-- 1 Light Block for 2.500 PP
-- 2 Invisible Item Frames for 1.500 PP (750 PP each)
-- 1 Invisible Glow Item Frame for 1.250 PP
-- 2 Sponges for 200 PP (100 PP each)
+- 1 Light Block for 4.500 PP
+- 1 Invisible Item Frame for 1.500 PP
+- 1 Invisible Glow Item Frame for 2.250 PP
+- 1 Sponge for 500 PP
 
 Invisible item frames and invisible glow item frames keep their special ability when placed and when broken again.
 

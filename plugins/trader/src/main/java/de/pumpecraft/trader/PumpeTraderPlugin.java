@@ -14,7 +14,7 @@ public final class PumpeTraderPlugin extends JavaPlugin {
 
         TraderItems items = new TraderItems(this);
         TraderShop shop = new TraderShop(this, Points.require(this), items);
-        traderCommand = new TraderCommand(this, items, shop);
+        traderCommand = new TraderCommand(this, items);
         PluginCommand command = Objects.requireNonNull(getCommand("trader"), "Missing command: trader");
         command.setExecutor(traderCommand);
         command.setTabCompleter(traderCommand);

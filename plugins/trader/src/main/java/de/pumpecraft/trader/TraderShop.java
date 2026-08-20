@@ -1,11 +1,18 @@
 package de.pumpecraft.trader;
 
+import de.pumpecraft.transactions.core.Currency;
+import de.pumpecraft.transactions.core.PointsService;
+import de.pumpecraft.transactions.core.TransactionType;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
-
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Entity;
@@ -13,223 +20,377 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
-import org.bukkit.event.inventory.InventoryOpenEvent;
-import org.bukkit.event.inventory.TradeSelectEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.Merchant;
-import org.bukkit.inventory.MerchantInventory;
-import org.bukkit.inventory.MerchantRecipe;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
-
-import de.pumpecraft.transactions.core.Currency;
-import de.pumpecraft.transactions.core.PointsService;
-import de.pumpecraft.transactions.core.TransactionType;
-import io.papermc.paper.event.player.PlayerTradeEvent;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
 
 final class TraderShop implements Listener {
     private static final long LIGHT_PRICE = 4_500L;
     private static final long INVISIBLE_FRAME_PRICE = 1_500L;
     private static final long INVISIBLE_GLOW_FRAME_PRICE = 2_250L;
     private static final long SPONGE_PRICE = 500L;
+    private static final int MAX_AMOUNT = 64;
+    private static final int CART_SIZE = 45;
+    private static final int CONFIRM_SIZE = 27;
+    private static final int PRICE_SLOT = 4;
+    private static final int CLEAR_SLOT = 36;
+    private static final int CART_CONFIRM_SLOT = 40;
+    private static final int CART_CLOSE_SLOT = 44;
+    private static final int CONFIRM_BACK_SLOT = 18;
+    private static final int CONFIRM_BUY_SLOT = 22;
+    private static final int CONFIRM_CLOSE_SLOT = 26;
+    private static final int[] PRODUCT_SLOTS = {10, 12, 14, 16};
 
     private final PumpeTraderPlugin plugin;
     private final PointsService points;
-    private final TraderItems items;
     private final NamespacedKey traderKey;
-    private final NamespacedKey priceKey;
+    private final List<Product> products;
 
     TraderShop(PumpeTraderPlugin plugin, PointsService points, TraderItems items) {
         this.plugin = plugin;
         this.points = points;
-        this.items = items;
         traderKey = new NamespacedKey(plugin, "event_trader");
-        priceKey = new NamespacedKey(plugin, "trade_price");
+        products = List.of(
+            new Product(
+                items.item(Material.LIGHT, 1, "Light Block", "Unsichtbare Lichtquelle für Builder."),
+                "Light Block",
+                LIGHT_PRICE
+            ),
+            new Product(
+                items.invisibleFrame(Material.ITEM_FRAME, 1),
+                "Invisible Item Frame",
+                INVISIBLE_FRAME_PRICE
+            ),
+            new Product(
+                items.invisibleFrame(Material.GLOW_ITEM_FRAME, 1),
+                "Invisible Glow Item Frame",
+                INVISIBLE_GLOW_FRAME_PRICE
+            ),
+            new Product(
+                items.item(Material.SPONGE, 1, "Schwamm", "Wasser weg, Problem kleiner."),
+                "Schwamm",
+                SPONGE_PRICE
+            )
+        );
     }
 
-    List<MerchantRecipe> createRecipes() {
-        List<MerchantRecipe> recipes = new ArrayList<>();
-        recipes.add(recipe(
-            items.item(Material.LIGHT, 1, "Light Block", "Unsichtbare Lichtquelle für Builder."),
-            LIGHT_PRICE
-        ));
-        recipes.add(recipe(items.invisibleFrame(Material.ITEM_FRAME, 2), INVISIBLE_FRAME_PRICE));
-        recipes.add(recipe(items.invisibleFrame(Material.GLOW_ITEM_FRAME, 1), INVISIBLE_GLOW_FRAME_PRICE));
-        recipes.add(recipe(
-            items.item(Material.SPONGE, 2, "Sponges", "Wasser weg, Problem kleiner."),
-            SPONGE_PRICE
-        ));
-        return recipes;
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onOpen(InventoryOpenEvent event) {
-        if (event.getInventory() instanceof MerchantInventory inventory && isEventTrader(inventory.getMerchant())) {
-            select(inventory, 0);
-        }
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onSelect(TradeSelectEvent event) {
-        if (isEventTrader(event.getMerchant())) {
-            select(event.getInventory(), event.getIndex());
-        }
-    }
-
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onClick(InventoryClickEvent event) {
-        if (!(event.getView().getTopInventory() instanceof MerchantInventory inventory)
-            || !isEventTrader(inventory.getMerchant())) {
-            return;
-        }
-        int rawSlot = event.getRawSlot();
-        if (rawSlot == 0
-            || rawSlot == 1
-            || event.isShiftClick() && rawSlot >= inventory.getSize()
-            || event.getAction() == InventoryAction.COLLECT_TO_CURSOR) {
-            event.setCancelled(true);
-        }
-    }
-
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onDrag(InventoryDragEvent event) {
-        if (!(event.getView().getTopInventory() instanceof MerchantInventory inventory)
-            || !isEventTrader(inventory.getMerchant())) {
-            return;
-        }
-        if (event.getRawSlots().stream().anyMatch(slot -> slot == 0 || slot == 1)) {
-            event.setCancelled(true);
-        }
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR)
-    public void onClose(InventoryCloseEvent event) {
-        if (event.getInventory() instanceof MerchantInventory inventory && isEventTrader(inventory.getMerchant())) {
-            inventory.setItem(0, null);
-            inventory.setItem(1, null);
-        }
-    }
-
-    @EventHandler(priority = EventPriority.LOWEST)
-    public void onPurchase(PlayerTradeEvent event) {
-        if (!isEventTrader(event.getVillager())) {
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onTraderInteract(PlayerInteractEntityEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND || !isEventTrader(event.getRightClicked())) {
             return;
         }
         event.setCancelled(true);
+        Player player = event.getPlayer();
+        Entity trader = event.getRightClicked();
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (player.isOnline() && trader.isValid()) {
+                openCart(player, trader.getUniqueId(), new int[products.size()]);
+            }
+        });
+    }
 
-        MerchantRecipe trade = event.getTrade();
-        long price = price(trade);
-        if (price <= 0L) {
-            plugin.getLogger().warning("Event trader recipe without a valid PP price was blocked.");
-            event.getPlayer().sendMessage(Component.text("Dieser Handel ist gerade nicht verfügbar.", NamedTextColor.RED));
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onClick(InventoryClickEvent event) {
+        Inventory top = event.getView().getTopInventory();
+        if (!(top.getHolder() instanceof TraderHolder holder)) {
+            return;
+        }
+        event.setCancelled(true);
+        if (!(event.getWhoClicked() instanceof Player player) || event.getClickedInventory() != top) {
             return;
         }
 
-        Player player = event.getPlayer();
-        ItemStack result = trade.getResult();
+        if (holder instanceof CartHolder cart) {
+            handleCartClick(player, cart, event);
+        } else if (holder instanceof ConfirmHolder confirm) {
+            handleConfirmClick(player, confirm, event.getRawSlot());
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onDrag(InventoryDragEvent event) {
+        Inventory top = event.getView().getTopInventory();
+        if (top.getHolder() instanceof TraderHolder
+            && event.getRawSlots().stream().anyMatch(slot -> slot < top.getSize())) {
+            event.setCancelled(true);
+        }
+    }
+
+    private void handleCartClick(Player player, CartHolder cart, InventoryClickEvent event) {
+        if (!ensureTraderActive(player, cart.traderId())) {
+            return;
+        }
+        int productIndex = indexOf(PRODUCT_SLOTS, event.getRawSlot());
+        if (productIndex >= 0) {
+            int current = cart.amounts()[productIndex];
+            int updated;
+            if (event.isShiftClick() && event.isRightClick()) {
+                updated = 0;
+            } else if (event.isShiftClick() && event.isLeftClick()) {
+                updated = Math.min(MAX_AMOUNT, current + 10);
+            } else if (event.isRightClick()) {
+                updated = Math.max(0, current - 1);
+            } else if (event.isLeftClick()) {
+                updated = Math.min(MAX_AMOUNT, current + 1);
+            } else {
+                return;
+            }
+            cart.amounts()[productIndex] = updated;
+            refreshCart(cart);
+            return;
+        }
+
+        if (event.getRawSlot() == CLEAR_SLOT) {
+            Arrays.fill(cart.amounts(), 0);
+            refreshCart(cart);
+        } else if (event.getRawSlot() == CART_CONFIRM_SLOT) {
+            long total = total(cart.amounts());
+            if (total == 0L) {
+                player.sendMessage(Component.text("Wähle zuerst mindestens ein Item aus.", NamedTextColor.RED));
+                return;
+            }
+            openConfirmation(player, cart.traderId(), cart.amounts());
+        } else if (event.getRawSlot() == CART_CLOSE_SLOT) {
+            player.closeInventory();
+        }
+    }
+
+    private void handleConfirmClick(Player player, ConfirmHolder confirm, int slot) {
+        if (!ensureTraderActive(player, confirm.traderId())) {
+            return;
+        }
+        if (slot == CONFIRM_BACK_SLOT) {
+            openCart(player, confirm.traderId(), confirm.amounts());
+        } else if (slot == CONFIRM_CLOSE_SLOT) {
+            player.closeInventory();
+        } else if (slot == CONFIRM_BUY_SLOT && !confirm.processing()) {
+            confirm.processing(true);
+            purchase(player, confirm.traderId(), confirm.amounts());
+        }
+    }
+
+    private void openCart(Player player, UUID traderId, int[] selectedAmounts) {
+        CartHolder holder = new CartHolder(traderId, selectedAmounts);
+        Inventory inventory = Bukkit.createInventory(holder, CART_SIZE, cartTitle(total(holder.amounts())));
+        holder.inventory(inventory);
+        refreshCart(holder);
+        player.openInventory(inventory);
+    }
+
+    private void refreshCart(CartHolder holder) {
+        Inventory inventory = holder.getInventory();
+        long total = total(holder.amounts());
+        for (int index = 0; index < products.size(); index++) {
+            inventory.setItem(PRODUCT_SLOTS[index], productButton(products.get(index), holder.amounts()[index]));
+        }
+        inventory.setItem(PRICE_SLOT, pricePaper(total));
+        inventory.setItem(CLEAR_SLOT, button(
+            Material.RED_DYE,
+            "Warenkorb leeren",
+            NamedTextColor.RED,
+            List.of(Component.text("Setzt alle Mengen auf 0.", NamedTextColor.GRAY))
+        ));
+        inventory.setItem(CART_CONFIRM_SLOT, button(
+            total > 0L ? Material.LIME_CONCRETE : Material.GRAY_CONCRETE,
+            total > 0L ? "Weiter zur Bestätigung" : "Noch nichts ausgewählt",
+            total > 0L ? NamedTextColor.GREEN : NamedTextColor.GRAY,
+            List.of(Component.text("Endpreis: ", NamedTextColor.GRAY).append(Currency.component(total)))
+        ));
+        inventory.setItem(CART_CLOSE_SLOT, button(
+            Material.BARRIER,
+            "Schließen",
+            NamedTextColor.RED,
+            List.of()
+        ));
+        inventory.getViewers().forEach(viewer -> updateTitle(viewer.getOpenInventory(), total));
+    }
+
+    private void openConfirmation(Player player, UUID traderId, int[] selectedAmounts) {
+        ConfirmHolder holder = new ConfirmHolder(traderId, selectedAmounts);
+        long total = total(holder.amounts());
+        Inventory inventory = Bukkit.createInventory(
+            holder,
+            CONFIRM_SIZE,
+            Component.text("Kauf bestätigen · " + Currency.format(total), Currency.COLOR)
+        );
+        holder.inventory(inventory);
+        inventory.setItem(PRICE_SLOT, pricePaper(total));
+        int summarySlot = 10;
+        for (int index = 0; index < products.size(); index++) {
+            int amount = holder.amounts()[index];
+            if (amount > 0) {
+                inventory.setItem(summarySlot++, summaryItem(products.get(index), amount));
+            }
+        }
+        inventory.setItem(CONFIRM_BACK_SLOT, button(
+            Material.ARROW,
+            "Zurück zur Auswahl",
+            NamedTextColor.YELLOW,
+            List.of(Component.text("Mengen noch einmal ändern", NamedTextColor.GRAY))
+        ));
+        inventory.setItem(CONFIRM_BUY_SLOT, button(
+            Material.LIME_CONCRETE,
+            "Für " + Currency.format(total) + " kaufen",
+            NamedTextColor.GREEN,
+            confirmationLore(holder.amounts(), total)
+        ));
+        inventory.setItem(CONFIRM_CLOSE_SLOT, button(
+            Material.BARRIER,
+            "Abbrechen",
+            NamedTextColor.RED,
+            List.of()
+        ));
+        player.openInventory(inventory);
+    }
+
+    private ItemStack productButton(Product product, int amount) {
+        ItemStack button = product.item().clone();
+        button.setAmount(Math.max(1, amount));
+        ItemMeta meta = button.getItemMeta();
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.text("Einzelpreis: ", NamedTextColor.GRAY).append(Currency.component(product.unitPrice())));
+        lore.add(Component.text("Ausgewählt: ", NamedTextColor.GRAY).append(Component.text(
+            amount == 0 ? "Nein" : amount + "x",
+            amount == 0 ? NamedTextColor.RED : NamedTextColor.GREEN
+        )));
+        lore.add(Component.text("Preis: ", NamedTextColor.GRAY).append(Currency.component(product.unitPrice() * amount)));
+        lore.add(Component.empty());
+        lore.add(Component.text("Linksklick: +1", NamedTextColor.GREEN));
+        lore.add(Component.text("Shift + Linksklick: +10", NamedTextColor.GREEN));
+        lore.add(Component.text("Rechtsklick: -1", NamedTextColor.YELLOW));
+        lore.add(Component.text("Shift + Rechtsklick: abwählen", NamedTextColor.RED));
+        meta.lore(plain(lore));
+        if (amount > 0) {
+            meta.setEnchantmentGlintOverride(true);
+        }
+        meta.addItemFlags(ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_ATTRIBUTES);
+        button.setItemMeta(meta);
+        return button;
+    }
+
+    private ItemStack summaryItem(Product product, int amount) {
+        ItemStack summary = product.item().clone();
+        summary.setAmount(amount);
+        ItemMeta meta = summary.getItemMeta();
+        meta.lore(plain(List.of(
+            Component.text(amount + "x · je ", NamedTextColor.GRAY).append(Currency.component(product.unitPrice())),
+            Component.text("Zusammen: ", NamedTextColor.GRAY)
+                .append(Currency.component(product.unitPrice() * amount))
+        )));
+        summary.setItemMeta(meta);
+        return summary;
+    }
+
+    private ItemStack pricePaper(long total) {
+        return button(Material.PAPER, Currency.format(total), Currency.COLOR, List.of());
+    }
+
+    private List<Component> confirmationLore(int[] amounts, long total) {
+        List<Component> lore = new ArrayList<>();
+        for (int index = 0; index < products.size(); index++) {
+            if (amounts[index] > 0) {
+                lore.add(Component.text(
+                    amounts[index] + "x " + products.get(index).name(),
+                    NamedTextColor.GRAY
+                ));
+            }
+        }
+        lore.add(Component.empty());
+        lore.add(Component.text("Endpreis: ", NamedTextColor.WHITE).append(Currency.component(total)));
+        lore.add(Component.text("Klicken, um verbindlich zu kaufen.", NamedTextColor.GREEN));
+        return lore;
+    }
+
+    private ItemStack button(Material material, String name, NamedTextColor color, List<Component> lore) {
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text(name, color).decoration(TextDecoration.ITALIC, false));
+        meta.lore(plain(lore));
+        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private List<Component> plain(List<Component> lore) {
+        return lore.stream()
+            .map(line -> line.decoration(TextDecoration.ITALIC, false))
+            .toList();
+    }
+
+    private void purchase(Player player, UUID traderId, int[] amounts) {
+        if (!ensureTraderActive(player, traderId)) {
+            return;
+        }
+        int[] purchaseAmounts = amounts.clone();
+        long total = total(purchaseAmounts);
+        if (total <= 0L) {
+            player.sendMessage(Component.text("Wähle zuerst mindestens ein Item aus.", NamedTextColor.RED));
+            return;
+        }
+
+        player.closeInventory();
         UUID playerId = player.getUniqueId();
         String playerName = player.getName();
-        points.runAsync(() -> charge(playerId, playerName, result, price));
+        points.runAsync(() -> charge(playerId, playerName, purchaseAmounts, total));
     }
 
-    private MerchantRecipe recipe(ItemStack result, long unitPrice) {
-        long totalPrice = Math.multiplyExact(unitPrice, result.getAmount());
-        MerchantRecipe recipe = new MerchantRecipe(result, 999_999);
-        recipe.addIngredient(priceToken(totalPrice, unitPrice, result.getAmount()));
-        return recipe;
-    }
-
-    private ItemStack priceToken(long totalPrice, long unitPrice, int amount) {
-        ItemStack token = new ItemStack(Material.PAPER);
-        ItemMeta meta = token.getItemMeta();
-        meta.displayName(Component.text("Preis: " + Currency.format(totalPrice), Currency.COLOR)
-            .decoration(TextDecoration.ITALIC, false));
-        if (amount > 1) {
-            meta.lore(List.of(Component.text(
-                Currency.format(unitPrice) + " pro Stück · " + amount + " Stück",
-                NamedTextColor.GRAY
-            ).decoration(TextDecoration.ITALIC, false)));
-        } else {
-            meta.lore(List.of(Component.text("Wird direkt mit PP bezahlt.", NamedTextColor.GRAY)
-                .decoration(TextDecoration.ITALIC, false)));
-        }
-        meta.getPersistentDataContainer().set(priceKey, PersistentDataType.LONG, totalPrice);
-        token.setItemMeta(meta);
-        return token;
-    }
-
-    private void select(MerchantInventory inventory, int index) {
-        List<MerchantRecipe> recipes = inventory.getMerchant().getRecipes();
-        if (index < 0 || index >= recipes.size()) {
-            return;
-        }
-        List<ItemStack> ingredients = recipes.get(index).getIngredients();
-        if (ingredients.isEmpty()) {
-            return;
-        }
-        inventory.setItem(0, ingredients.getFirst());
-        inventory.setItem(1, null);
-    }
-
-    private long price(MerchantRecipe recipe) {
-        List<ItemStack> ingredients = recipe.getIngredients();
-        if (ingredients.isEmpty()) {
-            return 0L;
-        }
-        ItemStack token = ingredients.getFirst();
-        if (!token.hasItemMeta()) {
-            return 0L;
-        }
-        Long price = token.getItemMeta().getPersistentDataContainer().get(priceKey, PersistentDataType.LONG);
-        return price == null ? 0L : price;
-    }
-
-    private void charge(UUID playerId, String playerName, ItemStack result, long price) {
+    private void charge(UUID playerId, String playerName, int[] amounts, long total) {
         try {
             boolean paid = points.withdraw(
                 playerId,
                 playerName,
-                price,
+                total,
                 TransactionType.TRADER_PURCHASE,
                 playerName,
-                "Trader-Kauf: " + result.getAmount() + "x " + result.getType()
+                "Trader-Kauf: " + purchaseDescription(amounts)
             );
-            points.runSync(() -> finish(playerId, playerName, result, price, paid));
+            points.runSync(() -> finish(playerId, playerName, amounts, total, paid));
         } catch (RuntimeException exception) {
             plugin.getLogger().log(Level.WARNING, "Could not charge trader purchase for " + playerName + ".", exception);
             points.runSync(() -> message(playerId, "Die PP-Abbuchung ist fehlgeschlagen.", NamedTextColor.RED));
         }
     }
 
-    private void finish(UUID playerId, String playerName, ItemStack result, long price, boolean paid) {
+    private void finish(UUID playerId, String playerName, int[] amounts, long total, boolean paid) {
         Player player = plugin.getServer().getPlayer(playerId);
         if (!paid) {
             if (player != null) {
                 player.sendMessage(Component.text("Du benötigst ", NamedTextColor.RED)
-                    .append(Currency.component(price))
+                    .append(Currency.component(total))
                     .append(Component.text(" für diesen Kauf.", NamedTextColor.RED)));
             }
             return;
         }
         if (player == null || !player.isOnline()) {
-            refund(playerId, playerName, price);
+            refund(playerId, playerName, total);
             return;
         }
 
-        Map<Integer, ItemStack> leftovers = player.getInventory().addItem(result.clone());
-        leftovers.values().forEach(item -> player.getWorld().dropItemNaturally(player.getLocation(), item));
-        player.sendMessage(Component.text("Gekauft: ", NamedTextColor.GREEN)
-            .append(Component.text(result.getAmount() + "x " + displayName(result), NamedTextColor.GOLD))
-            .append(Component.text(" für ", NamedTextColor.GREEN))
-            .append(Currency.component(price))
+        for (int index = 0; index < products.size(); index++) {
+            give(player, products.get(index).item(), amounts[index]);
+        }
+        player.sendMessage(Component.text("Kauf abgeschlossen für ", NamedTextColor.GREEN)
+            .append(Currency.component(total))
             .append(Component.text(".", NamedTextColor.GREEN)));
+    }
+
+    private void give(Player player, ItemStack template, int amount) {
+        int remaining = amount;
+        while (remaining > 0) {
+            ItemStack stack = template.clone();
+            int stackAmount = Math.min(remaining, stack.getMaxStackSize());
+            stack.setAmount(stackAmount);
+            Map<Integer, ItemStack> leftovers = player.getInventory().addItem(stack);
+            leftovers.values().forEach(item -> player.getWorld().dropItemNaturally(player.getLocation(), item));
+            remaining -= stackAmount;
+        }
     }
 
     private void refund(UUID playerId, String playerName, long price) {
@@ -249,25 +410,136 @@ final class TraderShop implements Listener {
         });
     }
 
-    private String displayName(ItemStack item) {
-        return switch (item.getType()) {
-            case LIGHT -> "Light Block";
-            case ITEM_FRAME -> "Invisible Item Frame";
-            case GLOW_ITEM_FRAME -> "Invisible Glow Item Frame";
-            case SPONGE -> "Schwamm";
-            default -> item.getType().name();
-        };
+    private long total(int[] amounts) {
+        long total = 0L;
+        for (int index = 0; index < products.size(); index++) {
+            total = Math.addExact(total, Math.multiplyExact(products.get(index).unitPrice(), amounts[index]));
+        }
+        return total;
     }
 
-    private boolean isEventTrader(Merchant merchant) {
-        return merchant instanceof Entity entity
-            && entity.getPersistentDataContainer().has(traderKey, PersistentDataType.BYTE);
+    private String purchaseDescription(int[] amounts) {
+        List<String> lines = new ArrayList<>();
+        for (int index = 0; index < products.size(); index++) {
+            if (amounts[index] > 0) {
+                lines.add(amounts[index] + "x " + products.get(index).name());
+            }
+        }
+        return String.join(", ", lines);
+    }
+
+    private Component cartTitle(long total) {
+        return Component.text(titleText(total), Currency.COLOR);
+    }
+
+    private String titleText(long total) {
+        return "PumpeTrader · Endpreis: " + Currency.format(total);
+    }
+
+    // Paper exposes the dynamic inventory-title update only through this deprecated Bukkit method.
+    @SuppressWarnings("deprecation")
+    private void updateTitle(org.bukkit.inventory.InventoryView view, long total) {
+        view.setTitle(titleText(total));
+    }
+
+    private int indexOf(int[] values, int needle) {
+        for (int index = 0; index < values.length; index++) {
+            if (values[index] == needle) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    private boolean isEventTrader(Entity entity) {
+        return entity.getPersistentDataContainer().has(traderKey, PersistentDataType.BYTE);
+    }
+
+    private boolean ensureTraderActive(Player player, UUID traderId) {
+        Entity trader = Bukkit.getEntity(traderId);
+        if (trader != null && trader.isValid() && isEventTrader(trader)) {
+            return true;
+        }
+        player.closeInventory();
+        player.sendMessage(Component.text("Dieser Trader ist nicht mehr aktiv.", NamedTextColor.RED));
+        return false;
     }
 
     private void message(UUID playerId, String text, NamedTextColor color) {
         Player player = plugin.getServer().getPlayer(playerId);
         if (player != null) {
             player.sendMessage(Component.text(text, color));
+        }
+    }
+
+    private record Product(ItemStack item, String name, long unitPrice) {
+    }
+
+    private interface TraderHolder extends InventoryHolder {
+    }
+
+    private static final class CartHolder implements TraderHolder {
+        private final UUID traderId;
+        private final int[] amounts;
+        private Inventory inventory;
+
+        private CartHolder(UUID traderId, int[] amounts) {
+            this.traderId = traderId;
+            this.amounts = amounts.clone();
+        }
+
+        @Override
+        public Inventory getInventory() {
+            return inventory;
+        }
+
+        private void inventory(Inventory inventory) {
+            this.inventory = inventory;
+        }
+
+        private int[] amounts() {
+            return amounts;
+        }
+
+        private UUID traderId() {
+            return traderId;
+        }
+    }
+
+    private static final class ConfirmHolder implements TraderHolder {
+        private final UUID traderId;
+        private final int[] amounts;
+        private Inventory inventory;
+        private boolean processing;
+
+        private ConfirmHolder(UUID traderId, int[] amounts) {
+            this.traderId = traderId;
+            this.amounts = amounts.clone();
+        }
+
+        @Override
+        public Inventory getInventory() {
+            return inventory;
+        }
+
+        private void inventory(Inventory inventory) {
+            this.inventory = inventory;
+        }
+
+        private int[] amounts() {
+            return amounts;
+        }
+
+        private UUID traderId() {
+            return traderId;
+        }
+
+        private boolean processing() {
+            return processing;
+        }
+
+        private void processing(boolean processing) {
+            this.processing = processing;
         }
     }
 }

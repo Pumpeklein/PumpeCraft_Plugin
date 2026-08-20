@@ -40,14 +40,12 @@ public final class TraderCommand implements CommandExecutor, TabCompleter, Liste
 
     private final PumpeTraderPlugin plugin;
     private final TraderItems items;
-    private final TraderShop shop;
     private final NamespacedKey traderKey;
     private final Map<UUID, BukkitTask> despawnTasks = new HashMap<>();
 
-    public TraderCommand(PumpeTraderPlugin plugin, TraderItems items, TraderShop shop) {
+    public TraderCommand(PumpeTraderPlugin plugin, TraderItems items) {
         this.plugin = plugin;
         this.items = items;
-        this.shop = shop;
         this.traderKey = new NamespacedKey(plugin, "event_trader");
     }
 
@@ -184,7 +182,7 @@ public final class TraderCommand implements CommandExecutor, TabCompleter, Liste
         trader.setRemoveWhenFarAway(false);
         trader.setPersistent(true);
         trader.getPersistentDataContainer().set(traderKey, PersistentDataType.BYTE, TRUE);
-        trader.setRecipes(shop.createRecipes());
+        trader.setRecipes(List.of());
 
         Bukkit.broadcast(Messages.render(TraderTopics.SPAWNED, NamedTextColor.YELLOW,
             Map.of("location", formatLocation(spawnLocation))));
