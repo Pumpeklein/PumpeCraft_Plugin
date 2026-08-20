@@ -1,17 +1,11 @@
 package de.pumpecraft.trader;
 
-import de.pumpecraft.transactions.core.Currency;
-import de.pumpecraft.transactions.core.PointsService;
-import de.pumpecraft.transactions.core.TransactionType;
-import io.papermc.paper.event.player.PlayerTradeEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
+
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Entity;
@@ -32,11 +26,19 @@ import org.bukkit.inventory.MerchantRecipe;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
+import de.pumpecraft.transactions.core.Currency;
+import de.pumpecraft.transactions.core.PointsService;
+import de.pumpecraft.transactions.core.TransactionType;
+import io.papermc.paper.event.player.PlayerTradeEvent;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+
 final class TraderShop implements Listener {
-    private static final long LIGHT_PRICE = 2_500L;
-    private static final long INVISIBLE_FRAME_PRICE = 750L;
-    private static final long INVISIBLE_GLOW_FRAME_PRICE = 1_250L;
-    private static final long SPONGE_PRICE = 100L;
+    private static final long LIGHT_PRICE = 4_500L;
+    private static final long INVISIBLE_FRAME_PRICE = 1_500L;
+    private static final long INVISIBLE_GLOW_FRAME_PRICE = 2_250L;
+    private static final long SPONGE_PRICE = 500L;
 
     private final PumpeTraderPlugin plugin;
     private final PointsService points;
