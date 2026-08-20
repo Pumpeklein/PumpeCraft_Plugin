@@ -16,8 +16,8 @@ Supported times: `30s`, `15m`, `1h`, `2h`, `1d`. Plain numbers are treated as mi
 - Trader does not move, is silent, non-collidable and invulnerable.
 - Trader despawns after the given time and broadcasts a despawn message.
 - Trades are paid directly with PumpePoints through a protected cart menu.
-- Left click adds one item, shift-left-click adds ten, right click removes one, and
-  shift-right-click deselects that product completely.
+- Left click adds one item, shift-left-click adds ten, right click removes one,
+  shift-right-click removes ten, and middle click deselects that product completely.
 - The paper and window title show the exact total. A separate confirmation window lists the
   selected quantities and final price before PumpePoints are charged.
 

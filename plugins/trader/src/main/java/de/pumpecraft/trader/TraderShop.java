@@ -20,6 +20,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
@@ -39,14 +40,15 @@ final class TraderShop implements Listener {
     private static final int MAX_AMOUNT = 64;
     private static final int CART_SIZE = 45;
     private static final int CONFIRM_SIZE = 45;
-    private static final int PRICE_SLOT = 38;
-    private static final int CLEAR_SLOT = 36;
+    private static final int PRICE_SLOT = 4;
+    private static final int CLEAR_SLOT = 38;
     private static final int CART_CONFIRM_SLOT = 40;
     private static final int CART_CLOSE_SLOT = 42;
-    private static final int CONFIRM_BACK_SLOT = 36;
+    private static final int CONFIRM_BACK_SLOT = 38;
     private static final int CONFIRM_BUY_SLOT = 40;
     private static final int CONFIRM_CLOSE_SLOT = 42;
     private static final int[] PRODUCT_SLOTS = {10, 12, 14, 16};
+    private static final int[] STATUS_SLOTS = {19, 21, 23, 25};
 
     private final PumpeTraderPlugin plugin;
     private final PointsService points;
@@ -128,13 +130,18 @@ final class TraderShop implements Listener {
             return;
         }
         int productIndex = indexOf(PRODUCT_SLOTS, event.getRawSlot());
+        if (productIndex < 0) {
+            productIndex = indexOf(STATUS_SLOTS, event.getRawSlot());
+        }
         if (productIndex >= 0) {
             int current = cart.amounts()[productIndex];
             int updated;
-            if (event.isShiftClick() && event.isRightClick()) {
+            if (event.getClick() == ClickType.MIDDLE) {
                 updated = 0;
             } else if (event.isShiftClick() && event.isLeftClick()) {
                 updated = Math.min(MAX_AMOUNT, current + 10);
+            } else if (event.isShiftClick() && event.isRightClick()) {
+                updated = Math.max(0, current - 10);
             } else if (event.isRightClick()) {
                 updated = Math.max(0, current - 1);
             } else if (event.isLeftClick()) {
@@ -187,8 +194,10 @@ final class TraderShop implements Listener {
     private void refreshCart(CartHolder holder) {
         Inventory inventory = holder.getInventory();
         long total = total(holder.amounts());
+        decorateHeader(inventory);
         for (int index = 0; index < products.size(); index++) {
             inventory.setItem(PRODUCT_SLOTS[index], productButton(products.get(index), holder.amounts()[index]));
+            inventory.setItem(STATUS_SLOTS[index], selectionStatus(products.get(index), holder.amounts()[index]));
         }
         inventory.setItem(PRICE_SLOT, pricePaper(total));
         inventory.setItem(CLEAR_SLOT, button(
@@ -221,12 +230,13 @@ final class TraderShop implements Listener {
             Component.text("Kauf bestätigen · " + Currency.format(total), Currency.COLOR)
         );
         holder.inventory(inventory);
+        decorateHeader(inventory);
         inventory.setItem(PRICE_SLOT, pricePaper(total));
-        int summaryIndex = 0;
         for (int index = 0; index < products.size(); index++) {
             int amount = holder.amounts()[index];
             if (amount > 0) {
-                inventory.setItem(PRODUCT_SLOTS[summaryIndex++], summaryItem(products.get(index), amount));
+                inventory.setItem(PRODUCT_SLOTS[index], summaryItem(products.get(index), amount));
+                inventory.setItem(STATUS_SLOTS[index], summaryStatus(products.get(index), amount));
             }
         }
         inventory.setItem(CONFIRM_BACK_SLOT, button(
@@ -265,7 +275,8 @@ final class TraderShop implements Listener {
         lore.add(Component.text("Linksklick: +1", NamedTextColor.GREEN));
         lore.add(Component.text("Shift + Linksklick: +10", NamedTextColor.GREEN));
         lore.add(Component.text("Rechtsklick: -1", NamedTextColor.YELLOW));
-        lore.add(Component.text("Shift + Rechtsklick: abwählen", NamedTextColor.RED));
+        lore.add(Component.text("Shift + Rechtsklick: -10", NamedTextColor.YELLOW));
+        lore.add(Component.text("Mittelklick: abwählen", NamedTextColor.RED));
         meta.lore(plain(lore));
         if (amount > 0) {
             meta.setEnchantmentGlintOverride(true);
@@ -286,6 +297,43 @@ final class TraderShop implements Listener {
         )));
         summary.setItemMeta(meta);
         return summary;
+    }
+
+    private ItemStack selectionStatus(Product product, int amount) {
+        if (amount == 0) {
+            return button(
+                Material.GRAY_STAINED_GLASS_PANE,
+                "Nicht ausgewählt",
+                NamedTextColor.GRAY,
+                List.of(Component.text("Klicke hier oder auf das Item, um es auszuwählen.", NamedTextColor.DARK_GRAY))
+            );
+        }
+        return button(
+            Material.LIME_STAINED_GLASS_PANE,
+            amount + "x ausgewählt",
+            NamedTextColor.GREEN,
+            List.of(Component.text("Zusammen: ", NamedTextColor.GRAY)
+                .append(Currency.component(product.unitPrice() * amount)))
+        );
+    }
+
+    private ItemStack summaryStatus(Product product, int amount) {
+        return button(
+            Material.LIGHT_BLUE_STAINED_GLASS_PANE,
+            amount + "x · " + product.name(),
+            NamedTextColor.AQUA,
+            List.of(Component.text("Zusammen: ", NamedTextColor.GRAY)
+                .append(Currency.component(product.unitPrice() * amount)))
+        );
+    }
+
+    private void decorateHeader(Inventory inventory) {
+        ItemStack pane = button(Material.BLACK_STAINED_GLASS_PANE, " ", NamedTextColor.BLACK, List.of());
+        for (int slot = 0; slot < 9; slot++) {
+            if (slot != PRICE_SLOT) {
+                inventory.setItem(slot, pane);
+            }
+        }
     }
 
     private ItemStack pricePaper(long total) {

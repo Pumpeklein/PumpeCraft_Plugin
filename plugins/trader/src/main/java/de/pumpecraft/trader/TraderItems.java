@@ -1,5 +1,7 @@
 package de.pumpecraft.trader;
 
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.TooltipDisplay;
 import java.util.List;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -27,6 +29,10 @@ final class TraderItems {
         meta.displayName(Component.text(name, NamedTextColor.GOLD));
         meta.lore(List.of(Component.text(lore, NamedTextColor.GRAY)));
         item.setItemMeta(meta);
+        item.setData(
+            DataComponentTypes.TOOLTIP_DISPLAY,
+            TooltipDisplay.tooltipDisplay().addHiddenComponents(DataComponentTypes.BLOCK_DATA)
+        );
         return item;
     }
 
