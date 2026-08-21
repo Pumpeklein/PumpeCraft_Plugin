@@ -1,6 +1,3 @@
 clans:
   max-members: 20
   invitation-expiry-minutes: 15
-
-bases:
-  default-public: false

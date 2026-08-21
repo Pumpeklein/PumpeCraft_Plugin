@@ -23,6 +23,7 @@ val pluginModulePaths = listOf(
     ":plugins:essentials",
     ":plugins:mod",
     ":plugins:clan-system",
+    ":plugins:base-system",
     ":plugins:skills",
     ":plugins:trader",
     ":plugins:death-messages",

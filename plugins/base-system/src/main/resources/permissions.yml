@@ -1,0 +1,21 @@
+permissions:
+  base-use:
+    node: pumpecraft.base.use
+    description: Allows opening the base menu and viewing player base information.
+    default: true
+  base-set:
+    node: pumpecraft.base.set
+    description: Allows setting, changing and deleting an own player base.
+    default: true
+  base-visit:
+    node: pumpecraft.base.visit
+    description: Allows visiting public player bases.
+    default: true
+  base-like:
+    node: pumpecraft.base.like
+    description: Allows liking public player bases.
+    default: true
+  base-admin:
+    node: pumpecraft.base.admin
+    description: Allows staff to inspect and visit private player bases.
+    default: false

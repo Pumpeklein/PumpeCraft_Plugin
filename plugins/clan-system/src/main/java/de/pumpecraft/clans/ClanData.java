@@ -58,33 +58,13 @@ final class ClanData {
     record JoinRequest(long clanId, PlayerIdentity player, long createdAt) {
     }
 
-    record PlayerBase(
-        UUID ownerId,
-        String ownerName,
-        UUID worldId,
-        String worldName,
-        double x,
-        double y,
-        double z,
-        float yaw,
-        float pitch,
-        boolean publicBase,
-        long visitCount,
-        long likeCount,
-        long uniqueVisitors,
-        long createdAt,
-        long updatedAt
-    ) {
-    }
-
     record Directory(
         List<String> clanTags,
         List<String> knownPlayerNames,
-        List<String> memberNames,
-        List<String> baseOwnerNames
+        List<String> memberNames
     ) {
         static Directory empty() {
-            return new Directory(List.of(), List.of(), List.of(), List.of());
+            return new Directory(List.of(), List.of(), List.of());
         }
     }
 

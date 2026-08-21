@@ -49,7 +49,8 @@ neue Schlüssel, es korrigiert keine alten.
 | `plugins/anticheat` | `PumpeAntiCheat` | Checks, Client-Erkennung, Item-Validierung |
 | `plugins/essentials` | `PumpeEssentials` | Inventar- und Enderchest-Zugriff für das Team, Item-Dienste, Rücksprungpunkte (`/back`), Haltungen (`/sit`, `/crawl`) |
 | `plugins/mod` | `PumpeMod` | Bans, Mutes, Reports, Notizen |
-| `plugins/clan-system` | `PumpeClanSystem` | Clans, Basen, Tab-Darstellung |
+| `plugins/clan-system` | `PumpeClanSystem` | Clans, Tab-Darstellung |
+| `plugins/base-system` | `PumpeBaseSystem` | Spielerbasen: Sichtbarkeit, Besuche, Likes, Menü |
 | `plugins/skills` | `PumpeSkills` | Skill-Level, Belohnungen, GUI |
 | `plugins/trader` | `PumpeTrader` | Handels-NPCs |
 | `plugins/death-messages` | `PumpeDeathMessages` | Todes-, Join-, Leave- und Fortschrittsmeldungen, Todeszähler |

@@ -1,0 +1,10 @@
+config-version: 1
+
+bases:
+  default-public: false
+  # Sperre zwischen zwei Besuchen fremder Basen, in Sekunden. 0 schaltet sie ab.
+  visit-cooldown-seconds: 10
+  # Obergrenze für den Basen-Browser; darüber hinaus wird nicht geladen.
+  browse-limit: 500
+  # Wie oft die Namensliste für die Tab-Vervollständigung neu geladen wird, in Sekunden.
+  directory-refresh-seconds: 60

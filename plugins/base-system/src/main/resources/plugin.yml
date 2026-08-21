@@ -1,0 +1,12 @@
+name: PumpeBaseSystem
+version: ${version}
+main: de.pumpecraft.bases.PumpeBaseSystemPlugin
+api-version: '1.21'
+author: PumpeCraft
+description: Player bases with visits, likes, a browsable directory and an in-game menu.
+depend: [PumpeDatabase, PumpeUtils]
+commands:
+  base:
+    aliases: [basis]
+    description: Opens the base menu, sets, visits and rates player bases.
+    usage: "/base [menu|set|visit|like|info|public|private|delete] | Konsole: /base as <Spieler> <Unterbefehl>"

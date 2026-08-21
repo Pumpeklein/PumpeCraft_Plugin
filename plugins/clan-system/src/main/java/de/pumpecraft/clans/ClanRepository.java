@@ -10,7 +10,6 @@ import de.pumpecraft.clans.ClanData.Directory;
 import de.pumpecraft.clans.ClanData.Invitation;
 import de.pumpecraft.clans.ClanData.JoinRequest;
 import de.pumpecraft.clans.ClanData.Member;
-import de.pumpecraft.clans.ClanData.PlayerBase;
 import de.pumpecraft.clans.ClanData.PlayerIdentity;
 import de.pumpecraft.clans.ClanData.RemoveMemberResult;
 import de.pumpecraft.clans.ClanData.RenameClanResult;
@@ -677,8 +676,7 @@ final class ClanRepository {
                 "SELECT player_name AS value FROM pc_players ORDER BY player_name",
                 "value"
             ),
-            strings(connection, "SELECT player_name FROM pc_clan_members ORDER BY player_name", "player_name"),
-            strings(connection, "SELECT owner_name FROM pc_player_bases ORDER BY owner_name", "owner_name")
+            strings(connection, "SELECT player_name FROM pc_clan_members ORDER BY player_name", "player_name")
         ));
     }
 
@@ -724,124 +722,6 @@ final class ClanRepository {
                 "invited_by_name",
                 player
             );
-            updatePlayerName(connection, "pc_player_bases", "owner_uuid", "owner_name", player);
-            updatePlayerName(connection, "pc_base_visitors", "visitor_uuid", "visitor_name", player);
-            updatePlayerName(connection, "pc_base_likes", "liker_uuid", "liker_name", player);
-            return null;
-        });
-    }
-
-    void setBase(PlayerIdentity owner, BaseLocation location, boolean publicBase, long now) {
-        database.withConnection(connection -> {
-            try (PreparedStatement statement = connection.prepareStatement(
-                """
-                INSERT INTO pc_player_bases
-                    (owner_uuid, owner_name, world_uuid, world_name, x, y, z,
-                     yaw, pitch, is_public, visit_count, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
-                ON DUPLICATE KEY UPDATE
-                    owner_name = VALUES(owner_name),
-                    world_uuid = VALUES(world_uuid),
-                    world_name = VALUES(world_name),
-                    x = VALUES(x), y = VALUES(y), z = VALUES(z),
-                    yaw = VALUES(yaw), pitch = VALUES(pitch),
-                    is_public = VALUES(is_public),
-                    updated_at = VALUES(updated_at)
-                """
-            )) {
-                statement.setString(1, owner.playerId().toString());
-                statement.setString(2, owner.playerName());
-                statement.setString(3, location.worldId().toString());
-                statement.setString(4, location.worldName());
-                statement.setDouble(5, location.x());
-                statement.setDouble(6, location.y());
-                statement.setDouble(7, location.z());
-                statement.setFloat(8, location.yaw());
-                statement.setFloat(9, location.pitch());
-                statement.setBoolean(10, publicBase);
-                statement.setLong(11, now);
-                statement.setLong(12, now);
-                statement.executeUpdate();
-            }
-            return null;
-        });
-    }
-
-    Optional<PlayerBase> baseForPlayer(UUID playerId) {
-        return database.withConnection(connection -> findBase(connection, "b.owner_uuid = ?", playerId.toString()));
-    }
-
-    Optional<PlayerBase> baseForName(String playerName) {
-        return database.withConnection(connection -> findBase(connection, "LOWER(b.owner_name) = LOWER(?)", playerName));
-    }
-
-    boolean setBaseVisibility(UUID ownerId, boolean publicBase) {
-        return database.withConnection(connection -> {
-            try (PreparedStatement statement = connection.prepareStatement(
-                "UPDATE pc_player_bases SET is_public = ?, updated_at = ? WHERE owner_uuid = ?"
-            )) {
-                statement.setBoolean(1, publicBase);
-                statement.setLong(2, System.currentTimeMillis());
-                statement.setString(3, ownerId.toString());
-                return statement.executeUpdate() > 0;
-            }
-        });
-    }
-
-    boolean deleteBase(UUID ownerId) {
-        return database.withConnection(connection -> {
-            try (PreparedStatement statement = connection.prepareStatement(
-                "DELETE FROM pc_player_bases WHERE owner_uuid = ?"
-            )) {
-                statement.setString(1, ownerId.toString());
-                return statement.executeUpdate() > 0;
-            }
-        });
-    }
-
-    boolean likeBase(UUID ownerId, PlayerIdentity liker, long now) {
-        return database.withConnection(connection -> {
-            try (PreparedStatement statement = connection.prepareStatement(
-                """
-                INSERT IGNORE INTO pc_base_likes
-                    (owner_uuid, liker_uuid, liker_name, created_at)
-                VALUES (?, ?, ?, ?)
-                """
-            )) {
-                statement.setString(1, ownerId.toString());
-                statement.setString(2, liker.playerId().toString());
-                statement.setString(3, liker.playerName());
-                statement.setLong(4, now);
-                return statement.executeUpdate() > 0;
-            }
-        });
-    }
-
-    void recordVisit(UUID ownerId, PlayerIdentity visitor, long now) {
-        database.inTransaction(connection -> {
-            try (PreparedStatement statement = connection.prepareStatement(
-                "UPDATE pc_player_bases SET visit_count = visit_count + 1 WHERE owner_uuid = ?"
-            )) {
-                statement.setString(1, ownerId.toString());
-                statement.executeUpdate();
-            }
-            try (PreparedStatement statement = connection.prepareStatement(
-                """
-                INSERT INTO pc_base_visitors
-                    (owner_uuid, visitor_uuid, visitor_name, visit_count, last_visited_at)
-                VALUES (?, ?, ?, 1, ?)
-                ON DUPLICATE KEY UPDATE
-                    visitor_name = VALUES(visitor_name),
-                    visit_count = visit_count + 1,
-                    last_visited_at = VALUES(last_visited_at)
-                """
-            )) {
-                statement.setString(1, ownerId.toString());
-                statement.setString(2, visitor.playerId().toString());
-                statement.setString(3, visitor.playerName());
-                statement.setLong(4, now);
-                statement.executeUpdate();
-            }
             return null;
         });
     }
@@ -1083,47 +963,6 @@ final class ClanRepository {
         }
     }
 
-    private Optional<PlayerBase> findBase(Connection connection, String where, String value)
-        throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement(
-            """
-            SELECT b.*,
-                   (SELECT COUNT(*) FROM pc_base_likes l WHERE l.owner_uuid = b.owner_uuid)
-                       AS like_count,
-                   (SELECT COUNT(*) FROM pc_base_visitors v WHERE v.owner_uuid = b.owner_uuid)
-                       AS unique_visitors
-              FROM pc_player_bases b
-             WHERE %s
-             ORDER BY b.updated_at DESC
-             LIMIT 1
-            """.formatted(where)
-        )) {
-            statement.setString(1, value);
-            try (ResultSet result = statement.executeQuery()) {
-                if (!result.next()) {
-                    return Optional.empty();
-                }
-                return Optional.of(new PlayerBase(
-                    UUID.fromString(result.getString("owner_uuid")),
-                    result.getString("owner_name"),
-                    UUID.fromString(result.getString("world_uuid")),
-                    result.getString("world_name"),
-                    result.getDouble("x"),
-                    result.getDouble("y"),
-                    result.getDouble("z"),
-                    result.getFloat("yaw"),
-                    result.getFloat("pitch"),
-                    result.getBoolean("is_public"),
-                    result.getLong("visit_count"),
-                    result.getLong("like_count"),
-                    result.getLong("unique_visitors"),
-                    result.getLong("created_at"),
-                    result.getLong("updated_at")
-                ));
-            }
-        }
-    }
-
     private List<String> strings(Connection connection, String sql, String column) throws SQLException {
         List<String> values = new ArrayList<>();
         try (PreparedStatement statement = connection.prepareStatement(sql);
@@ -1146,10 +985,7 @@ final class ClanRepository {
             "pc_clan_members",
             "pc_clans",
             "pc_clan_invitations",
-            "pc_clan_join_requests",
-            "pc_player_bases",
-            "pc_base_visitors",
-            "pc_base_likes"
+            "pc_clan_join_requests"
         );
         if (!allowedTables.contains(table)) {
             throw new IllegalArgumentException("Unsupported player name table: " + table);
@@ -1160,16 +996,5 @@ final class ClanRepository {
             statement.setString(2, player.playerId().toString());
             statement.executeUpdate();
         }
-    }
-
-    record BaseLocation(
-        UUID worldId,
-        String worldName,
-        double x,
-        double y,
-        double z,
-        float yaw,
-        float pitch
-    ) {
     }
 }

@@ -1,6 +1,6 @@
 # PumpeClanSystem
 
-Persistent clan and player-base system backed by `PumpeDatabase`.
+Persistent clan system backed by `PumpeDatabase`.
 
 ## Clans
 
@@ -44,15 +44,8 @@ and can be accepted by clicking the chat action.
 
 ## Player bases
 
-- `/base set [public|private]` stores the current location.
-- `/base public` and `/base private` change access.
-- `/base visit [Spieler]` teleports to an accessible base.
-- `/base like <Spieler>` adds one persistent like per player.
-- `/base info [Spieler]` displays visibility, visits, unique visitors and likes.
-- `/base delete confirm` removes the base and its visit/like history.
-
-Private coordinates are only visible to the owner and users with
-`pumpecraft.base.admin`. Own visits and own likes do not increase statistics.
+Player bases used to live here and are now their own module,
+[plugins/base-system](../base-system/README.md).
 
 ## Permissions
 

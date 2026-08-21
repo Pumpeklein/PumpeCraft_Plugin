@@ -38,9 +38,7 @@ public final class PumpeClanSystemPlugin extends JavaPlugin {
 
         ClanCommand clanCommand = new ClanCommand(
             this, repository, tabService, clanNameBlacklist);
-        BaseCommand baseCommand = new BaseCommand(this, repository);
         registerCommand("clan", clanCommand);
-        registerCommand("base", baseCommand);
         getServer().getPluginManager().registerEvents(
             new ClanListener(this, repository, tabService), this);
 
@@ -61,7 +59,7 @@ public final class PumpeClanSystemPlugin extends JavaPlugin {
             20L * 30L,
             20L * 30L
         );
-        getLogger().info("Clan and player base systems enabled.");
+        getLogger().info("Clan system enabled.");
     }
 
     @Override

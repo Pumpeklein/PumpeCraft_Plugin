@@ -9,6 +9,7 @@ This workspace contains the PumpeCraft Paper plugin modules:
 | `plugins/essentials` | `PumpeEssentials` | `de.pumpecraft.essentials.PumpeEssentialsPlugin` |
 | `plugins/mod` | `PumpeMod` | `de.pumpecraft.mod.PumpeModPlugin` |
 | `plugins/clan-system` | `PumpeClanSystem` | `de.pumpecraft.clans.PumpeClanSystemPlugin` |
+| `plugins/base-system` | `PumpeBaseSystem` | `de.pumpecraft.bases.PumpeBaseSystemPlugin` |
 | `plugins/skills` | `PumpeSkills` | `de.pumpecraft.skills.PumpeSkillsPlugin` |
 | `plugins/trader` | `PumpeTrader` | `de.pumpecraft.trader.PumpeTraderPlugin` |
 | `plugins/death-messages` | `PumpeDeathMessages` | `de.pumpecraft.deathmessages.PumpeDeathMessagesPlugin` |

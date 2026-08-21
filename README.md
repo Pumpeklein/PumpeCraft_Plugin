@@ -8,6 +8,7 @@ Multi-plugin workspace for the PumpeCraft server.
 - `plugins/essentials` - basic server commands and quality-of-life features
 - `plugins/mod` - moderation tools
 - `plugins/clan-system` - clan and group gameplay
+- `plugins/base-system` - player bases with visits, likes and menu
 - `plugins/skills` - skill progression, statistics and leaderboards
 - `plugins/trader` - trader and economy interactions
 - `plugins/death-messages` - custom death messages
