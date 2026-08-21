@@ -1,17 +1,12 @@
 package de.pumpecraft.trader;
 
-import de.pumpecraft.transactions.core.Currency;
-import de.pumpecraft.transactions.core.PointsService;
-import de.pumpecraft.transactions.core.TransactionType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
+
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -32,6 +27,13 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
+import de.pumpecraft.transactions.core.Currency;
+import de.pumpecraft.transactions.core.PointsService;
+import de.pumpecraft.transactions.core.TransactionType;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+
 final class TraderShop implements Listener {
     private static final long LIGHT_PRICE = 4_500L;
     private static final long INVISIBLE_FRAME_PRICE = 1_500L;
@@ -47,8 +49,8 @@ final class TraderShop implements Listener {
     private static final int CONFIRM_BACK_SLOT = 38;
     private static final int CONFIRM_BUY_SLOT = 40;
     private static final int CONFIRM_CLOSE_SLOT = 42;
-    private static final int[] PRODUCT_SLOTS = {10, 12, 14, 16};
-    private static final int[] STATUS_SLOTS = {19, 21, 23, 25};
+    private static final int[] PRODUCT_SLOTS = { 10, 12, 14, 16 };
+    private static final int[] STATUS_SLOTS = { 19, 21, 23, 25 };
 
     private final PumpeTraderPlugin plugin;
     private final PointsService points;
@@ -60,27 +62,22 @@ final class TraderShop implements Listener {
         this.points = points;
         traderKey = new NamespacedKey(plugin, "event_trader");
         products = List.of(
-            new Product(
-                items.item(Material.LIGHT, 1, "Light Block", "Unsichtbare Lichtquelle für Builder."),
-                "Light Block",
-                LIGHT_PRICE
-            ),
-            new Product(
-                items.invisibleFrame(Material.ITEM_FRAME, 1),
-                "Invisible Item Frame",
-                INVISIBLE_FRAME_PRICE
-            ),
-            new Product(
-                items.invisibleFrame(Material.GLOW_ITEM_FRAME, 1),
-                "Invisible Glow Item Frame",
-                INVISIBLE_GLOW_FRAME_PRICE
-            ),
-            new Product(
-                items.item(Material.SPONGE, 1, "Schwamm", "Wasser weg, Problem kleiner."),
-                "Schwamm",
-                SPONGE_PRICE
-            )
-        );
+                new Product(
+                        items.item(Material.LIGHT, 1, "Light Block", "Unsichtbare Lichtquelle für Builder."),
+                        "Light Block",
+                        LIGHT_PRICE),
+                new Product(
+                        items.invisibleFrame(Material.ITEM_FRAME, 1),
+                        "Invisible Item Frame",
+                        INVISIBLE_FRAME_PRICE),
+                new Product(
+                        items.invisibleFrame(Material.GLOW_ITEM_FRAME, 1),
+                        "Invisible Glow Item Frame",
+                        INVISIBLE_GLOW_FRAME_PRICE),
+                new Product(
+                        items.item(Material.SPONGE, 1, "Schwamm", "Wasser weg, Problem kleiner."),
+                        "Schwamm",
+                        SPONGE_PRICE));
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -120,7 +117,7 @@ final class TraderShop implements Listener {
     public void onDrag(InventoryDragEvent event) {
         Inventory top = event.getView().getTopInventory();
         if (top.getHolder() instanceof TraderHolder
-            && event.getRawSlots().stream().anyMatch(slot -> slot < top.getSize())) {
+                && event.getRawSlots().stream().anyMatch(slot -> slot < top.getSize())) {
             event.setCancelled(true);
         }
     }
@@ -173,6 +170,7 @@ final class TraderShop implements Listener {
         if (!ensureTraderActive(player, confirm.traderId())) {
             return;
         }
+
         if (slot == CONFIRM_BACK_SLOT) {
             openCart(player, confirm.traderId(), confirm.amounts());
         } else if (slot == CONFIRM_CLOSE_SLOT) {
@@ -186,52 +184,61 @@ final class TraderShop implements Listener {
     private void openCart(Player player, UUID traderId, int[] selectedAmounts) {
         CartHolder holder = new CartHolder(traderId, selectedAmounts);
         Inventory inventory = Bukkit.createInventory(holder, CART_SIZE, cartTitle(total(holder.amounts())));
+
         holder.inventory(inventory);
         refreshCart(holder);
+
         player.openInventory(inventory);
     }
 
     private void refreshCart(CartHolder holder) {
         Inventory inventory = holder.getInventory();
         long total = total(holder.amounts());
+
         decorateHeader(inventory);
+
         for (int index = 0; index < products.size(); index++) {
             inventory.setItem(PRODUCT_SLOTS[index], productButton(products.get(index), holder.amounts()[index]));
             inventory.setItem(STATUS_SLOTS[index], selectionStatus(products.get(index), holder.amounts()[index]));
         }
+
         inventory.setItem(PRICE_SLOT, pricePaper(total));
+
         inventory.setItem(CLEAR_SLOT, button(
-            Material.ORANGE_DYE,
-            "Warenkorb leeren",
-            NamedTextColor.GOLD,
-            List.of(Component.text("Setzt alle Mengen auf 0.", NamedTextColor.GRAY))
-        ));
+                Material.ORANGE_DYE,
+                "Warenkorb leeren",
+                NamedTextColor.GOLD,
+                List.of(Component.text("Setzt alle Mengen auf 0.", NamedTextColor.GRAY))));
+
         inventory.setItem(CART_CONFIRM_SLOT, button(
-            total > 0L ? Material.LIME_DYE : Material.GRAY_DYE,
-            total > 0L ? "Kauf prüfen" : "Noch nichts ausgewählt",
-            total > 0L ? NamedTextColor.GREEN : NamedTextColor.GRAY,
-            List.of(Component.text("Endpreis: ", NamedTextColor.GRAY).append(Currency.component(total)))
-        ));
+                total > 0L ? Material.LIME_DYE : Material.GRAY_DYE,
+                total > 0L ? "Kauf prüfen" : "Noch nichts ausgewählt",
+                total > 0L ? NamedTextColor.GREEN : NamedTextColor.GRAY,
+                List.of(Component.text("Endpreis: ", NamedTextColor.GRAY).append(Currency.component(total)))));
+
         inventory.setItem(CART_CLOSE_SLOT, button(
-            Material.RED_DYE,
-            "Abbrechen",
-            NamedTextColor.RED,
-            List.of(Component.text("Es wird nichts gekauft.", NamedTextColor.GRAY))
-        ));
+                Material.RED_DYE,
+                "Abbrechen",
+                NamedTextColor.RED,
+                List.of(Component.text("Es wird nichts gekauft.", NamedTextColor.GRAY))));
+
         inventory.getViewers().forEach(viewer -> updateTitle(viewer.getOpenInventory(), total));
     }
 
     private void openConfirmation(Player player, UUID traderId, int[] selectedAmounts) {
         ConfirmHolder holder = new ConfirmHolder(traderId, selectedAmounts);
         long total = total(holder.amounts());
+
         Inventory inventory = Bukkit.createInventory(
-            holder,
-            CONFIRM_SIZE,
-            Component.text("Kauf bestätigen · " + Currency.format(total), Currency.COLOR)
-        );
+                holder,
+                CONFIRM_SIZE,
+                Component.text("Kauf bestätigen · " + Currency.format(total), Currency.TITLE));
         holder.inventory(inventory);
+
         decorateHeader(inventory);
+
         inventory.setItem(PRICE_SLOT, pricePaper(total));
+
         for (int index = 0; index < products.size(); index++) {
             int amount = holder.amounts()[index];
             if (amount > 0) {
@@ -239,50 +246,57 @@ final class TraderShop implements Listener {
                 inventory.setItem(STATUS_SLOTS[index], summaryStatus(products.get(index), amount));
             }
         }
+
         inventory.setItem(CONFIRM_BACK_SLOT, button(
-            Material.ARROW,
-            "Zurück zur Auswahl",
-            NamedTextColor.YELLOW,
-            List.of(Component.text("Mengen noch einmal ändern", NamedTextColor.GRAY))
-        ));
+                Material.ARROW,
+                "Zurück zur Auswahl",
+                NamedTextColor.YELLOW,
+                List.of(Component.text("Mengen noch einmal ändern", NamedTextColor.GRAY))));
+
         inventory.setItem(CONFIRM_BUY_SLOT, button(
-            Material.LIME_DYE,
-            "Kaufen",
-            NamedTextColor.GREEN,
-            confirmationLore(holder.amounts(), total)
-        ));
+                Material.LIME_DYE,
+                "Kaufen",
+                NamedTextColor.GREEN,
+                confirmationLore(holder.amounts(), total)));
+
         inventory.setItem(CONFIRM_CLOSE_SLOT, button(
-            Material.RED_DYE,
-            "Abbrechen",
-            NamedTextColor.RED,
-            List.of(Component.text("Es wird nichts gekauft.", NamedTextColor.GRAY))
-        ));
+                Material.RED_DYE,
+                "Abbrechen",
+                NamedTextColor.RED,
+                List.of(Component.text("Es wird nichts gekauft.", NamedTextColor.GRAY))));
+
         player.openInventory(inventory);
     }
 
     private ItemStack productButton(Product product, int amount) {
         ItemStack button = product.item().clone();
         button.setAmount(Math.max(1, amount));
+
         ItemMeta meta = button.getItemMeta();
         List<Component> lore = new ArrayList<>();
+
         lore.add(Component.text("Einzelpreis: ", NamedTextColor.GRAY).append(Currency.component(product.unitPrice())));
         lore.add(Component.text("Ausgewählt: ", NamedTextColor.GRAY).append(Component.text(
-            amount == 0 ? "Nein" : amount + "x",
-            amount == 0 ? NamedTextColor.RED : NamedTextColor.GREEN
-        )));
-        lore.add(Component.text("Preis: ", NamedTextColor.GRAY).append(Currency.component(product.unitPrice() * amount)));
+                amount == 0 ? "Nein" : amount + "x",
+                amount == 0 ? NamedTextColor.RED : NamedTextColor.GREEN)));
+        lore.add(Component.text("Preis: ", NamedTextColor.GRAY)
+                .append(Currency.component(product.unitPrice() * amount)));
         lore.add(Component.empty());
         lore.add(Component.text("Linksklick: +1", NamedTextColor.GREEN));
         lore.add(Component.text("Shift + Linksklick: +10", NamedTextColor.GREEN));
         lore.add(Component.text("Rechtsklick: -1", NamedTextColor.YELLOW));
         lore.add(Component.text("Shift + Rechtsklick: -10", NamedTextColor.YELLOW));
         lore.add(Component.text("Mittelklick: abwählen", NamedTextColor.RED));
+
         meta.lore(plain(lore));
+
         if (amount > 0) {
             meta.setEnchantmentGlintOverride(true);
         }
+
         meta.addItemFlags(ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_ATTRIBUTES);
         button.setItemMeta(meta);
+
         return button;
     }
 
@@ -291,10 +305,9 @@ final class TraderShop implements Listener {
         summary.setAmount(amount);
         ItemMeta meta = summary.getItemMeta();
         meta.lore(plain(List.of(
-            Component.text(amount + "x · je ", NamedTextColor.GRAY).append(Currency.component(product.unitPrice())),
-            Component.text("Zusammen: ", NamedTextColor.GRAY)
-                .append(Currency.component(product.unitPrice() * amount))
-        )));
+                Component.text(amount + "x · je ", NamedTextColor.GRAY).append(Currency.component(product.unitPrice())),
+                Component.text("Zusammen: ", NamedTextColor.GRAY)
+                        .append(Currency.component(product.unitPrice() * amount)))));
         summary.setItemMeta(meta);
         return summary;
     }
@@ -302,29 +315,27 @@ final class TraderShop implements Listener {
     private ItemStack selectionStatus(Product product, int amount) {
         if (amount == 0) {
             return button(
-                Material.GRAY_STAINED_GLASS_PANE,
-                "Nicht ausgewählt",
-                NamedTextColor.GRAY,
-                List.of(Component.text("Klicke hier oder auf das Item, um es auszuwählen.", NamedTextColor.DARK_GRAY))
-            );
+                    Material.GRAY_STAINED_GLASS_PANE,
+                    "Nicht ausgewählt",
+                    NamedTextColor.GRAY,
+                    List.of(Component.text("Klicke hier oder auf das Item, um es auszuwählen.",
+                            NamedTextColor.DARK_GRAY)));
         }
         return button(
-            Material.LIME_STAINED_GLASS_PANE,
-            amount + "x ausgewählt",
-            NamedTextColor.GREEN,
-            List.of(Component.text("Zusammen: ", NamedTextColor.GRAY)
-                .append(Currency.component(product.unitPrice() * amount)))
-        );
+                Material.LIME_STAINED_GLASS_PANE,
+                amount + "x ausgewählt",
+                NamedTextColor.GREEN,
+                List.of(Component.text("Zusammen: ", NamedTextColor.GRAY)
+                        .append(Currency.component(product.unitPrice() * amount))));
     }
 
     private ItemStack summaryStatus(Product product, int amount) {
         return button(
-            Material.LIGHT_BLUE_STAINED_GLASS_PANE,
-            amount + "x · " + product.name(),
-            NamedTextColor.AQUA,
-            List.of(Component.text("Zusammen: ", NamedTextColor.GRAY)
-                .append(Currency.component(product.unitPrice() * amount)))
-        );
+                Material.LIGHT_BLUE_STAINED_GLASS_PANE,
+                amount + "x · " + product.name(),
+                NamedTextColor.AQUA,
+                List.of(Component.text("Zusammen: ", NamedTextColor.GRAY)
+                        .append(Currency.component(product.unitPrice() * amount))));
     }
 
     private void decorateHeader(Inventory inventory) {
@@ -345,9 +356,8 @@ final class TraderShop implements Listener {
         for (int index = 0; index < products.size(); index++) {
             if (amounts[index] > 0) {
                 lore.add(Component.text(
-                    amounts[index] + "x " + products.get(index).name(),
-                    NamedTextColor.GRAY
-                ));
+                        amounts[index] + "x " + products.get(index).name(),
+                        NamedTextColor.GRAY));
             }
         }
         lore.add(Component.empty());
@@ -368,8 +378,8 @@ final class TraderShop implements Listener {
 
     private List<Component> plain(List<Component> lore) {
         return lore.stream()
-            .map(line -> line.decoration(TextDecoration.ITALIC, false))
-            .toList();
+                .map(line -> line.decoration(TextDecoration.ITALIC, false))
+                .toList();
     }
 
     private void purchase(Player player, UUID traderId, int[] amounts) {
@@ -392,16 +402,16 @@ final class TraderShop implements Listener {
     private void charge(UUID playerId, String playerName, int[] amounts, long total) {
         try {
             boolean paid = points.withdraw(
-                playerId,
-                playerName,
-                total,
-                TransactionType.TRADER_PURCHASE,
-                playerName,
-                "Trader-Kauf: " + purchaseDescription(amounts)
-            );
+                    playerId,
+                    playerName,
+                    total,
+                    TransactionType.TRADER_PURCHASE,
+                    playerName,
+                    "Trader-Kauf: " + purchaseDescription(amounts));
             points.runSync(() -> finish(playerId, playerName, amounts, total, paid));
         } catch (RuntimeException exception) {
-            plugin.getLogger().log(Level.WARNING, "Could not charge trader purchase for " + playerName + ".", exception);
+            plugin.getLogger().log(Level.WARNING, "Could not charge trader purchase for " + playerName + ".",
+                    exception);
             points.runSync(() -> message(playerId, "Die PP-Abbuchung ist fehlgeschlagen.", NamedTextColor.RED));
         }
     }
@@ -411,8 +421,8 @@ final class TraderShop implements Listener {
         if (!paid) {
             if (player != null) {
                 player.sendMessage(Component.text("Du benötigst ", NamedTextColor.RED)
-                    .append(Currency.component(total))
-                    .append(Component.text(" für diesen Kauf.", NamedTextColor.RED)));
+                        .append(Currency.component(total))
+                        .append(Component.text(" für diesen Kauf.", NamedTextColor.RED)));
             }
             return;
         }
@@ -425,8 +435,8 @@ final class TraderShop implements Listener {
             give(player, products.get(index).item(), amounts[index]);
         }
         player.sendMessage(Component.text("Kauf abgeschlossen für ", NamedTextColor.GREEN)
-            .append(Currency.component(total))
-            .append(Component.text(".", NamedTextColor.GREEN)));
+                .append(Currency.component(total))
+                .append(Component.text(".", NamedTextColor.GREEN)));
     }
 
     private void give(Player player, ItemStack template, int amount) {
@@ -445,15 +455,15 @@ final class TraderShop implements Listener {
         points.runAsync(() -> {
             try {
                 points.deposit(
-                    playerId,
-                    playerName,
-                    price,
-                    TransactionType.TRADER_PURCHASE,
-                    "PumpeTrader",
-                    "Erstattung: Spieler während Trader-Kauf offline"
-                );
+                        playerId,
+                        playerName,
+                        price,
+                        TransactionType.TRADER_PURCHASE,
+                        "PumpeTrader",
+                        "Erstattung: Spieler während Trader-Kauf offline");
             } catch (RuntimeException exception) {
-                plugin.getLogger().log(Level.SEVERE, "Could not refund trader purchase for " + playerId + ".", exception);
+                plugin.getLogger().log(Level.SEVERE, "Could not refund trader purchase for " + playerId + ".",
+                        exception);
             }
         });
     }
@@ -477,14 +487,15 @@ final class TraderShop implements Listener {
     }
 
     private Component cartTitle(long total) {
-        return Component.text(titleText(total), Currency.COLOR);
+        return Component.text(titleText(total), Currency.TITLE);
     }
 
     private String titleText(long total) {
-        return "PumpeTrader · Endpreis: " + Currency.format(total);
+        return "Trader · Endpreis: " + Currency.format(total);
     }
 
-    // Paper exposes the dynamic inventory-title update only through this deprecated Bukkit method.
+    // Paper exposes the dynamic inventory-title update only through this deprecated
+    // Bukkit method.
     @SuppressWarnings("deprecation")
     private void updateTitle(org.bukkit.inventory.InventoryView view, long total) {
         view.setTitle(titleText(total));
