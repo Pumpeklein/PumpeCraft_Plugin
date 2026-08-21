@@ -16,7 +16,7 @@ target/
 .settings/
 
 run/
-server/
+/server/
 deploy/
 
 # Local credentials and environment files

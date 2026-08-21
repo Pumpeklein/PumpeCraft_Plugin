@@ -5,6 +5,7 @@ api-version: '1.21'
 author: PumpeCraft
 description: Skill levels, rewards, progress GUIs and leaderboards for PumpeCraft.
 depend: [PumpeDatabase, PumpeUtils]
+softdepend: [PumpeEnchants]
 commands:
   skills:
     description: Opens skill GUIs, leaderboards and manages skill scores.

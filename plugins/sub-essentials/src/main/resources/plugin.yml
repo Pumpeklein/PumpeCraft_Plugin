@@ -21,4 +21,5 @@ commands:
   et:
     description: Öffnet einen Zaubertisch.
     usage: /et
-    aliases: [enchant]
+    # Kein Alias "enchant": ein Plugin-Befehl dieses Namens verdeckt den Vanilla-Adminbefehl.
+    aliases: [zaubertisch]

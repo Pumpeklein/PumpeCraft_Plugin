@@ -44,9 +44,14 @@ public final class ItemEnchants {
     }
 
     public Map<CustomEnchant, Integer> list(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) {
+            return Map.of();
+        }
+        // Reading the meta once matters: getItemMeta clones, and this runs per item of an inventory.
+        PersistentDataContainer data = item.getItemMeta().getPersistentDataContainer();
         Map<CustomEnchant, Integer> found = new LinkedHashMap<>();
         for (CustomEnchant enchant : registry.all()) {
-            int level = level(item, enchant.key());
+            int level = data.getOrDefault(enchant.key(), PersistentDataType.INTEGER, 0);
             if (level > 0) {
                 found.put(enchant, level);
             }

@@ -16,6 +16,7 @@ import de.pumpecraft.utils.objects.HingeAnimator;
 import java.util.Objects;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class PumpeMailboxPlugin extends JavaPlugin {
@@ -44,6 +45,8 @@ public final class PumpeMailboxPlugin extends JavaPlugin {
         service = new MailboxService(
             this, settings, animations, index, inventories, new DeliveryRepository(this), points);
         service.start();
+        getServer().getServicesManager().register(
+            MailboxService.class, service, this, ServicePriority.Normal);
 
         recipe = new MailboxRecipe();
         if (settings.craftingEnabled()) {
@@ -65,6 +68,7 @@ public final class PumpeMailboxPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        getServer().getServicesManager().unregisterAll(this);
         if (recipe != null) {
             recipe.unregister();
         }

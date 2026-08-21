@@ -4,6 +4,7 @@ import de.pumpecraft.anticheat.core.CheckType;
 import de.pumpecraft.anticheat.core.PlayerState;
 import de.pumpecraft.anticheat.core.PlayerStateStore;
 import de.pumpecraft.anticheat.core.ViolationService;
+import de.pumpecraft.enchants.EnchantService;
 import de.pumpecraft.utils.Locations;
 import de.pumpecraft.utils.Rates;
 import de.pumpecraft.utils.Texts;
@@ -16,10 +17,14 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.potion.PotionEffectType;
 
 public final class BlockChecks extends AbstractCheck {
     private static final long RATE_WINDOW_MILLIS = 1_000L;
+
+    private EnchantService enchants;
+    private boolean enchantsResolved;
 
     public BlockChecks(Plugin plugin, PlayerStateStore states, ViolationService violations) {
         super(plugin, states, violations);
@@ -63,7 +68,7 @@ public final class BlockChecks extends AbstractCheck {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBreak(BlockBreakEvent event) {
         Player player = event.getPlayer();
-        if (exempt(player)) {
+        if (exempt(player) || breakingChain(player)) {
             return;
         }
 
@@ -98,6 +103,20 @@ public final class BlockChecks extends AbstractCheck {
         } else {
             violations.reward(player, CheckType.FAST_BREAK, 0.05);
         }
+    }
+
+    /**
+     * Eine Verzauberung wie Aderabbau bricht bis zu 32 Blöcke in einem Tick, viele davon außer
+     * Reichweite. Ohne diese Ausnahme meldet jeder Erzgang Reichweite und Abbaurate.
+     */
+    private boolean breakingChain(Player player) {
+        if (!enchantsResolved) {
+            enchantsResolved = true;
+            RegisteredServiceProvider<EnchantService> registration = plugin.getServer()
+                .getServicesManager().getRegistration(EnchantService.class);
+            enchants = registration == null ? null : registration.getProvider();
+        }
+        return enchants != null && enchants.breakingChain(player);
     }
 
     /** Beyond the configured range no vanilla client can interact at all; returns true to undo. */

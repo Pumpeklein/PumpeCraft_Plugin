@@ -5,7 +5,7 @@ api-version: '1.21'
 author: PumpeCraft
 description: Bedrock-aware anticheat for PumpeCraft.
 depend: [PumpeDatabase, PumpeUtils]
-softdepend: [floodgate, Geyser-Spigot]
+softdepend: [floodgate, Geyser-Spigot, PumpeEnchants]
 commands:
   anticheat:
     aliases: [ac]

@@ -8,6 +8,7 @@ import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -25,12 +26,41 @@ public final class EnchantService {
 
     private final EnchantRegistry registry;
     private final ItemEnchants items;
-    private final int maxPerItem;
+    private final EnchantSettings settings;
+    private final EnchantChains chains;
 
-    public EnchantService(EnchantRegistry registry, ItemEnchants items, int maxPerItem) {
+    public EnchantService(
+        EnchantRegistry registry,
+        ItemEnchants items,
+        EnchantSettings settings,
+        EnchantChains chains
+    ) {
         this.registry = registry;
         this.items = items;
-        this.maxPerItem = maxPerItem;
+        this.settings = settings;
+        this.chains = chains;
+    }
+
+    /**
+     * True while a chain enchantment is breaking blocks for this player. Block checks that measure
+     * reach or break rate have to stand down for that moment.
+     */
+    public boolean breakingChain(Player player) {
+        return chains.active(player.getUniqueId());
+    }
+
+    /** Other plugins read their own numbers from here instead of keeping a second copy. */
+    public EnchantSettings settings() {
+        return settings;
+    }
+
+    /** The highest level a player carries in the main hand or wears as armour. */
+    public int equippedLevel(Player player, NamespacedKey key) {
+        int level = activeLevel(player.getInventory().getItemInMainHand(), key);
+        for (ItemStack armour : player.getInventory().getArmorContents()) {
+            level = Math.max(level, activeLevel(armour, key));
+        }
+        return level;
     }
 
     public int level(ItemStack item, NamespacedKey key) {
@@ -71,7 +101,7 @@ public final class EnchantService {
         // A book carries a single enchantment and is only a container, so the per item limit
         // applies to the gear it ends up on, not to the book.
         if (!present.containsKey(enchant)
-            && present.size() >= maxPerItem
+            && present.size() >= settings.maxEnchantsPerItem()
             && item.getType() != Material.ENCHANTED_BOOK) {
             return ApplyResult.LIMIT_REACHED;
         }

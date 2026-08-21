@@ -10,7 +10,8 @@ public enum TransactionType {
     ESSENTIALS_SERVICE("Essentials-Dienst"),
     TRADER_PURCHASE("Trader-Kauf"),
     PLOT_PURCHASE("Grundstückskauf"),
-    PLOT_REFUND("Grundstücksverkauf");
+    PLOT_REFUND("Grundstücksverkauf"),
+    ENCHANT_REWARD("Verzauberungsfund");
 
     private final String label;
 

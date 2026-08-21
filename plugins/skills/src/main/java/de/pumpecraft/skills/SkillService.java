@@ -19,6 +19,7 @@ final class SkillService {
     private final PumpeSkillsPlugin plugin;
     private final SkillRepository repository;
     private final SkillRewardService rewards;
+    private final ScholarBonus scholar;
     private final Map<UUID, PlayerSkillData> cache = new ConcurrentHashMap<>();
     private BukkitTask saveTask;
 
@@ -30,6 +31,7 @@ final class SkillService {
         this.plugin = plugin;
         this.repository = repository;
         this.rewards = rewards;
+        this.scholar = new ScholarBonus(plugin);
     }
 
     void start() {
@@ -97,9 +99,10 @@ final class SkillService {
             return;
         }
         data.add(new StatKey(skill, statKey), delta);
+        long awarded = scholar.apply(player, points);
         StatKey scoreKey = StatKey.score(skill);
-        long updatedScore = data.addAndGet(scoreKey, points);
-        rewards.scoreChanged(player.getUniqueId(), skill, updatedScore - points, updatedScore);
+        long updatedScore = data.addAndGet(scoreKey, awarded);
+        rewards.scoreChanged(player.getUniqueId(), skill, updatedScore - awarded, updatedScore);
     }
 
     /**
@@ -112,9 +115,10 @@ final class SkillService {
             return;
         }
         data.add(new StatKey(skill, statKey), delta);
+        long awarded = scholar.apply(plugin.getServer().getPlayer(playerId), points);
         StatKey scoreKey = StatKey.score(skill);
-        long updatedScore = data.addAndGet(scoreKey, points);
-        rewards.scoreChanged(playerId, skill, updatedScore - points, updatedScore);
+        long updatedScore = data.addAndGet(scoreKey, awarded);
+        rewards.scoreChanged(playerId, skill, updatedScore - awarded, updatedScore);
     }
 
     void keepMinimum(Player player, Skill skill, String statKey, long value) {

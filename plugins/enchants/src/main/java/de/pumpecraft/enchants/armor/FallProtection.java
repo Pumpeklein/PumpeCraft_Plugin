@@ -1,4 +1,4 @@
-package de.pumpecraft.enchants.fall;
+package de.pumpecraft.enchants.armor;
 
 import de.pumpecraft.enchants.EnchantRegistry;
 import de.pumpecraft.enchants.EnchantService;
@@ -26,6 +26,6 @@ public final class FallProtection {
         if (level < 1) {
             return false;
         }
-        return player.getFallDistance() <= settings.featherweightDistance(level);
+        return player.getFallDistance() <= settings.perLevel(EnchantRegistry.FEATHERWEIGHT, "safe-fall-distance", level, 6.0, 12.0);
     }
 }

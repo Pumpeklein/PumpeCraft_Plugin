@@ -16,9 +16,11 @@ import de.pumpecraft.utils.Teleports;
 import de.pumpecraft.utils.objects.DisplayObject;
 import de.pumpecraft.utils.objects.DisplayObjects;
 import de.pumpecraft.utils.objects.ObjectStorage;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -182,6 +184,35 @@ public final class MailboxService {
         refresh(mailbox);
         notifyOwner(sender, mailbox);
         return true;
+    }
+
+    /**
+     * Drops stacks straight into the own mailbox, loading its chunk when needed. Everything that
+     * did not fit comes back through the callback - the caller still holds those items and has to
+     * decide what happens with them.
+     */
+    public void ship(Player owner, List<ItemStack> stacks, Consumer<List<ItemStack>> rejected) {
+        index.resolve(owner.getUniqueId(), mailbox -> {
+            if (mailbox == null) {
+                rejected.accept(stacks);
+                return;
+            }
+            int free = inventories.freeSlots(mailbox, deliveries.reservedStacks(owner.getUniqueId()));
+            List<ItemStack> left = new ArrayList<>();
+            int shipped = 0;
+            for (ItemStack stack : stacks) {
+                if (shipped >= free || !inventories.deposit(mailbox, stack)) {
+                    left.add(stack);
+                    continue;
+                }
+                shipped++;
+            }
+            if (shipped > 0) {
+                animations.flapDoor(mailbox);
+                refresh(mailbox);
+            }
+            rejected.accept(left);
+        });
     }
 
     public void openSendMenu(Player sender, MailboxEntry target) {

@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,6 +39,12 @@ final class ClanTabService implements ClanDisplayService {
         return entry == null
             ? Optional.empty()
             : Optional.of(ClanTagFormatter.badge(entry.tag(), entry.tagColor()));
+    }
+
+    @Override
+    public OptionalLong clanId(UUID playerId) {
+        TabEntry entry = entries.get(playerId);
+        return entry == null ? OptionalLong.empty() : OptionalLong.of(entry.clanId());
     }
 
     void refresh() {

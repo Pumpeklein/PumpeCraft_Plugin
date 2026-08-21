@@ -4,7 +4,8 @@ main: de.pumpecraft.enchants.PumpeEnchantsPlugin
 api-version: '1.21'
 author: PumpeCraft
 description: PDC-based custom enchantments for PumpeCraft.
-depend: [PumpeUtils]
+depend: [PumpeUtils, PumpeDatabase]
+softdepend: [PumpeTransactions, PumpeMailbox, PumpeClanSystem, PumpeBaseSystem]
 commands:
   customenchant:
     aliases: [cenchant, verzaubern]
