@@ -11,8 +11,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -69,31 +67,17 @@ final class ModerationRepository {
         return new ReportRecord(id, reporterName, targetName, reason, createdAt, true);
     }
 
-    List<ReportRecord> getOpenReports() {
-        return database.withConnection(connection -> selectReports(
-            connection,
-            """
-            SELECT id, reporter_name, target_name, reason, created_at
-            FROM pc_reports
-            WHERE is_open = TRUE
-            ORDER BY id
-            """,
-            null
-        ));
-    }
-
-    List<ReportRecord> getUnseenOpenReports(UUID staffId) {
-        return database.withConnection(connection -> selectReports(
-            connection,
-            """
-            SELECT r.id, r.reporter_name, r.target_name, r.reason, r.created_at
-            FROM pc_reports r
-            LEFT JOIN pc_report_staff_seen s ON s.staff_uuid = ?
-            WHERE r.is_open = TRUE AND r.id > COALESCE(s.last_seen_report_id, 0)
-            ORDER BY r.id
-            """,
-            staffId
-        ));
+    OpenReportSummary summarizeOpenReports() {
+        return database.withConnection(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT COUNT(*) AS report_count, MIN(id) AS only_id FROM pc_reports WHERE is_open = TRUE"
+            ); ResultSet result = statement.executeQuery()) {
+                result.next();
+                int count = result.getInt("report_count");
+                int reportId = result.getInt("only_id");
+                return new OpenReportSummary(count, result.wasNull() ? null : reportId);
+            }
+        });
     }
 
     int countUnseenOpenReports(UUID staffId) {
@@ -358,28 +342,6 @@ final class ModerationRepository {
                 return statement.executeUpdate();
             }
         });
-    }
-
-    private List<ReportRecord> selectReports(Connection connection, String sql, UUID staffId) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            if (staffId != null) {
-                statement.setString(1, staffId.toString());
-            }
-            try (ResultSet result = statement.executeQuery()) {
-                List<ReportRecord> reports = new ArrayList<>();
-                while (result.next()) {
-                    reports.add(new ReportRecord(
-                        result.getInt("id"),
-                        result.getString("reporter_name"),
-                        result.getString("target_name"),
-                        result.getString("reason"),
-                        result.getLong("created_at"),
-                        true
-                    ));
-                }
-                return reports;
-            }
-        }
     }
 
     private String generatePunishmentId() {

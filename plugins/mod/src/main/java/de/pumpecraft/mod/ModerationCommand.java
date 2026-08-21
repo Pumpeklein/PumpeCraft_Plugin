@@ -42,9 +42,6 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
     private static final UUID CONSOLE_ID = UUID.nameUUIDFromBytes(
         "PumpeMod:CONSOLE".getBytes(StandardCharsets.UTF_8)
     );
-    private static final DateTimeFormatter REPORT_TIME_FORMAT = DateTimeFormatter
-        .ofPattern("dd.MM.yyyy HH:mm:ss")
-        .withZone(ZoneId.systemDefault());
     private static final DateTimeFormatter BAN_TIME_FORMAT = DateTimeFormatter
         .ofPattern("dd.MM.yyyy HH:mm:ss")
         .withZone(ZoneId.systemDefault());
@@ -58,13 +55,20 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
     private final PumpeModPlugin plugin;
     private final ModerationRepository repository;
     private final VanishService vanish;
+    private final ModerationSettings settings;
     /** Aktive Mutes der eingeloggten Spieler; hält den Chat-Check von der Datenbank fern. */
     private final Map<UUID, MuteRecord> muteCache = new ConcurrentHashMap<>();
 
-    public ModerationCommand(PumpeModPlugin plugin, ModerationRepository repository, VanishService vanish) {
+    public ModerationCommand(
+        PumpeModPlugin plugin,
+        ModerationRepository repository,
+        VanishService vanish,
+        ModerationSettings settings
+    ) {
         this.plugin = plugin;
         this.repository = repository;
         this.vanish = vanish;
+        this.settings = settings;
     }
 
     @Override
@@ -91,7 +95,7 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
         return switch (command.getName().toLowerCase(Locale.ROOT)) {
             case "report", "warn", "unmute", "unban" ->
                 args.length == 1 ? completeKnownPlayers(args[0]) : List.of();
-            case "reports" -> completeReports(args);
+            case "reports" -> List.of();
             case "mute" -> completeMute(args);
             case "ban" -> completeBan(args);
             case "vanish" -> args.length == 1 ? de.pumpecraft.utils.Players.completeOnlineNames(args[0], 50) : List.of();
@@ -216,23 +220,14 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
     }
 
     private boolean handleReports(CommandSender sender, String[] args) {
-        CommandSender staff = sender;
-
-        boolean showAll = args.length > 0 && args[0].equalsIgnoreCase("all");
-        List<ReportRecord> reports = showAll ? repository.getOpenReports() : repository.getUnseenOpenReports(actorId(staff));
-
-        if (reports.isEmpty()) {
-            staff.sendMessage(success(showAll ? "Es gibt keine offenen Reports." : "Du hast keine ungesehenen offenen Reports."));
-            repository.markOpenReportsSeen(actorId(staff));
-            return true;
+        if (args.length != 0) {
+            return false;
         }
 
-        staff.sendMessage(Component.text("Offene Reports", NamedTextColor.GOLD));
-        for (ReportRecord report : reports) {
-            sendReportLine(staff, report);
-        }
-
-        repository.markOpenReportsSeen(actorId(staff));
+        OpenReportSummary reports = repository.summarizeOpenReports();
+        sender.sendMessage(reportStatus(reports.count()));
+        sender.sendMessage(reportWebsiteLink(reports));
+        repository.markOpenReportsSeen(actorId(sender));
         return true;
     }
 
@@ -464,16 +459,6 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
         return true;
     }
 
-    private List<String> completeReports(String[] args) {
-        if (args.length != 1) {
-            return List.of();
-        }
-
-        return List.of("unseen", "all").stream()
-            .filter(option -> option.startsWith(args[0].toLowerCase(Locale.ROOT)))
-            .toList();
-    }
-
     private List<String> completeMute(String[] args) {
         if (args.length == 1) {
             return completeKnownPlayers(args[0]);
@@ -585,26 +570,31 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
             .append(Component.text(" ungesehene offene Reports. ", NamedTextColor.GOLD))
             .append(
                 Component.text("[Anzeigen]", NamedTextColor.GREEN)
-                    .clickEvent(ClickEvent.runCommand("/reports unseen"))
-                    .hoverEvent(HoverEvent.showText(Component.text("Ungelesene Reports anzeigen", NamedTextColor.GRAY)))
+                    .clickEvent(ClickEvent.runCommand("/reports"))
+                    .hoverEvent(HoverEvent.showText(Component.text("Report-Status und Website-Link anzeigen", NamedTextColor.GRAY)))
             );
     }
 
-    private void sendReportLine(CommandSender staff, ReportRecord report) {
-        staff.sendMessage(
-            Component.text("#" + report.id() + " ", NamedTextColor.DARK_GRAY)
-                .append(Component.text(report.targetName(), NamedTextColor.AQUA))
-                .append(Component.text(" gemeldet von ", NamedTextColor.GRAY))
-                .append(Component.text(report.reporterName(), NamedTextColor.AQUA))
-        );
-        staff.sendMessage(
-            Component.text("  Grund: ", NamedTextColor.GRAY)
-                .append(Component.text(report.reason(), NamedTextColor.YELLOW))
-        );
-        staff.sendMessage(
-            Component.text("  Zeit: ", NamedTextColor.GRAY)
-                .append(Component.text(REPORT_TIME_FORMAT.format(Instant.ofEpochMilli(report.createdAt())), NamedTextColor.WHITE))
-        );
+    private Component reportStatus(int openReports) {
+        if (openReports == 0) {
+            return Component.text("Es gibt aktuell keine offenen Reports.", NamedTextColor.GREEN);
+        }
+        return Component.text("Es gibt aktuell ", NamedTextColor.GOLD)
+            .append(Component.text(openReports, NamedTextColor.YELLOW))
+            .append(Component.text(openReports == 1 ? " offenen Report." : " offene Reports.", NamedTextColor.GOLD));
+    }
+
+    private Component reportWebsiteLink(OpenReportSummary reports) {
+        boolean directlyToReport = reports.count() == 1 && reports.onlyReportId() != null;
+        String url = (directlyToReport
+            ? settings.reportUrl(reports.onlyReportId())
+            : settings.reportsUrl()).toString();
+        String label = directlyToReport
+            ? "[Report #" + reports.onlyReportId() + " auf der Website öffnen]"
+            : "[Reports auf der Website öffnen]";
+        return Component.text(label, NamedTextColor.AQUA, TextDecoration.UNDERLINED)
+            .clickEvent(ClickEvent.openUrl(url))
+            .hoverEvent(HoverEvent.showText(Component.text(url, NamedTextColor.GRAY)));
     }
 
     private UUID actorId(CommandSender sender) {

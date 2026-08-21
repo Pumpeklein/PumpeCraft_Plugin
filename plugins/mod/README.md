@@ -5,7 +5,7 @@ Moderation commands, punishments, reports and staff tools.
 ## Commands
 
 - `/report <Spieler> <Grund>` - reports a known player to the team.
-- `/reports [unseen|all]` - shows unseen or all open reports.
+- `/reports` - zeigt den Status offener Reports und verlinkt direkt zum Reports-Reiter im Web-Panel.
 - `/warn <Spieler> <Grund>` - warns a known player and stores the warning count.
 - `/mute <Spieler> <Zeit> [Grund]` - mutes a known player for the given duration.
 - `/unmute <Spieler>` - lifts an active mute.

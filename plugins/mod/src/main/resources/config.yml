@@ -1,4 +1,9 @@
-config-version: 1
+config-version: 3
+
+# Direkter Link zum Reports-Reiter des Web-Panels.
+reports-url: "https://support.pumpe-klein.de/minecraft/reports"
+# Basislink für einen einzelnen Report; die numerische Report-ID wird angehängt.
+report-url-base: "https://support.pumpe-klein.de/minecraft/report"
 
 spectate:
   zoom:

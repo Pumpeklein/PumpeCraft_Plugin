@@ -11,8 +11,8 @@ commands:
     usage: /report <Spieler> <Grund>
     permission: pumpecraft.mod.report
   reports:
-    description: Shows unseen or all open reports.
-    usage: /reports [unseen|all]
+    description: Shows the open report status and links to the web panel.
+    usage: /reports
     permission: pumpecraft.mod.reports
   warn:
     description: Warns a known player and stores the warning count.

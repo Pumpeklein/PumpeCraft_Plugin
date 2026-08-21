@@ -18,6 +18,8 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class PumpeModPlugin extends JavaPlugin {
+    private static final int CONFIG_VERSION = 3;
+
     private ModerationRepository repository;
     private ModerationCommand moderationCommand;
     private VanishService vanishService;
@@ -27,6 +29,7 @@ public final class PumpeModPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        migrateConfig();
         if (!databaseAvailable()) {
             return;
         }
@@ -40,7 +43,12 @@ public final class PumpeModPlugin extends JavaPlugin {
         vanishService = new VanishService(this);
         getServer().getPluginManager().registerEvents(new VanishListener(this, vanishService), this);
 
-        moderationCommand = new ModerationCommand(this, repository, vanishService);
+        moderationCommand = new ModerationCommand(
+            this,
+            repository,
+            vanishService,
+            ModerationSettings.from(getConfig(), getLogger())
+        );
         registerCommand("report", moderationCommand);
         registerCommand("reports", moderationCommand);
         registerCommand("warn", moderationCommand);
@@ -98,6 +106,21 @@ public final class PumpeModPlugin extends JavaPlugin {
         getLogger().severe("PumpeDatabase is not available; PumpeMod will remain disabled.");
         getServer().getPluginManager().disablePlugin(this);
         return false;
+    }
+
+    private void migrateConfig() {
+        int version = getConfig().getInt("config-version", 1);
+        if (version >= CONFIG_VERSION) {
+            return;
+        }
+        if (version < 3 && getConfig().getString("reports-url", "").equals(
+            "https://panel.pumpe-klein.de/minecraft/reports"
+        )) {
+            getConfig().set("reports-url", "https://support.pumpe-klein.de/minecraft/reports");
+        }
+        getConfig().options().copyDefaults(true);
+        getConfig().set("config-version", CONFIG_VERSION);
+        saveConfig();
     }
 
     private void registerCommand(String commandName, ModerationCommand executor) {
