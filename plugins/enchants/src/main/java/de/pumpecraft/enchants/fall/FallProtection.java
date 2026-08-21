@@ -23,11 +23,9 @@ public final class FallProtection {
         }
         ItemStack boots = player.getInventory().getBoots();
         int level = enchants.activeLevel(boots, EnchantRegistry.FEATHERWEIGHT);
-        double maximumDistance = switch (level) {
-            case 1 -> settings.featherweightLevelOneDistance();
-            case 2 -> settings.featherweightLevelTwoDistance();
-            default -> 0.0;
-        };
-        return level > 0 && player.getFallDistance() <= maximumDistance;
+        if (level < 1) {
+            return false;
+        }
+        return player.getFallDistance() <= settings.featherweightDistance(level);
     }
 }

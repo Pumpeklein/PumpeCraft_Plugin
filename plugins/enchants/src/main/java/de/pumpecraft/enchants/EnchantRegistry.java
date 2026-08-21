@@ -1,8 +1,9 @@
 package de.pumpecraft.enchants;
 
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -17,32 +18,30 @@ public final class EnchantRegistry {
     public static final NamespacedKey FURNACE = key("furnace");
     public static final NamespacedKey FEATHERWEIGHT = key("featherweight");
 
+    private static final NamespacedKey SILK_TOUCH = NamespacedKey.minecraft("silk_touch");
+
     private final Map<NamespacedKey, CustomEnchant> definitions;
     private final Set<NamespacedKey> enabled;
 
     public EnchantRegistry(EnchantSettings settings) {
         Set<Material> tools = materialsEndingWith("_PICKAXE", "_AXE", "_SHOVEL", "_HOE");
-        Set<Material> pickaxes = materialsEndingWith("_PICKAXE");
+        Set<Material> pickaxes = materialsEndingWith("_PICKAXE", "_SHOVEL");
         Set<Material> boots = materialsEndingWith("_BOOTS");
 
         Map<NamespacedKey, CustomEnchant> values = new LinkedHashMap<>();
-        add(values, new CustomEnchant(TELEKINESIS, "Telekinese", 1, EnchantRarity.RARE,
+        add(values, new CustomEnchant(TELEKINESIS, "Telekinese", 1, EnchantRarity.COMMON,
             tools, Set.of()));
-        add(values, new CustomEnchant(FURNACE, "Schmelzofen", 1, EnchantRarity.EPIC,
-            pickaxes, Set.of(Objects.requireNonNull(NamespacedKey.minecraft("silk_touch")))));
-        add(values, new CustomEnchant(FEATHERWEIGHT, "Federleicht", 2, EnchantRarity.RARE,
+        add(values, new CustomEnchant(FURNACE, "Schmelzofen", 1, EnchantRarity.RARE,
+            pickaxes, Set.of(SILK_TOUCH)));
+        add(values, new CustomEnchant(FEATHERWEIGHT, "Federleicht", 2, EnchantRarity.COMMON,
             boots, Set.of()));
-        definitions = Collections.unmodifiableMap(new LinkedHashMap<>(values));
+        definitions = Map.copyOf(values);
 
-        java.util.HashSet<NamespacedKey> active = new java.util.HashSet<>();
-        if (settings.telekinesisEnabled()) {
-            active.add(TELEKINESIS);
-        }
-        if (settings.furnaceEnabled()) {
-            active.add(FURNACE);
-        }
-        if (settings.featherweightEnabled()) {
-            active.add(FEATHERWEIGHT);
+        Set<NamespacedKey> active = new LinkedHashSet<>();
+        for (NamespacedKey candidate : values.keySet()) {
+            if (settings.enabled(candidate)) {
+                active.add(candidate);
+            }
         }
         enabled = Set.copyOf(active);
     }
@@ -75,9 +74,9 @@ public final class EnchantRegistry {
     }
 
     private static Set<Material> materialsEndingWith(String... suffixes) {
-        return java.util.Arrays.stream(Material.values())
+        return Arrays.stream(Material.values())
             .filter(Material::isItem)
-            .filter(material -> java.util.Arrays.stream(suffixes)
+            .filter(material -> Arrays.stream(suffixes)
                 .anyMatch(suffix -> material.name().endsWith(suffix)))
             .collect(Collectors.toUnmodifiableSet());
     }

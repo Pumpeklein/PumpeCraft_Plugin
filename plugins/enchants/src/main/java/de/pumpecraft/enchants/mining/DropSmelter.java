@@ -2,43 +2,37 @@ package de.pumpecraft.enchants.mining;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.inventory.FurnaceRecipe;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.Recipe;
 
 final class DropSmelter {
+    private final SmeltingRecipes recipes = new SmeltingRecipes();
+
     List<ItemStack> smelt(Material blockType, List<ItemStack> drops) {
-        if (!isOre(blockType)) {
+        if (!smeltable(blockType)) {
             return drops;
         }
         List<ItemStack> results = new ArrayList<>(drops.size());
-        boolean transformed = false;
         for (ItemStack drop : drops) {
-            ItemStack cooked = furnaceResult(drop);
-            transformed |= cooked != null;
-            results.add(cooked == null ? drop.clone() : cooked);
-        }
-        if (transformed) {
-            return results;
-        }
-        ItemStack blockResult = furnaceResult(new ItemStack(blockType));
-        return blockResult == null ? drops : List.of(blockResult);
-    }
-
-    private ItemStack furnaceResult(ItemStack input) {
-        for (Recipe recipe : Bukkit.getRecipesFor(input)) {
-            if (recipe instanceof FurnaceRecipe furnace) {
-                ItemStack result = furnace.getResult().clone();
-                result.setAmount(result.getAmount() * input.getAmount());
-                return result;
+            ItemStack cooked = recipes.resultFor(drop.getType());
+            if (cooked == null) {
+                results.add(drop);
+                continue;
             }
+            cooked.setAmount(cooked.getAmount() * drop.getAmount());
+            results.add(cooked);
         }
-        return null;
+        return results;
     }
 
-    private boolean isOre(Material material) {
-        return material.name().endsWith("_ORE") || material == Material.ANCIENT_DEBRIS;
+    /**
+     * Only blocks whose furnace result is what a player expects from an ore run. Every smeltable
+     * block would turn logs into charcoal, which nobody asked for.
+     */
+    private boolean smeltable(Material material) {
+        return material.name().endsWith("_ORE")
+            || material == Material.ANCIENT_DEBRIS
+            || material == Material.SAND
+            || material == Material.RED_SAND;
     }
 }

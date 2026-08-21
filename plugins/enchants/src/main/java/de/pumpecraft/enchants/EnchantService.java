@@ -5,12 +5,12 @@ import java.util.Optional;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.Material;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
+import org.bukkit.inventory.meta.ItemMeta;
 
 public final class EnchantService {
     public enum ApplyResult {
@@ -19,15 +19,18 @@ public final class EnchantService {
         DISABLED,
         INVALID_LEVEL,
         INVALID_ITEM,
-        INCOMPATIBLE
+        INCOMPATIBLE,
+        LIMIT_REACHED
     }
 
     private final EnchantRegistry registry;
     private final ItemEnchants items;
+    private final int maxPerItem;
 
-    public EnchantService(EnchantRegistry registry, ItemEnchants items) {
+    public EnchantService(EnchantRegistry registry, ItemEnchants items, int maxPerItem) {
         this.registry = registry;
         this.items = items;
+        this.maxPerItem = maxPerItem;
     }
 
     public int level(ItemStack item, NamespacedKey key) {
@@ -61,8 +64,16 @@ public final class EnchantService {
         if (item == null || item.getType().isAir() || !enchant.supports(item.getType())) {
             return ApplyResult.INVALID_ITEM;
         }
-        if (incompatible(item, enchant)) {
+        Map<CustomEnchant, Integer> present = items.list(item);
+        if (incompatible(item, present, enchant)) {
             return ApplyResult.INCOMPATIBLE;
+        }
+        // A book carries a single enchantment and is only a container, so the per item limit
+        // applies to the gear it ends up on, not to the book.
+        if (!present.containsKey(enchant)
+            && present.size() >= maxPerItem
+            && item.getType() != Material.ENCHANTED_BOOK) {
+            return ApplyResult.LIMIT_REACHED;
         }
         items.set(item, enchant, level);
         return ApplyResult.APPLIED;
@@ -81,14 +92,18 @@ public final class EnchantService {
         ItemStack book = new ItemStack(Material.ENCHANTED_BOOK);
         items.set(book, enchant, level);
         ItemMeta meta = book.getItemMeta();
-        meta.displayName(Component.text("Verzaubertes Buch", NamedTextColor.GOLD)
+        meta.displayName(Component.text(enchant.label(level), NamedTextColor.GOLD)
             .decoration(TextDecoration.ITALIC, false));
         book.setItemMeta(meta);
         return book;
     }
 
-    private boolean incompatible(ItemStack item, CustomEnchant candidate) {
-        for (CustomEnchant existing : items.list(item).keySet()) {
+    private boolean incompatible(
+        ItemStack item,
+        Map<CustomEnchant, Integer> present,
+        CustomEnchant candidate
+    ) {
+        for (CustomEnchant existing : present.keySet()) {
             if (candidate.incompatibleKeys().contains(existing.key())
                 || existing.incompatibleKeys().contains(candidate.key())) {
                 return true;

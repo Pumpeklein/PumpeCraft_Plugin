@@ -1,9 +1,11 @@
-package de.pumpecraft.enchants;
+package de.pumpecraft.enchants.command;
 
+import de.pumpecraft.enchants.CustomEnchant;
+import de.pumpecraft.enchants.EnchantRegistry;
+import de.pumpecraft.enchants.EnchantService;
 import de.pumpecraft.utils.Players;
-import de.pumpecraft.utils.messages.Messages;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.IntStream;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
@@ -13,15 +15,12 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.plugin.Plugin;
 
-final class EnchantCommand implements CommandExecutor, TabCompleter {
-    private final Plugin plugin;
+public final class EnchantCommand implements CommandExecutor, TabCompleter {
     private final EnchantRegistry registry;
     private final EnchantService enchants;
 
-    EnchantCommand(Plugin plugin, EnchantRegistry registry, EnchantService enchants) {
-        this.plugin = plugin;
+    public EnchantCommand(EnchantRegistry registry, EnchantService enchants) {
         this.registry = registry;
         this.enchants = enchants;
     }
@@ -56,20 +55,23 @@ final class EnchantCommand implements CommandExecutor, TabCompleter {
                 sender.sendMessage(error("Diese Stufe ist nicht verfügbar."));
                 return true;
             }
-            target.getInventory().setItemInMainHand(enchants.createBook(enchant.key(), level));
+            consumeOne(target, held);
+            for (ItemStack rest : target.getInventory()
+                .addItem(enchants.createBook(enchant.key(), level)).values()) {
+                target.getWorld().dropItemNaturally(target.getLocation(), rest);
+            }
         } else {
             EnchantService.ApplyResult outcome = enchants.set(held, enchant.key(), level);
             if (outcome != EnchantService.ApplyResult.APPLIED) {
                 sender.sendMessage(error(message(outcome)));
                 return true;
             }
+            target.getInventory().setItemInMainHand(held);
         }
 
-        String rendered = enchant.displayName() + " " + RomanNumerals.format(level);
         sender.sendMessage(Component.text(
-            rendered + " wurde " + target.getName() + " gegeben.", NamedTextColor.GREEN));
-        plugin.getServer().sendMessage(Messages.render(EnchantTopics.GRANTED, NamedTextColor.GOLD,
-            Map.of("player", target.getName(), "enchant", rendered)));
+            enchant.label(level) + " liegt jetzt auf dem Item von " + target.getName() + ".",
+            NamedTextColor.GREEN));
         return true;
     }
 
@@ -84,26 +86,33 @@ final class EnchantCommand implements CommandExecutor, TabCompleter {
             return Players.completeOnlineNames(args[0], 40);
         }
         if (args.length == 2) {
-            return Players.filterPrefix(registry.enabled().stream().map(CustomEnchant::id).toList(), args[1]);
+            return Players.filterPrefix(
+                registry.enabled().stream().map(CustomEnchant::id).toList(), args[1]);
         }
         if (args.length == 3) {
             CustomEnchant enchant = registry.find(args[1]).orElse(null);
             if (enchant == null) {
                 return List.of();
             }
-            return Players.filterPrefix(
-                java.util.stream.IntStream.rangeClosed(1, enchant.maximumLevel())
-                    .mapToObj(String::valueOf).toList(), args[2]);
+            return Players.filterPrefix(IntStream.rangeClosed(1, enchant.maximumLevel())
+                .mapToObj(String::valueOf).toList(), args[2]);
         }
         return List.of();
     }
 
+    private void consumeOne(Player player, ItemStack held) {
+        int rest = held.getAmount() - 1;
+        held.setAmount(Math.max(1, rest));
+        player.getInventory().setItemInMainHand(rest > 0 ? held : null);
+    }
+
     private String message(EnchantService.ApplyResult outcome) {
         return switch (outcome) {
-            case DISABLED -> "Diese Verzauberung ist deaktiviert.";
+            case DISABLED -> "Diese Verzauberung ist abgeschaltet.";
             case INVALID_LEVEL -> "Diese Stufe ist nicht verfügbar.";
             case INVALID_ITEM -> "Die Verzauberung passt nicht auf das gehaltene Item.";
-            case INCOMPATIBLE -> "Diese Verzauberungen sind nicht miteinander kompatibel.";
+            case INCOMPATIBLE -> "Die Verzauberung verträgt sich nicht mit diesem Item.";
+            case LIMIT_REACHED -> "Das Item trägt bereits genug eigene Verzauberungen.";
             case UNKNOWN -> "Unbekannte Verzauberung.";
             case APPLIED -> "";
         };

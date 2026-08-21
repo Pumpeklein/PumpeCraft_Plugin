@@ -18,34 +18,40 @@ public final class AnvilCombiner {
             return AnvilCombination.ignored();
         }
         Map<CustomEnchant, Integer> bookEnchants = enchants.list(addition);
-        if (bookEnchants.isEmpty()) {
+        if (bookEnchants.isEmpty() || target == null || target.getType().isAir()) {
             return AnvilCombination.ignored();
-        }
-        if (target == null || target.getType().isAir()) {
-            return AnvilCombination.rejected("Lege links ein passendes Item ein.");
         }
 
         ItemStack result = target.clone();
+        boolean changed = false;
         for (Map.Entry<CustomEnchant, Integer> entry : bookEnchants.entrySet()) {
             CustomEnchant enchant = entry.getKey();
             int current = enchants.level(result, enchant.key());
             int level = current == entry.getValue()
                 ? Math.min(enchant.maximumLevel(), current + 1)
                 : Math.max(current, entry.getValue());
+            if (level == current) {
+                continue;
+            }
             EnchantService.ApplyResult outcome = enchants.set(result, enchant.key(), level);
-            if (outcome == EnchantService.ApplyResult.INVALID_ITEM) {
-                return AnvilCombination.rejected(
-                    enchant.displayName() + " passt nicht auf dieses Item.");
-            }
-            if (outcome == EnchantService.ApplyResult.INCOMPATIBLE) {
-                return AnvilCombination.rejected(
-                    "Diese Verzauberungen sind nicht miteinander kompatibel.");
-            }
             if (outcome != EnchantService.ApplyResult.APPLIED) {
-                return AnvilCombination.rejected(
-                    enchant.displayName() + " ist derzeit nicht verfügbar.");
+                return AnvilCombination.rejected(message(enchant, outcome));
             }
+            changed = true;
+        }
+        if (!changed) {
+            return AnvilCombination.rejected("Dieses Item hat die Verzauberung bereits.");
         }
         return AnvilCombination.accepted(result);
+    }
+
+    private String message(CustomEnchant enchant, EnchantService.ApplyResult outcome) {
+        return switch (outcome) {
+            case INVALID_ITEM -> enchant.displayName() + " passt nicht auf dieses Item.";
+            case INCOMPATIBLE -> enchant.displayName() + " verträgt sich nicht mit diesem Item.";
+            case LIMIT_REACHED -> "Dieses Item trägt bereits genug eigene Verzauberungen.";
+            case DISABLED -> enchant.displayName() + " ist derzeit abgeschaltet.";
+            default -> enchant.displayName() + " lässt sich hier nicht anwenden.";
+        };
     }
 }

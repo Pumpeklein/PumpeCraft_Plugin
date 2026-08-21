@@ -2,11 +2,14 @@ package de.pumpecraft.enchants;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -14,12 +17,22 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
 public final class ItemEnchants {
-    private static final String LORE_MARKER_PREFIX = "pumpeenchants:";
+    private static final PlainTextComponentSerializer PLAIN = PlainTextComponentSerializer.plainText();
 
     private final EnchantRegistry registry;
+    // Own lore lines are recognised by their text, not by a marker in the style: PumpeAntiCheat
+    // rebuilds overlong lines as plain text and would drop any marker together with the formatting.
+    private final Set<String> renderedLines;
 
     public ItemEnchants(EnchantRegistry registry) {
         this.registry = registry;
+        Set<String> lines = new HashSet<>();
+        for (CustomEnchant enchant : registry.all()) {
+            for (int level = 1; level <= enchant.maximumLevel(); level++) {
+                lines.add(enchant.label(level));
+            }
+        }
+        renderedLines = Set.copyOf(lines);
     }
 
     public int level(ItemStack item, NamespacedKey key) {
@@ -60,28 +73,21 @@ public final class ItemEnchants {
     }
 
     private void render(ItemMeta meta) {
-        List<Component> lore = meta.lore() == null
+        List<Component> foreign = meta.lore() == null
             ? new ArrayList<>()
             : new ArrayList<>(meta.lore());
-        lore.removeIf(this::isRenderedEnchantLine);
+        foreign.removeIf(line -> renderedLines.contains(PLAIN.serialize(line)));
 
-        List<Component> rendered = new ArrayList<>();
+        List<Component> lore = new ArrayList<>();
         PersistentDataContainer data = meta.getPersistentDataContainer();
         for (CustomEnchant enchant : registry.all()) {
             int level = data.getOrDefault(enchant.key(), PersistentDataType.INTEGER, 0);
             if (level > 0) {
-                rendered.add(Component.text(
-                        enchant.displayName() + " " + RomanNumerals.format(level), enchant.rarity().color())
-                    .decoration(TextDecoration.ITALIC, false)
-                    .insertion(LORE_MARKER_PREFIX + enchant.id()));
+                lore.add(Component.text(enchant.label(level), enchant.rarity().color())
+                    .decoration(TextDecoration.ITALIC, false));
             }
         }
-        rendered.addAll(lore);
-        meta.lore(rendered.isEmpty() ? null : rendered);
-    }
-
-    private boolean isRenderedEnchantLine(Component line) {
-        String insertion = line.style().insertion();
-        return insertion != null && insertion.startsWith(LORE_MARKER_PREFIX);
+        lore.addAll(foreign);
+        meta.lore(lore.isEmpty() ? null : lore);
     }
 }

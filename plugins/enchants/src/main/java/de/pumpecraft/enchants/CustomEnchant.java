@@ -24,6 +24,11 @@ public record CustomEnchant(
         return key.getKey();
     }
 
+    /** The text a lore line and every message use, so both stay comparable. */
+    public String label(int level) {
+        return displayName + " " + RomanNumerals.format(level);
+    }
+
     public boolean supports(Material material) {
         return material == Material.ENCHANTED_BOOK || allowedMaterials.contains(material);
     }

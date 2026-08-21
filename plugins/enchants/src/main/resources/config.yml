@@ -13,3 +13,4 @@ enchants:
 
 anvil:
   level-cost: 5
+  max-enchants-per-item: 2
