@@ -10,7 +10,7 @@ Moderation commands, punishments, reports and staff tools.
 - `/mute <Spieler> <Zeit> [Grund]` - mutes a known player for the given duration.
 - `/unmute <Spieler>` - lifts an active mute.
 - `/ban <Spieler> <Grund> [Zeit]` - bans a known player permanently or for a duration.
-- `/unban <Spieler> [Grund]` - lifts an active ban.
+- `/unban <Spieler|Punishment-ID> [Grund]` - hebt einen aktiven Ban über Spielername oder Punishment-ID auf.
 - `/vanish` - toggles staff vanish: gone for players, sichtbar als Spec fürs Team.
 - `/fly [Spieler]` - schaltet Fliegen für dich oder einen Onlinespieler ein oder aus, ohne den Spielmodus zu verändern.
 - `/spectate` (`/spec`) - öffnet das Spectate-Menü. `/spec <Spieler>` beobachtet direkt, `/spec stop` beendet.
@@ -101,6 +101,9 @@ Bei `/ban` steht die Zeit **hinten**: Das letzte Argument wird als Zeitangabe
 gelesen, wenn es dem Format entspricht, sonst gehört es zum Grund. Ohne Zeit ist
 der Ban permanent.
 
+`/unban` akzeptiert alternativ die achtstellige Punishment-ID. Mit dem Präfix `id:`
+lässt sich die Eingabe eindeutig als ID behandeln, falls sie zugleich ein bekannter Spielername ist.
+
 ```mcfunction
 /mute Steve 30s Spam im Chat
 /mute Steve 1h30m Beleidigung
@@ -108,6 +111,8 @@ der Ban permanent.
 /ban Steve Cheating
 /unmute Steve
 /unban Steve Einspruch akzeptiert
+/unban AB12CD34 Einspruch akzeptiert
+/unban id:AB12CD34 Einspruch akzeptiert
 ```
 
 ## Bans und Mutes in der Datenbank

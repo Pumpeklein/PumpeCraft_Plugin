@@ -318,6 +318,35 @@ final class ModerationRepository {
         });
     }
 
+    PunishmentTarget findActiveBanTarget(String punishmentId) {
+        return database.withConnection(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                """
+                SELECT target_uuid, target_name, punishment_id
+                FROM pc_punishments
+                WHERE punishment_id = ?
+                  AND punishment_type = 'BAN'
+                  AND revoked_at IS NULL
+                  AND (expires_at IS NULL OR expires_at > ?)
+                LIMIT 1
+                """
+            )) {
+                statement.setString(1, punishmentId);
+                statement.setLong(2, Instant.now().toEpochMilli());
+                try (ResultSet result = statement.executeQuery()) {
+                    if (!result.next()) {
+                        return null;
+                    }
+                    return new PunishmentTarget(
+                        UUID.fromString(result.getString("target_uuid")),
+                        result.getString("target_name"),
+                        result.getString("punishment_id")
+                    );
+                }
+            }
+        });
+    }
+
     /** @return Anzahl der aufgehobenen Bans. */
     int revokeActiveBans(UUID targetId, String staffName, String reason) {
         return database.withConnection(connection -> {

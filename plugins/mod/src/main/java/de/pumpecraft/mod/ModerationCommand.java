@@ -389,15 +389,16 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
         CommandSender staff = sender;
 
         if (args.length < 1) {
-            staff.sendMessage(error("Nutzung: /" + label + " <Spieler> [Grund]"));
+            staff.sendMessage(error("Nutzung: /" + label + " <Spieler|Punishment-ID> [Grund]"));
             return true;
         }
 
-        TargetPlayer target = findKnownPlayer(args[0]);
-        if (target == null) {
-            staff.sendMessage(error("Der Spieler ist nicht bekannt."));
+        UnbanTarget resolved = findUnbanTarget(args[0]);
+        if (resolved == null) {
+            staff.sendMessage(error("Spieler oder aktive Punishment-ID nicht gefunden."));
             return true;
         }
+        TargetPlayer target = resolved.target();
 
         String reason = args.length >= 2 ? joinArgs(args, 1) : "Kein Grund angegeben";
         int revoked = repository.revokeActiveBans(target.uniqueId(), staff.getName(), reason);
@@ -412,7 +413,10 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
         }
 
         Bukkit.broadcast(Messages.render(ModerationTopics.UNBANNED, NamedTextColor.GREEN, target.name()));
-        staff.sendMessage(success("Der Ban von " + target.name() + " wurde aufgehoben."));
+        String idSuffix = resolved.punishmentId() == null
+            ? ""
+            : " (Punishment-ID: " + resolved.punishmentId() + ")";
+        staff.sendMessage(success("Der Ban von " + target.name() + " wurde aufgehoben" + idSuffix + "."));
         return true;
     }
 
@@ -504,6 +508,30 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
         }
 
         return null;
+    }
+
+    private UnbanTarget findUnbanTarget(String input) {
+        String cleaned = stripMatchingQuotes(input.trim());
+        boolean explicitId = cleaned.regionMatches(true, 0, "id:", 0, 3);
+        if (!explicitId) {
+            TargetPlayer knownPlayer = findKnownPlayer(cleaned);
+            if (knownPlayer != null) {
+                return new UnbanTarget(knownPlayer, null);
+            }
+        }
+
+        String punishmentId = (explicitId ? cleaned.substring(3) : cleaned).toUpperCase(Locale.ROOT);
+        if (!punishmentId.matches("[A-Z0-9]{8}")) {
+            return null;
+        }
+        PunishmentTarget punishment = repository.findActiveBanTarget(punishmentId);
+        if (punishment == null) {
+            return null;
+        }
+        return new UnbanTarget(
+            new TargetPlayer(punishment.uniqueId(), punishment.name()),
+            punishment.punishmentId()
+        );
     }
 
     private List<String> completeKnownPlayers(String input) {
@@ -717,6 +745,9 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
     }
 
     private record TargetPlayer(UUID uniqueId, String name) {
+    }
+
+    private record UnbanTarget(TargetPlayer target, String punishmentId) {
     }
 
     private record BanInput(String reason, Instant expiresAt) {
