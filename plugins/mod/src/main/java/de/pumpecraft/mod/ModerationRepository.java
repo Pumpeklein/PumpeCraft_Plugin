@@ -67,15 +67,13 @@ final class ModerationRepository {
         return new ReportRecord(id, reporterName, targetName, reason, createdAt, true);
     }
 
-    OpenReportSummary summarizeOpenReports() {
+    int countOpenReports() {
         return database.withConnection(connection -> {
             try (PreparedStatement statement = connection.prepareStatement(
-                "SELECT COUNT(*) AS report_count, MIN(id) AS only_id FROM pc_reports WHERE is_open = TRUE"
+                "SELECT COUNT(*) FROM pc_reports WHERE is_open = TRUE"
             ); ResultSet result = statement.executeQuery()) {
                 result.next();
-                int count = result.getInt("report_count");
-                int reportId = result.getInt("only_id");
-                return new OpenReportSummary(count, result.wasNull() ? null : reportId);
+                return result.getInt(1);
             }
         });
     }

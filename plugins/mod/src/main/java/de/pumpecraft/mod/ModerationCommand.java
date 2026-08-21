@@ -224,9 +224,7 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
             return false;
         }
 
-        OpenReportSummary reports = repository.summarizeOpenReports();
-        sender.sendMessage(reportStatus(reports.count()));
-        sender.sendMessage(reportWebsiteLink(reports));
+        sender.sendMessage(reportStatus(repository.countOpenReports()));
         repository.markOpenReportsSeen(actorId(sender));
         return true;
     }
@@ -545,13 +543,7 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
 
             int unseenReports = repository.countUnseenOpenReports(player.getUniqueId());
             player.sendMessage(reportNotification(unseenReports));
-            player.sendMessage(
-                Component.text("Neu: ", NamedTextColor.GRAY)
-                    .append(Component.text(report.targetName(), NamedTextColor.AQUA))
-                    .append(Component.text(" von ", NamedTextColor.GRAY))
-                    .append(Component.text(report.reporterName(), NamedTextColor.AQUA))
-                    .append(Component.text(" gemeldet.", NamedTextColor.GRAY))
-            );
+            player.sendMessage(newReportNotification(report));
         }
     }
 
@@ -566,13 +558,8 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
 
     private Component reportNotification(int unseenReports) {
         return Component.text("Es gibt ", NamedTextColor.GOLD)
-            .append(Component.text(unseenReports, NamedTextColor.YELLOW))
-            .append(Component.text(" ungesehene offene Reports. ", NamedTextColor.GOLD))
-            .append(
-                Component.text("[Anzeigen]", NamedTextColor.GREEN)
-                    .clickEvent(ClickEvent.runCommand("/reports"))
-                    .hoverEvent(HoverEvent.showText(Component.text("Report-Status und Website-Link anzeigen", NamedTextColor.GRAY)))
-            );
+            .append(reportCountLink(unseenReports))
+            .append(Component.text(" ungesehene offene Reports.", NamedTextColor.GOLD));
     }
 
     private Component reportStatus(int openReports) {
@@ -580,21 +567,28 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
             return Component.text("Es gibt aktuell keine offenen Reports.", NamedTextColor.GREEN);
         }
         return Component.text("Es gibt aktuell ", NamedTextColor.GOLD)
-            .append(Component.text(openReports, NamedTextColor.YELLOW))
+            .append(reportCountLink(openReports))
             .append(Component.text(openReports == 1 ? " offenen Report." : " offene Reports.", NamedTextColor.GOLD));
     }
 
-    private Component reportWebsiteLink(OpenReportSummary reports) {
-        boolean directlyToReport = reports.count() == 1 && reports.onlyReportId() != null;
-        String url = (directlyToReport
-            ? settings.reportUrl(reports.onlyReportId())
-            : settings.reportsUrl()).toString();
-        String label = directlyToReport
-            ? "[Report #" + reports.onlyReportId() + " auf der Website öffnen]"
-            : "[Reports auf der Website öffnen]";
-        return Component.text(label, NamedTextColor.AQUA, TextDecoration.UNDERLINED)
+    private Component reportCountLink(int count) {
+        String url = settings.reportsUrl().toString();
+        return Component.text(count, NamedTextColor.YELLOW, TextDecoration.UNDERLINED)
             .clickEvent(ClickEvent.openUrl(url))
-            .hoverEvent(HoverEvent.showText(Component.text(url, NamedTextColor.GRAY)));
+            .hoverEvent(HoverEvent.showText(Component.text("Offene Reports auf der Website anzeigen", NamedTextColor.GRAY)));
+    }
+
+    private Component newReportNotification(ReportRecord report) {
+        String url = settings.reportUrl(report.id()).toString();
+        Component link = Component.text("Neu:", NamedTextColor.GREEN, TextDecoration.UNDERLINED)
+            .clickEvent(ClickEvent.openUrl(url))
+            .hoverEvent(HoverEvent.showText(Component.text("Report #" + report.id() + " öffnen", NamedTextColor.GRAY)));
+        return Component.empty()
+            .append(link)
+            .append(Component.text(" " + report.targetName(), NamedTextColor.AQUA))
+            .append(Component.text(" von ", NamedTextColor.GRAY))
+            .append(Component.text(report.reporterName(), NamedTextColor.AQUA))
+            .append(Component.text(" gemeldet.", NamedTextColor.GRAY));
     }
 
     private UUID actorId(CommandSender sender) {
