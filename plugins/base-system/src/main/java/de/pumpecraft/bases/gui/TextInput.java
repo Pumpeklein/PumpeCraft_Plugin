@@ -96,12 +96,19 @@ public final class TextInput implements Listener {
         });
     }
 
+    /**
+     * Nur das eigene Fenster zählt. Der Amboss wird aus einem offenen Menü heraus geöffnet, und
+     * dessen Schließen meldet sich zuerst - ein bedingungsloses Austragen löschte den Eintrag,
+     * bevor der Amboss überhaupt aufgeht.
+     */
     @EventHandler
     public void onClose(InventoryCloseEvent event) {
-        Pending waiting = pending.remove(event.getPlayer().getUniqueId());
-        if (waiting != null && waiting.view == event.getView()) {
-            empty(waiting.view);
+        Pending waiting = pending.get(event.getPlayer().getUniqueId());
+        if (waiting == null || waiting.view != event.getView()) {
+            return;
         }
+        pending.remove(event.getPlayer().getUniqueId());
+        empty(waiting.view);
     }
 
     /**
