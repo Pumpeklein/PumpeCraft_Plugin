@@ -1,0 +1,24 @@
+name: SubEssentials
+version: ${version}
+main: de.pumpecraft.subessentials.SubEssentialsPlugin
+api-version: '1.21'
+author: PumpeCraft
+description: Twitch subscriber linking and subscriber-only utility menus.
+depend: [PumpeDatabase, PumpeUtils]
+commands:
+  twitch:
+    description: Verknüpft oder trennt dein Minecraft-Konto von Twitch.
+    usage: /twitch <link|unlink>
+  ec:
+    description: Öffnet deine Enderchest.
+    usage: /ec
+  craft:
+    description: Öffnet eine Werkbank.
+    usage: /craft
+  anvil:
+    description: Öffnet einen Amboss.
+    usage: /anvil
+  et:
+    description: Öffnet einen Zaubertisch.
+    usage: /et
+    aliases: [enchant]

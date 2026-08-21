@@ -1,12 +1,16 @@
 package de.pumpecraft.clans;
 
 import de.pumpecraft.clans.ClanData.TabEntry;
+import de.pumpecraft.utils.clan.ClanDisplayService;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import de.pumpecraft.utils.subscriber.SubscriberService;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -15,10 +19,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
-final class ClanTabService {
+final class ClanTabService implements ClanDisplayService {
     private final PumpeClanSystemPlugin plugin;
     private final ClanRepository repository;
-    private final Map<UUID, TabEntry> entries = new HashMap<>();
+    private final Map<UUID, TabEntry> entries = new ConcurrentHashMap<>();
     private final Set<UUID> decoratedPlayers = new HashSet<>();
     private final Map<Long, Team> clanTeams = new HashMap<>();
     private final Map<UUID, Team> playerTeams = new HashMap<>();
@@ -26,6 +30,14 @@ final class ClanTabService {
     ClanTabService(PumpeClanSystemPlugin plugin, ClanRepository repository) {
         this.plugin = plugin;
         this.repository = repository;
+    }
+
+    @Override
+    public Optional<Component> badge(UUID playerId) {
+        TabEntry entry = entries.get(playerId);
+        return entry == null
+            ? Optional.empty()
+            : Optional.of(ClanTagFormatter.badge(entry.tag(), entry.tagColor()));
     }
 
     void refresh() {
@@ -56,7 +68,7 @@ final class ClanTabService {
         if (entry == null) {
             removeNametag(player);
             if (decoratedPlayers.remove(player.getUniqueId()) && !afk) {
-                player.playerListName(Component.text(player.getName(), NamedTextColor.WHITE));
+                player.playerListName(Component.text(player.getName(), playerNameColor(player)));
             }
             return;
         }
@@ -67,9 +79,16 @@ final class ClanTabService {
         }
         player.playerListName(
             ClanTagFormatter.prefix(entry.tag(), entry.tagColor())
-                .append(Component.text(player.getName(), NamedTextColor.WHITE))
+                .append(Component.text(player.getName(), playerNameColor(player)))
         );
         decoratedPlayers.add(player.getUniqueId());
+    }
+
+    private NamedTextColor playerNameColor(Player player) {
+        var registration = Bukkit.getServicesManager().getRegistration(SubscriberService.class);
+        return registration != null && registration.getProvider().isSubscriber(player.getUniqueId())
+            ? NamedTextColor.LIGHT_PURPLE
+            : NamedTextColor.WHITE;
     }
 
     private void applyNametag(Player player, TabEntry entry) {

@@ -4,7 +4,7 @@ main: de.pumpecraft.clans.PumpeClanSystemPlugin
 api-version: '1.21'
 author: PumpeCraft
 description: Persistent clans and clan tab tags for PumpeCraft.
-depend: [PumpeDatabase]
+depend: [PumpeDatabase, PumpeUtils]
 commands:
   clan:
     description: Manages clans, memberships and clan tags.

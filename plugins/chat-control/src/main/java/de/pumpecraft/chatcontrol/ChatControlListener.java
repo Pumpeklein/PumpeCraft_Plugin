@@ -23,17 +23,20 @@ final class ChatControlListener implements Listener {
     private final ChatFilter filter;
     private final ChatMessageRepository repository;
     private final ConcurrentHashMap<String, TrackedChatMessage> trackedMessages;
+    private final ChatRenderer identityRenderer;
 
     ChatControlListener(
         PumpeChatControlPlugin plugin,
         ChatFilter filter,
         ChatMessageRepository repository,
-        ConcurrentHashMap<String, TrackedChatMessage> trackedMessages
+        ConcurrentHashMap<String, TrackedChatMessage> trackedMessages,
+        ChatRenderer identityRenderer
     ) {
         this.plugin = plugin;
         this.filter = filter;
         this.repository = repository;
         this.trackedMessages = trackedMessages;
+        this.identityRenderer = identityRenderer;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -52,11 +55,14 @@ final class ChatControlListener implements Listener {
             ? repository.recordFlagged(sender, message, "GLOBAL", null, result.reason())
             : repository.recordAccepted(sender, message, "GLOBAL", null);
 
-        ChatRenderer original = event.renderer();
+        ChatRenderer original = identityRenderer;
         Map<Audience, Component> pendingDeliveries = result.reviewRequired()
             ? holdForReview(event, original)
             : Map.of();
-        if (!event.signedMessage().canDelete() && !result.reviewRequired()) return;
+        if (!event.signedMessage().canDelete() && !result.reviewRequired()) {
+            event.renderer(original);
+            return;
+        }
         trackedMessages.put(
             messageId,
             new TrackedChatMessage(

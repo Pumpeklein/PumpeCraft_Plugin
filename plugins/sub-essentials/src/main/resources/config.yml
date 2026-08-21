@@ -1,0 +1,15 @@
+config-version: 2
+
+website:
+  twitch-link-url: "https://support.pumpe-klein.de/auth/twitch/minecraft"
+  link-valid-minutes: 10
+
+twitch:
+  # Environment variables with the same names take precedence.
+  client-id: ""
+  auth-token: ""
+  channel-login: ""
+  subscription-refresh-minutes: 5
+
+cache:
+  database-poll-seconds: 5

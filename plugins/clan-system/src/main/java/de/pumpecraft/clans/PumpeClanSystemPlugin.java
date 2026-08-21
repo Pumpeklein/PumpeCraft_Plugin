@@ -1,6 +1,7 @@
 package de.pumpecraft.clans;
 
 import de.pumpecraft.clans.ClanData.Directory;
+import de.pumpecraft.utils.clan.ClanDisplayService;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -14,6 +15,7 @@ import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class PumpeClanSystemPlugin extends JavaPlugin {
@@ -35,6 +37,9 @@ public final class PumpeClanSystemPlugin extends JavaPlugin {
 
         repository = new ClanRepository(this);
         tabService = new ClanTabService(this, repository);
+        getServer().getServicesManager().register(
+            ClanDisplayService.class, tabService, this, ServicePriority.Normal
+        );
 
         ClanCommand clanCommand = new ClanCommand(
             this, repository, tabService, clanNameBlacklist);
@@ -67,6 +72,7 @@ public final class PumpeClanSystemPlugin extends JavaPlugin {
         if (tabService != null) {
             tabService.restoreOnlinePlayers();
         }
+        getServer().getServicesManager().unregisterAll(this);
         getLogger().info("PumpeClanSystem disabled.");
     }
 

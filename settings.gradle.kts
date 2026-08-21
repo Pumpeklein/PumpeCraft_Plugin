@@ -42,6 +42,7 @@ include(":plugins:anticheat")
 include(":plugins:chat-control")
 include(":plugins:transactions")
 include(":plugins:mailbox")
+include(":plugins:sub-essentials")
 
 // plugins/briefkasten is the predecessor of plugins/mailbox and deliberately not included any more.
 // The folder only stays around until it gets deleted.

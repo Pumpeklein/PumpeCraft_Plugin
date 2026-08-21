@@ -46,9 +46,10 @@ public final class PumpeChatControlPlugin extends JavaPlugin {
         DatabaseService database = Databases.require(this);
         ChatMessageRepository repository = new ChatMessageRepository(this, database);
         ChatFilter filter = new ChatFilter(getConfig());
+        ChatIdentityRenderer identityRenderer = new ChatIdentityRenderer();
 
         getServer().getPluginManager().registerEvents(
-            new ChatControlListener(this, filter, repository, trackedMessages),
+            new ChatControlListener(this, filter, repository, trackedMessages, identityRenderer),
             this
         );
         PrivateMessageCommand privateMessages = new PrivateMessageCommand(this, filter, repository);
