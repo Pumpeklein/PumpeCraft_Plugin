@@ -3,6 +3,9 @@ package de.pumpecraft.mod;
 import de.pumpecraft.mod.flight.FlightListener;
 import de.pumpecraft.mod.flight.FlightService;
 import de.pumpecraft.mod.flight.FlyCommand;
+import de.pumpecraft.mod.spectate.SpectateCommand;
+import de.pumpecraft.mod.spectate.SpectateListener;
+import de.pumpecraft.mod.spectate.SpectateService;
 import de.pumpecraft.mod.vanish.VanishListener;
 import de.pumpecraft.mod.vanish.VanishService;
 import de.pumpecraft.utils.messages.ConnectionMessages;
@@ -16,6 +19,7 @@ public final class PumpeModPlugin extends JavaPlugin {
     private ModerationCommand moderationCommand;
     private VanishService vanishService;
     private FlightService flightService;
+    private SpectateService spectateService;
 
     @Override
     public void onEnable() {
@@ -50,11 +54,21 @@ public final class PumpeModPlugin extends JavaPlugin {
         fly.setTabCompleter(flyCommand);
         getServer().getPluginManager().registerEvents(new FlightListener(this, flightService), this);
 
+        spectateService = new SpectateService(this);
+        SpectateCommand spectateCommand = new SpectateCommand(spectateService);
+        PluginCommand spectate = Objects.requireNonNull(getCommand("spectate"), "Missing command: spectate");
+        spectate.setExecutor(spectateCommand);
+        spectate.setTabCompleter(spectateCommand);
+        getServer().getPluginManager().registerEvents(new SpectateListener(spectateService), this);
+
         getLogger().info("PumpeMod enabled.");
     }
 
     @Override
     public void onDisable() {
+        if (spectateService != null) {
+            spectateService.shutdown();
+        }
         if (vanishService != null) {
             vanishService.revealAll();
         }

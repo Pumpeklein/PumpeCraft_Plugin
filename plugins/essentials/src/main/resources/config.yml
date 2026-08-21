@@ -1,4 +1,4 @@
-config-version: 8
+config-version: 9
 
 item-services:
   rename:
@@ -19,7 +19,6 @@ back:
   teleport-causes:
     - COMMAND
     - PLUGIN
-    - SPECTATE
   teleport-command: "/tp %x% %y% %z%"
 
 sit:

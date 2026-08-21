@@ -16,7 +16,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.command.PluginCommand;
 
 public final class PumpeEssentialsPlugin extends JavaPlugin {
-    private static final int CONFIG_VERSION = 8;
+    private static final int CONFIG_VERSION = 9;
 
     private OpenInventoryCommand openInventoryCommand;
     private OfflinePlayerDataService offlinePlayerDataService;
@@ -127,6 +127,15 @@ public final class PumpeEssentialsPlugin extends JavaPlugin {
         if (version < 8) {
             // Der Deckblock ist einem unsichtbaren Shulker gewichen, der keine Blockform braucht.
             getConfig().set("crawl", null);
+        }
+        if (version < 9) {
+            // Spectate-Wechsel sind nur Kamerabewegungen und keine Rücksprungpunkte.
+            getConfig().set(
+                "back.teleport-causes",
+                getConfig().getStringList("back.teleport-causes").stream()
+                    .filter(cause -> !cause.equalsIgnoreCase("SPECTATE"))
+                    .toList()
+            );
         }
         getConfig().set("config-version", CONFIG_VERSION);
         saveConfig();

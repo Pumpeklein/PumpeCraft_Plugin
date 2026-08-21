@@ -13,6 +13,11 @@ Moderation commands, punishments, reports and staff tools.
 - `/unban <Spieler> [Grund]` - lifts an active ban.
 - `/vanish` - toggles staff vanish: gone for players, sichtbar als Spec fürs Team.
 - `/fly [Spieler]` - schaltet Fliegen für dich oder einen Onlinespieler ein oder aus, ohne den Spielmodus zu verändern.
+- `/spectate <Spieler>` (`/spec`) - übernimmt im Spectator-Modus die Kamerasicht eines Onlinespielers. Ohne Spieler wird die Beobachtung beendet.
+
+Während der Beobachtung verändert das Mausrad den Abstand der Kamera zum Zielspieler. Nah am
+Spieler rastet die Kamera wieder in First Person ein. Sneaken beendet die Beobachtung und stellt
+Standort und Spielmodus von davor wieder her.
 
 Player names can also be entered with an `@` prefix, for example `/report @Fabienne Griefing`.
 Targets can be online or known offline players.
@@ -112,6 +117,7 @@ unsichtbare Spieler ohnehin vollständig und bekommt den zusätzlichen Kopf desh
 - `pumpecraft.mod.vanish`
 - `pumpecraft.mod.vanish.see`
 - `pumpecraft.mod.fly`
+- `pumpecraft.mod.spectate`
 
 All permissions default to `false` and should be assigned through LuckPerms.
 
