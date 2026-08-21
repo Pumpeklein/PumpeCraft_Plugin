@@ -3,10 +3,53 @@ version: ${version}
 main: de.pumpecraft.bases.PumpeBaseSystemPlugin
 api-version: '1.21'
 author: PumpeCraft
-description: Player bases with visits, likes, a browsable directory and an in-game menu.
-depend: [PumpeDatabase, PumpeUtils]
+description: Player bases and plots with permissions, flags and PP based pricing.
+depend: [PumpeDatabase, PumpeUtils, PumpeTransactions]
 commands:
   base:
     aliases: [basis]
     description: Opens the base menu, sets, visits and rates player bases.
     usage: "/base [menu|set|visit|like|info|public|private|delete] | Konsole: /base as <Spieler> <Unterbefehl>"
+  plot:
+    aliases: [grundstueck, gs]
+    description: Claims, sells and manages plots with members and flags.
+    usage: "/plot [menu|list|tool|pos1|pos2|cost|claim|info|show|trust|untrust|flag|sell|admin]"
+# Die Voreinstellungen stehen hier und nicht nur in permissions.yml: Ein Rechte-Plugin liest die
+# Standardwerte aus der plugin.yml beim Laden. Erst zur Laufzeit angemeldete Rechte erreichen es
+# unter Umständen nicht mehr - und dann steht ein normaler Spieler ohne /plot da.
+permissions:
+  pumpecraft.base.use:
+    description: Allows opening the base menu and viewing player base information.
+    default: true
+  pumpecraft.base.set:
+    description: Allows setting, changing and deleting an own player base.
+    default: true
+  pumpecraft.base.visit:
+    description: Allows visiting public player bases.
+    default: true
+  pumpecraft.base.like:
+    description: Allows liking public player bases.
+    default: true
+  pumpecraft.base.admin:
+    description: Allows staff to inspect and visit private player bases.
+    default: false
+  pumpecraft.plot.use:
+    description: Allows opening the plot menu and viewing plot information.
+    default: true
+  pumpecraft.plot.claim:
+    description: Allows buying, selling and managing own plots.
+    default: true
+  pumpecraft.plot.admin:
+    description: Allows creating admin regions, editing any plot and setting plot heights.
+    default: false
+  pumpecraft.plot.bypass:
+    description: Allows staff to build inside every plot regardless of members and flags.
+    default: false
+  pumpecraft.plot.*:
+    description: Allows using all plot features including admin regions.
+    default: false
+    children:
+      pumpecraft.plot.use: true
+      pumpecraft.plot.claim: true
+      pumpecraft.plot.admin: true
+      pumpecraft.plot.bypass: true

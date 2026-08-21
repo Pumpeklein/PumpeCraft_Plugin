@@ -21,6 +21,9 @@ public final class BaseJoinListener implements Listener {
     public void onPlayerJoin(PlayerJoinEvent event) {
         PlayerIdentity player = new PlayerIdentity(
             event.getPlayer().getUniqueId(), event.getPlayer().getName());
-        plugin.runAsync(() -> repository.syncPlayerName(player));
+        plugin.runAsync(() -> {
+            repository.syncPlayerName(player);
+            plugin.plotRepository().syncPlayerName(player);
+        });
     }
 }

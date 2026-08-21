@@ -3,6 +3,7 @@ package de.pumpecraft.bases.base;
 import de.pumpecraft.bases.BaseSettings;
 import de.pumpecraft.bases.BaseText;
 import de.pumpecraft.bases.PumpeBaseSystemPlugin;
+import de.pumpecraft.bases.plot.PlotGuard;
 import de.pumpecraft.utils.Cooldowns;
 import de.pumpecraft.utils.Texts;
 import java.util.List;
@@ -23,17 +24,20 @@ public final class BaseService {
     private final PumpeBaseSystemPlugin plugin;
     private final BaseRepository repository;
     private final BaseSettings settings;
+    private final PlotGuard plots;
     private final BaseDirectory directory = new BaseDirectory();
     private final Cooldowns<UUID> visitCooldowns = new Cooldowns<>();
 
     public BaseService(
         PumpeBaseSystemPlugin plugin,
         BaseRepository repository,
-        BaseSettings settings
+        BaseSettings settings,
+        PlotGuard plots
     ) {
         this.plugin = plugin;
         this.repository = repository;
         this.settings = settings;
+        this.plots = plots;
     }
 
     public BaseRepository repository() {
@@ -77,6 +81,14 @@ public final class BaseService {
      */
     public void setBase(Player player, Boolean requestedVisibility, Consumer<PlayerBase> after) {
         Location location = player.getLocation();
+        // Eine Base auf fremdem Grundstück wäre ein Besuchsziel mitten in fremdem Eigentum.
+        if (!plots.canBuild(player, location)) {
+            player.sendMessage(BaseText.error(
+                "Hier darfst du nicht bauen - such dir einen Platz für deine Base."));
+            play(player, Sound.ENTITY_VILLAGER_NO, 1.0F);
+            accept(after, null);
+            return;
+        }
         BaseLocation baseLocation = new BaseLocation(
             location.getWorld().getUID(),
             location.getWorld().getName(),

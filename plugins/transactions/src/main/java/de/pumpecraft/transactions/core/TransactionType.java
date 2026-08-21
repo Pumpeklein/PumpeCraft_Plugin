@@ -8,7 +8,9 @@ public enum TransactionType {
     ADMIN_TAKE("Team-Abbuchung"),
     ADMIN_SET("Team-Korrektur"),
     ESSENTIALS_SERVICE("Essentials-Dienst"),
-    TRADER_PURCHASE("Trader-Kauf");
+    TRADER_PURCHASE("Trader-Kauf"),
+    PLOT_PURCHASE("Grundstückskauf"),
+    PLOT_REFUND("Grundstücksverkauf");
 
     private final String label;
 

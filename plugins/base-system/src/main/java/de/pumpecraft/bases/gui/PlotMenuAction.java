@@ -1,0 +1,26 @@
+package de.pumpecraft.bases.gui;
+
+public enum PlotMenuAction {
+    NONE,
+    CLOSE,
+    OPEN_LIST,
+    OPEN_DETAIL,
+    OPEN_MEMBERS,
+    OPEN_ADD_MEMBER,
+    OPEN_FLAGS,
+    OPEN_CREATE,
+    GIVE_TOOL,
+    NAME_AND_CLAIM,
+    SEARCH_PLAYER,
+    TOGGLE_OUTLINE,
+    ASK_SELL,
+    CONFIRM_SELL,
+    TELEPORT,
+    ADD_MEMBER,
+    CYCLE_MEMBER,
+    REMOVE_MEMBER,
+    TOGGLE_FLAG,
+    RESET_FLAG,
+    PAGE_PREVIOUS,
+    PAGE_NEXT
+}

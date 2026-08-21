@@ -19,3 +19,19 @@ permissions:
     node: pumpecraft.base.admin
     description: Allows staff to inspect and visit private player bases.
     default: false
+  plot-use:
+    node: pumpecraft.plot.use
+    description: Allows opening the plot menu and viewing plot information.
+    default: true
+  plot-claim:
+    node: pumpecraft.plot.claim
+    description: Allows buying and selling own plots.
+    default: true
+  plot-admin:
+    node: pumpecraft.plot.admin
+    description: Allows creating and removing admin regions and editing any plot.
+    default: false
+  plot-bypass:
+    node: pumpecraft.plot.bypass
+    description: Allows staff to build inside every plot regardless of its members and flags.
+    default: false

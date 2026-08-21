@@ -8,3 +8,26 @@ bases:
   browse-limit: 500
   # Wie oft die Namensliste für die Tab-Vervollständigung neu geladen wird, in Sekunden.
   directory-refresh-seconds: 60
+
+plots:
+  # Welten, in denen Grundstücke erlaubt sind. Leere Liste heißt: überall.
+  allowed-worlds: []
+  # PP je Blockfläche. Die Höhe zählt nicht mit - ein Grundstück reicht immer von unten bis oben.
+  price-per-block: 2
+  minimum-price: 500
+  # Erstattung beim Verkauf, in Prozent des gezahlten Preises.
+  refund-percent: 60
+  distance:
+    # Bis hierhin um 0/0 kostet ein Grundstück den vollen Preis.
+    full-price-radius: 250
+    # Ab hier gilt der Mindestfaktor; dazwischen fällt der Preis gleichmäßig.
+    cheapest-at: 4000
+    # Günstigster Faktor auf den Grundpreis.
+    minimum-factor: 0.25
+  limits:
+    max-per-player: 3
+    # Kantenlängen in Blöcken.
+    min-size: 8
+    max-size: 128
+  # Womit die Ecken gesetzt werden. Das Item wird über /plot werkzeug ausgegeben.
+  selection-tool: GOLDEN_SHOVEL
