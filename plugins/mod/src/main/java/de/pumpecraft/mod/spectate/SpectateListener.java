@@ -1,7 +1,5 @@
 package de.pumpecraft.mod.spectate;
 
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -9,6 +7,9 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
+
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 
 public final class SpectateListener implements Listener {
     private final SpectateService spectate;
@@ -31,7 +32,7 @@ public final class SpectateListener implements Listener {
 
         event.setCancelled(true);
         if (spectate.stop(viewer)) {
-            viewer.sendMessage("Beobachtung beendet.");
+            viewer.sendMessage("Spectate beendet.");
         }
     }
 
@@ -48,11 +49,10 @@ public final class SpectateListener implements Listener {
         SpectateService.ZoomResult zoom = spectate.adjustZoom(viewer, direction);
         if (zoom != null) {
             Component value = zoom.firstPerson()
-                ? Component.text("First Person", NamedTextColor.AQUA)
-                : Component.text(
-                    String.format(java.util.Locale.ROOT, "%.2f Blöcke", zoom.distance()),
-                    NamedTextColor.AQUA
-                );
+                    ? Component.text("First Person", NamedTextColor.AQUA)
+                    : Component.text(
+                            String.format(java.util.Locale.ROOT, "%.2f Blöcke", zoom.distance()),
+                            NamedTextColor.AQUA);
             viewer.sendActionBar(Component.text("Kamera: ", NamedTextColor.GRAY).append(value));
         }
     }
