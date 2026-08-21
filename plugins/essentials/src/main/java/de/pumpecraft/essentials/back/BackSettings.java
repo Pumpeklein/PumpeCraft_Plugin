@@ -16,7 +16,7 @@ public record BackSettings(
 ) {
     private static final int MAX_HISTORY_SIZE = 50;
     private static final Set<TeleportCause> FALLBACK_CAUSES =
-        EnumSet.of(TeleportCause.COMMAND, TeleportCause.PLUGIN, TeleportCause.SPECTATE);
+        EnumSet.of(TeleportCause.COMMAND, TeleportCause.PLUGIN);
 
     public static BackSettings from(FileConfiguration config, Logger logger) {
         Set<TeleportCause> causes = EnumSet.noneOf(TeleportCause.class);
@@ -36,6 +36,6 @@ public record BackSettings(
     }
 
     public boolean records(TeleportCause cause) {
-        return teleportCauses.contains(cause);
+        return cause != TeleportCause.SPECTATE && teleportCauses.contains(cause);
     }
 }
