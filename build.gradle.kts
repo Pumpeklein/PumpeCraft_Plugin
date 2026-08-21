@@ -33,6 +33,7 @@ val pluginModulePaths = listOf(
     ":plugins:transactions",
     ":plugins:mailbox",
     ":plugins:sub-essentials",
+    ":plugins:enchants",
 )
 val pluginProjects = pluginModulePaths.map { project(it) }
 

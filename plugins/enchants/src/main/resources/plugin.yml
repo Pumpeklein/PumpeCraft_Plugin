@@ -1,0 +1,16 @@
+name: PumpeEnchants
+version: ${version}
+main: de.pumpecraft.enchants.PumpeEnchantsPlugin
+api-version: '1.21'
+author: PumpeCraft
+description: PDC-based custom enchantments for PumpeCraft.
+depend: [PumpeDatabase, PumpeUtils]
+commands:
+  enchant:
+    description: Applies a custom enchantment to a player's held item.
+    usage: /enchant <Spieler> <Verzauberung> <Stufe>
+    permission: pumpecraft.enchants.admin
+permissions:
+  pumpecraft.enchants.admin:
+    description: Allows applying custom enchantments to held items.
+    default: op
