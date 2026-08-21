@@ -5,7 +5,10 @@ import de.pumpecraft.mod.flight.FlightService;
 import de.pumpecraft.mod.flight.FlyCommand;
 import de.pumpecraft.mod.spectate.SpectateCommand;
 import de.pumpecraft.mod.spectate.SpectateListener;
+import de.pumpecraft.mod.spectate.SpectateMenu;
+import de.pumpecraft.mod.spectate.SpectateMenuListener;
 import de.pumpecraft.mod.spectate.SpectateService;
+import de.pumpecraft.mod.spectate.SpectateSettings;
 import de.pumpecraft.mod.vanish.VanishListener;
 import de.pumpecraft.mod.vanish.VanishService;
 import de.pumpecraft.utils.messages.ConnectionMessages;
@@ -23,6 +26,7 @@ public final class PumpeModPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        saveDefaultConfig();
         if (!databaseAvailable()) {
             return;
         }
@@ -54,12 +58,17 @@ public final class PumpeModPlugin extends JavaPlugin {
         fly.setTabCompleter(flyCommand);
         getServer().getPluginManager().registerEvents(new FlightListener(this, flightService), this);
 
-        spectateService = new SpectateService(this);
-        SpectateCommand spectateCommand = new SpectateCommand(spectateService);
+        spectateService = new SpectateService(
+            this, vanishService, new SpectateSettings(getConfig()));
+        SpectateMenu spectateMenu = new SpectateMenu(this, spectateService);
+        SpectateCommand spectateCommand = new SpectateCommand(spectateService, spectateMenu);
         PluginCommand spectate = Objects.requireNonNull(getCommand("spectate"), "Missing command: spectate");
         spectate.setExecutor(spectateCommand);
         spectate.setTabCompleter(spectateCommand);
-        getServer().getPluginManager().registerEvents(new SpectateListener(spectateService), this);
+        getServer().getPluginManager().registerEvents(
+            new SpectateListener(spectateService, spectateMenu), this);
+        getServer().getPluginManager().registerEvents(
+            new SpectateMenuListener(spectateMenu), this);
 
         getLogger().info("PumpeMod enabled.");
     }

@@ -2,6 +2,7 @@ package de.pumpecraft.mod.spectate;
 
 import de.pumpecraft.utils.Players;
 import java.util.List;
+import java.util.Locale;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.Command;
@@ -13,9 +14,11 @@ import org.jetbrains.annotations.NotNull;
 
 public final class SpectateCommand implements CommandExecutor, TabCompleter {
     private final SpectateService spectate;
+    private final SpectateMenu menu;
 
-    public SpectateCommand(SpectateService spectate) {
+    public SpectateCommand(SpectateService spectate, SpectateMenu menu) {
         this.spectate = spectate;
+        this.menu = menu;
     }
 
     @Override
@@ -26,17 +29,23 @@ public final class SpectateCommand implements CommandExecutor, TabCompleter {
         @NotNull String[] args
     ) {
         if (!(sender instanceof Player viewer)) {
-            sender.sendMessage(Component.text("Dieser Befehl kann nur im Spiel benutzt werden.", NamedTextColor.RED));
+            sender.sendMessage(Component.text(
+                "Dieser Befehl kann nur im Spiel benutzt werden.", NamedTextColor.RED));
             return true;
         }
         if (args.length > 1) {
             return false;
         }
         if (args.length == 0) {
+            menu.open(viewer);
+            return true;
+        }
+        if (isStop(args[0])) {
             if (spectate.stop(viewer)) {
                 viewer.sendMessage(Component.text("Beobachtung beendet.", NamedTextColor.GREEN));
             } else {
-                viewer.sendMessage(Component.text("Du beobachtest aktuell keinen Spieler.", NamedTextColor.YELLOW));
+                viewer.sendMessage(Component.text(
+                    "Du beobachtest aktuell keinen Spieler.", NamedTextColor.YELLOW));
             }
             return true;
         }
@@ -47,24 +56,21 @@ public final class SpectateCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         if (viewer.equals(target)) {
-            viewer.sendMessage(Component.text("Du kannst dich nicht selbst beobachten.", NamedTextColor.RED));
+            viewer.sendMessage(Component.text(
+                "Du kannst dich nicht selbst beobachten.", NamedTextColor.RED));
             return true;
         }
         if (!viewer.canSee(target)) {
-            viewer.sendMessage(Component.text("Dieser Spieler ist für dich nicht sichtbar.", NamedTextColor.RED));
-            return true;
-        }
-        if (!spectate.start(viewer, target)) {
-            viewer.sendMessage(Component.text("Die Spieleransicht konnte nicht geöffnet werden.", NamedTextColor.RED));
+            viewer.sendMessage(Component.text(
+                "Dieser Spieler ist für dich nicht sichtbar.", NamedTextColor.RED));
             return true;
         }
 
+        spectate.start(viewer, target);
         viewer.sendMessage(Component.text("Du beobachtest jetzt ", NamedTextColor.GREEN)
             .append(Component.text(target.getName(), NamedTextColor.AQUA))
-            .append(Component.text(
-                ". Zoome mit dem Mausrad. Sneake oder nutze /" + label + ", um die Ansicht zu beenden.",
-                NamedTextColor.GREEN
-            )));
+            .append(Component.text(".", NamedTextColor.GREEN)));
+        viewer.sendMessage(SpectateMenu.controlsHint());
         return true;
     }
 
@@ -78,8 +84,20 @@ public final class SpectateCommand implements CommandExecutor, TabCompleter {
         if (!(sender instanceof Player viewer) || args.length != 1) {
             return List.of();
         }
-        return Players.completeOnlineNames(args[0], 50).stream()
-            .filter(name -> !Players.stripSelector(name).equalsIgnoreCase(viewer.getName()))
-            .toList();
+        List<String> options = new java.util.ArrayList<>(
+            Players.completeOnlineNames(args[0], 50).stream()
+                .filter(name -> !Players.stripSelector(name).equalsIgnoreCase(viewer.getName()))
+                .toList());
+        if (spectate.isSpectating(viewer)) {
+            options.addAll(Players.filterPrefix(List.of("stop"), args[0]));
+        }
+        return List.copyOf(options);
+    }
+
+    private boolean isStop(String value) {
+        return switch (value.toLowerCase(Locale.ROOT)) {
+            case "stop", "ende", "beenden", "aus" -> true;
+            default -> false;
+        };
     }
 }

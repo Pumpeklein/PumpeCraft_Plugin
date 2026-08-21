@@ -1,0 +1,12 @@
+config-version: 1
+
+spectate:
+  zoom:
+    # Abstand der ersten Kamerastufe hinter dem Ziel, in Blöcken. Stufe 0 ist die Ego-Perspektive.
+    min-distance: 2.0
+    # Weiteste Kamerastufe. Darüber hinaus bewegt das Mausrad nichts mehr.
+    max-distance: 48.0
+    # Wachstum je Stufe. Nah am Spieler bleiben die Schritte klein, weit draußen werden sie groß.
+    growth: 1.35
+    # Abstand, den die Kamera vor einer Wand hält, damit der Blick nicht im Block endet.
+    wall-margin: 0.35

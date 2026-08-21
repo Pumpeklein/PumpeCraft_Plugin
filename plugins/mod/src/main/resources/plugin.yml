@@ -44,8 +44,8 @@ commands:
     permission: pumpecraft.mod.fly
   spectate:
     aliases: [spec]
-    description: Shows the camera view of an online player in spectator mode.
-    usage: /spectate [Spieler]
+    description: Opens the spectate menu and follows an online player with a zoomable camera.
+    usage: "/spectate [Spieler|stop]"
     permission: pumpecraft.mod.spectate
 permissions:
   pumpecraft.mod.*:

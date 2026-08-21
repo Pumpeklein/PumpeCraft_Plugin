@@ -28,6 +28,7 @@ Nutzung: `depend: [PumpeUtils]` in der `plugin.yml`. Der Gradle-Classpath kommt 
 | `Teleports` | `playerLink`, `locationLink`, `clickable`, `coordinates` — klickbare Teleport-Ziele in Chatmeldungen |
 | `Configs` | `lowerStringList`, `matchesAny` (exakter Token-Abgleich mit `*`-Präfix) |
 | `Recipes` | `register`, `unregister` — Rezepte unter ihrem Key, ersetzt ein altes statt am Duplikat zu scheitern |
+| `Menus` | `item`, `head`, `text`, `label`, `action`, `fill`, `frame`, `clear` — Bausteine für Truhenmenüs, Kursivschrift überall aus |
 
 ## Sektion `messages` — Meldungstexte
 

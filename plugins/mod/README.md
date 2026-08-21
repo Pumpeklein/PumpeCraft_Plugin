@@ -13,11 +13,71 @@ Moderation commands, punishments, reports and staff tools.
 - `/unban <Spieler> [Grund]` - lifts an active ban.
 - `/vanish` - toggles staff vanish: gone for players, sichtbar als Spec fürs Team.
 - `/fly [Spieler]` - schaltet Fliegen für dich oder einen Onlinespieler ein oder aus, ohne den Spielmodus zu verändern.
-- `/spectate <Spieler>` (`/spec`) - übernimmt im Spectator-Modus die Kamerasicht eines Onlinespielers. Ohne Spieler wird die Beobachtung beendet.
+- `/spectate` (`/spec`) - öffnet das Spectate-Menü. `/spec <Spieler>` beobachtet direkt, `/spec stop` beendet.
 
-Während der Beobachtung verändert das Mausrad den Abstand der Kamera zum Zielspieler. Nah am
-Spieler rastet die Kamera wieder in First Person ein. Sneaken beendet die Beobachtung und stellt
-Standort und Spielmodus von davor wieder her.
+## Spectate
+
+Das Menü listet alle sichtbaren Onlinespieler als Köpfe: **Linksklick** beobachtet, **Rechtsklick**
+öffnet das Inventar. Oben links lädt ein Knopf die Liste neu, dazu gibt es Knöpfe für Inventar,
+Enderchest, Zoom zurücksetzen und Beenden.
+
+Während der Beobachtung:
+
+| Eingabe | Wirkung |
+| --- | --- |
+| Mausrad heraus | Aus der Ego-Perspektive in die Kamera und weiter hinaus |
+| Mausrad hinein | Näher heran, unterhalb der ersten Stufe zurück in die Ego-Perspektive |
+| Maus (herausgezoomt) | Kreist um den beobachteten Spieler, er bleibt in der Bildmitte |
+| Maus (Ego-Perspektive) | Frei, bis das Ziel sich umsieht - dann folgt der Blick wieder ihm |
+| Linksklick | Spectate-Menü öffnen |
+| F | Inventar des Ziels (`/openinv` aus PumpeEssentials) |
+| Rechtsklick | Enderchest des Ziels |
+| Schleichen oder Q | Beobachtung beenden |
+
+Schleichen steigt vom Kameramarker ab; genau das ist der Ausstieg.
+
+Beenden hängt bewusst an zwei Tasten. Die Ablegetaste meldet sich nur beim Server, solange die
+gespiegelte Hand nicht leer ist - ein Ablegen ohne Gegenstand verwirft der Server, bevor daraus
+ein Ereignis wird. Das Absteigen kommt immer an.
+
+Die Kamera liegt der Blickrichtung des **Zuschauers** entgegengesetzt, nicht der des Ziels: Die
+Maus führt sie um den Beobachteten herum, der dadurch in der Bildmitte stehen bleibt. Abstand null
+ergibt dieselbe Rechnung als Ego-Perspektive - dort gehört die Blickrichtung wieder dem Ziel und
+wird über `setRotation` nachgezogen, sobald es sich umsieht. Ein Teleport käme dafür nicht in
+Frage: Er würfe den Zuschauer von seinem Kameramarker.
+
+**Bewegt wird nicht der Zuschauer, sondern ein unsichtbarer Marker, auf dem er reitet.** Das ist
+der Kern: Ein Spieler, den der Server jeden Tick teleportiert, springt in Zwanzigstelschritten -
+der Client interpoliert die eigene Position nicht -, und jeder Teleport schreibt zugleich seine
+Blickrichtung neu, weshalb sich die Kamera gegen die Maus stemmt. Als Passagier ist beides gelöst:
+Der Client glättet die Bewegung fremder Wesen zwischen den Ticks, und von einem Reiter übernimmt
+der Server ausschließlich die Blickrichtung, niemals die Position. Der Marker fährt mit
+`RETAIN_PASSENGERS`, sonst würfe ihn jeder Teleport ab. Wie weit ein Reiter unter seinem Fahrzeug
+sitzt, misst der erste Tick nach dem Aufsitzen selbst, statt eine Konstante des Spiels
+abzuschreiben.
+
+In der Aktionsleiste stehen Name, Leben, Kameraabstand und das Item in der Hand des Ziels. Die
+Bildmitte bleibt frei: Dort steht das Fadenkreuz des Spiels.
+
+Erfolge zählen während der Beobachtung nicht: Jedes erreichte Kriterium wird zurückgenommen. Der
+Zuschauer ist körperlich in der Welt und trägt die Hotbar des Ziels - "Cover Me in Debris" verlangt
+die vier Netheritteile nur irgendwo im Inventar, Biomerfolge nur die Anwesenheit. Verdient hat er
+davon nichts.
+
+Solange kein Fenster offen ist, zeigt die eigene Hotbar die Hotbar des Ziels samt ausgewähltem
+Slot; sie ist gesperrt, das eigene Inventar kommt beim Schließen zurück. Zusätzlich liegt es im
+PDC des Teamlers; ein Absturz mitten in der Beobachtung gibt es beim nächsten Beitritt zurück.
+
+Der Zuschauer bleibt bewusst **nicht** im Spectator-Modus, sondern wird als unsichtbarer,
+unverwundbarer Beobachter im Abenteuermodus geführt: Der Client meldet im Spectator-Modus weder
+Mausrad noch Hotbar an den Server - das Rad regelt dort die Fluggeschwindigkeit -, womit weder
+Zoom noch die fremde Hotbar möglich wären. Die Kamera hält vor Wänden an, statt in den Block zu
+fahren. Der Teleport beim Aufsitzen trägt `RETAIN_OPEN_INVENTORY`, sonst fiele ein offenes Fenster
+beim Wechsel des Ziels zu. Beenden stellt Standort, Spielmodus,
+Flugzustand, Sättigung und Inventar von davor wieder her; Zielspieler offline, Spielmoduswechsel
+von außen und Verlassen des Servers beenden ebenfalls.
+
+Die Zoomstufen wachsen geometrisch und lassen sich in `config.yml` unter `spectate.zoom` einstellen.
 
 Player names can also be entered with an `@` prefix, for example `/report @Fabienne Griefing`.
 Targets can be online or known offline players.

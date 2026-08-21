@@ -1,47 +1,35 @@
 package de.pumpecraft.mod.spectate;
 
 import java.util.UUID;
-import org.bukkit.GameMode;
-import org.bukkit.Location;
+import org.bukkit.NamespacedKey;
 import org.bukkit.entity.ArmorStand;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 
 final class SpectateSession {
-    private final Location returnLocation;
-    private final GameMode returnGameMode;
-    private final UUID returnTargetId;
+    private final SpectateState state;
+    private final NamespacedKey recoveryKey;
     private UUID targetId;
-    private ArmorStand camera;
-    private double zoom;
+    private int zoom;
+    private boolean targetHidden;
+    private InventorySnapshot ownInventory;
+    private ArmorStand rig;
+    private double mountOffset;
+    private boolean mountOffsetMeasured;
+    private Float appliedYaw;
+    private Float appliedPitch;
 
-    private SpectateSession(Location returnLocation, GameMode returnGameMode, UUID returnTargetId, UUID targetId) {
-        this.returnLocation = returnLocation;
-        this.returnGameMode = returnGameMode;
-        this.returnTargetId = returnTargetId;
-        this.targetId = targetId;
+    private SpectateSession(SpectateState state, Player target, NamespacedKey recoveryKey) {
+        this.state = state;
+        this.targetId = target.getUniqueId();
+        this.recoveryKey = recoveryKey;
     }
 
-    static SpectateSession capture(Player viewer, Player target) {
-        Entity returnTarget = viewer.getSpectatorTarget();
-        return new SpectateSession(
-            viewer.getLocation().clone(),
-            viewer.getGameMode(),
-            returnTarget == null ? null : returnTarget.getUniqueId(),
-            target.getUniqueId()
-        );
+    static SpectateSession capture(Player viewer, Player target, NamespacedKey recoveryKey) {
+        return new SpectateSession(SpectateState.capture(viewer), target, recoveryKey);
     }
 
-    Location returnLocation() {
-        return returnLocation;
-    }
-
-    GameMode returnGameMode() {
-        return returnGameMode;
-    }
-
-    UUID returnTargetId() {
-        return returnTargetId;
+    SpectateState state() {
+        return state;
     }
 
     UUID targetId() {
@@ -50,30 +38,84 @@ final class SpectateSession {
 
     void target(Player target) {
         targetId = target.getUniqueId();
-        zoom = 0.0D;
-        removeCamera();
+        zoom = 0;
+        targetHidden = false;
+        appliedYaw = null;
+        appliedPitch = null;
     }
 
-    ArmorStand camera() {
-        return camera;
-    }
-
-    void camera(ArmorStand camera) {
-        this.camera = camera;
-    }
-
-    double zoom() {
+    int zoom() {
         return zoom;
     }
 
-    void zoom(double zoom) {
-        this.zoom = zoom;
+    void zoom(int value) {
+        zoom = value;
+        appliedYaw = null;
+        appliedPitch = null;
     }
 
-    void removeCamera() {
-        if (camera != null) {
-            camera.remove();
-            camera = null;
+    /**
+     * @return {@code true}, wenn das Ziel sich seit dem letzten Bild umgesehen hat. Nur dann wird
+     *     die Blickrichtung in der Ego-Perspektive nachgezogen; sonst schöbe der Server gegen jede
+     *     eigene Mausbewegung an, obwohl sich gar nichts geändert hat.
+     */
+    boolean claimRotation(float yaw, float pitch) {
+        if (appliedYaw != null && appliedYaw == yaw && appliedPitch == pitch) {
+            return false;
         }
+        appliedYaw = yaw;
+        appliedPitch = pitch;
+        return true;
+    }
+
+    boolean firstPerson() {
+        return zoom <= 0;
+    }
+
+    boolean targetHidden() {
+        return targetHidden;
+    }
+
+    void targetHidden(boolean value) {
+        targetHidden = value;
+    }
+
+    ArmorStand rig() {
+        return rig;
+    }
+
+    void rig(ArmorStand value) {
+        rig = value;
+        mountOffsetMeasured = false;
+    }
+
+    double mountOffset() {
+        return mountOffset;
+    }
+
+    boolean mountOffsetMeasured() {
+        return mountOffsetMeasured;
+    }
+
+    void mountOffset(double value) {
+        mountOffset = value;
+        mountOffsetMeasured = true;
+    }
+
+    void beginMirroring(Player viewer) {
+        if (ownInventory != null) {
+            return;
+        }
+        ownInventory = InventorySnapshot.capture(viewer);
+        ownInventory.remember(viewer, recoveryKey);
+    }
+
+    void endMirroring(Player viewer) {
+        if (ownInventory == null) {
+            return;
+        }
+        ownInventory.restore(viewer);
+        ownInventory = null;
+        InventorySnapshot.forget(viewer, recoveryKey);
     }
 }
