@@ -1,8 +1,15 @@
 package de.pumpecraft.ai;
 
+import de.pumpecraft.ai.moderation.ModerationCategories;
+import de.pumpecraft.ai.moderation.ModerationService;
+import de.pumpecraft.ai.moderation.ModerationSeverity;
+import de.pumpecraft.ai.moderation.ModerationVerdict;
+import de.pumpecraft.utils.Texts;
 import de.pumpecraft.utils.messages.Messages;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -15,17 +22,21 @@ import org.bukkit.plugin.Plugin;
 final class AiCommand implements CommandExecutor, TabCompleter {
     private static final String TEST_PROMPT =
         "Schreibe Beispielmeldungen für einen Testlauf. Nutze den Platzhalter {player} wörtlich.";
+    private static final List<String> ACTIONS = List.of("status", "test", "check");
+    private static final int SHOWN_CATEGORIES = 5;
 
     private final Plugin plugin;
     private final AiService service;
     private final AiSettings settings;
     private final AiMessagePool pool;
+    private final ModerationService moderation;
 
-    AiCommand(Plugin plugin, AiService service, AiSettings settings, AiMessagePool pool) {
+    AiCommand(Plugin plugin, AiService service, AiSettings settings, AiMessagePool pool, ModerationService moderation) {
         this.plugin = plugin;
         this.service = service;
         this.settings = settings;
         this.pool = pool;
+        this.moderation = moderation;
     }
 
     @Override
@@ -34,6 +45,7 @@ final class AiCommand implements CommandExecutor, TabCompleter {
         return switch (action) {
             case "status" -> status(sender);
             case "test" -> test(sender);
+            case "check" -> check(sender, args);
             default -> false;
         };
     }
@@ -43,7 +55,7 @@ final class AiCommand implements CommandExecutor, TabCompleter {
         if (args.length != 1 || !command.testPermissionSilent(sender)) {
             return List.of();
         }
-        return List.of("status", "test").stream()
+        return ACTIONS.stream()
             .filter(option -> option.startsWith(args[0].toLowerCase(Locale.ROOT)))
             .toList();
     }
@@ -55,7 +67,19 @@ final class AiCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(line("Bereit", service.available() ? "ja" : "nein"));
         sender.sendMessage(line("Vorrat", pool.summary()));
         sender.sendMessage(line("Angemeldete Themen", String.valueOf(Messages.registered().size())));
+        sender.sendMessage(line("Moderation", moderationState()));
+        sender.sendMessage(line("Moderations-Modell", moderation.model()));
         return true;
+    }
+
+    private String moderationState() {
+        if (!moderation.enabled()) {
+            return "abgeschaltet";
+        }
+        if (!moderation.configured()) {
+            return "kein Schlüssel";
+        }
+        return moderation.available() ? "bereit" : "gesperrt nach Fehlschlag";
     }
 
     private boolean test(CommandSender sender) {
@@ -69,6 +93,46 @@ final class AiCommand implements CommandExecutor, TabCompleter {
         service.lines(TEST_PROMPT, 3).thenAccept(lines ->
             Bukkit.getScheduler().runTask(plugin, () -> report(sender, lines)));
         return true;
+    }
+
+    private boolean check(CommandSender sender, String[] args) {
+        if (args.length < 2) {
+            return false;
+        }
+        if (!moderation.available()) {
+            sender.sendMessage(Component.text(
+                "Die Moderation ist nicht bereit. /pumpeai status zeigt, woran es liegt.", NamedTextColor.RED));
+            return true;
+        }
+
+        String text = String.join(" ", Arrays.copyOfRange(args, 1, args.length));
+        sender.sendMessage(Component.text("Prüfe …", NamedTextColor.GRAY));
+        moderation.inspect(text).thenAccept(verdict ->
+            Bukkit.getScheduler().runTask(plugin, () -> report(sender, verdict)));
+        return true;
+    }
+
+    private void report(CommandSender sender, ModerationVerdict verdict) {
+        sender.sendMessage(line("Urteil", describe(verdict.severity())));
+        if (verdict.scores().isEmpty()) {
+            sender.sendMessage(Component.text(
+                "Keine Bewertung erhalten; Details stehen in der Konsole.", NamedTextColor.RED));
+            return;
+        }
+        sender.sendMessage(line("Stärkste Kategorie", verdict.label() + " " + Texts.percent(verdict.score())));
+        for (Map.Entry<String, Double> entry : verdict.highest(SHOWN_CATEGORIES)) {
+            sender.sendMessage(Component.text(
+                "• " + ModerationCategories.label(entry.getKey()) + ": " + Texts.percent(entry.getValue()),
+                NamedTextColor.GRAY));
+        }
+    }
+
+    private String describe(ModerationSeverity severity) {
+        return switch (severity) {
+            case NONE -> "unauffällig";
+            case LOW -> "markieren, Nachricht geht raus";
+            case HIGH -> "anhalten, Team entscheidet";
+        };
     }
 
     private void report(CommandSender sender, List<String> lines) {

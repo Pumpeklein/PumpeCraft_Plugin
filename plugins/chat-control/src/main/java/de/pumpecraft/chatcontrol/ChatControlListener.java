@@ -21,6 +21,7 @@ import org.bukkit.event.Listener;
 final class ChatControlListener implements Listener {
     private final PumpeChatControlPlugin plugin;
     private final ChatFilter filter;
+    private final ChatReviewer reviewer;
     private final ChatMessageRepository repository;
     private final ConcurrentHashMap<String, TrackedChatMessage> trackedMessages;
     private final ChatRenderer identityRenderer;
@@ -28,12 +29,14 @@ final class ChatControlListener implements Listener {
     ChatControlListener(
         PumpeChatControlPlugin plugin,
         ChatFilter filter,
+        ChatReviewer reviewer,
         ChatMessageRepository repository,
         ConcurrentHashMap<String, TrackedChatMessage> trackedMessages,
         ChatRenderer identityRenderer
     ) {
         this.plugin = plugin;
         this.filter = filter;
+        this.reviewer = reviewer;
         this.repository = repository;
         this.trackedMessages = trackedMessages;
         this.identityRenderer = identityRenderer;
@@ -43,62 +46,80 @@ final class ChatControlListener implements Listener {
     public void onChat(AsyncChatEvent event) {
         Player sender = event.getPlayer();
         String message = PlainTextComponentSerializer.plainText().serialize(event.message()).trim();
-        FilterResult result = filter.inspect(sender.getUniqueId(), message);
-        if (!result.allowed() && !result.reviewRequired()) {
+        FilterResult filtered = filter.inspect(sender.getUniqueId(), message);
+        FilterResult result = filtered.allowed() ? reviewer.inspect(message) : filtered;
+        if (result.blocked()) {
             event.setCancelled(true);
             repository.recordBlocked(sender, message, "GLOBAL", null, result.reason());
             sender.sendMessage(plugin.blockedMessage(result.reason()));
             return;
         }
 
-        String messageId = result.reviewRequired()
-            ? repository.recordFlagged(sender, message, "GLOBAL", null, result.reason())
-            : repository.recordAccepted(sender, message, "GLOBAL", null);
+        boolean held = result.held();
+        boolean marked = result.marked() || held;
+        String messageId = record(sender, message, result);
 
         ChatRenderer original = identityRenderer;
-        Map<Audience, Component> pendingDeliveries = result.reviewRequired()
-            ? holdForReview(event, original)
-            : Map.of();
-        if (!event.signedMessage().canDelete() && !result.reviewRequired()) {
+        Map<Audience, Component> pendingDeliveries = held ? holdForReview(event, original) : Map.of();
+        boolean deletable = event.signedMessage().canDelete();
+        if (!deletable && !marked) {
             event.renderer(original);
             return;
         }
-        trackedMessages.put(
-            messageId,
-            new TrackedChatMessage(
-                event.signedMessage(),
-                Set.copyOf(event.viewers()),
-                System.currentTimeMillis(),
-                result.reviewRequired(),
-                pendingDeliveries
-            )
-        );
+        if (deletable || held) {
+            trackedMessages.put(
+                messageId,
+                new TrackedChatMessage(
+                    event.signedMessage(),
+                    Set.copyOf(event.viewers()),
+                    System.currentTimeMillis(),
+                    held,
+                    pendingDeliveries
+                )
+            );
+        }
         event.renderer((source, sourceDisplayName, content, viewer) -> {
             Component rendered = original.render(source, sourceDisplayName, content, viewer);
             if (!(viewer instanceof Player player)
                 || !player.hasPermission(plugin.permission("delete"))) {
                 return rendered;
             }
-            if (!event.signedMessage().canDelete() && !result.reviewRequired()) return rendered;
-            Component delete = Component.text("[DEL] ", NamedTextColor.RED)
-                .hoverEvent(HoverEvent.showText(Component.text("Nachricht löschen", NamedTextColor.RED)))
-                .clickEvent(ClickEvent.runCommand("/chatcontrol delete " + messageId));
-            if (result.reviewRequired()) {
-                Component detected = Component.text("[Detectet] ", NamedTextColor.GOLD)
-                    .hoverEvent(HoverEvent.showText(Component.text(result.reason(), NamedTextColor.YELLOW)));
-                Component keep = Component.text("[BEHALTEN] ", NamedTextColor.GREEN)
-                    .hoverEvent(HoverEvent.showText(Component.text("Nachricht nicht löschen", NamedTextColor.GREEN)))
-                    .clickEvent(ClickEvent.runCommand("/chatcontrol keep " + messageId));
-                return Component.empty()
-                    .append(detected)
-                    .append(delete)
-                    .append(keep)
-                    .append(rendered);
-            }
-            return Component.empty()
-                .append(delete)
-                .append(rendered);
+            Component controls = Component.empty();
+            if (marked) controls = controls.append(detected(result.reason(), held));
+            if (deletable) controls = controls.append(deleteControl(messageId));
+            if (held) controls = controls.append(keepControl(messageId));
+            return controls.append(rendered);
         });
+    }
+
+    private String record(Player sender, String message, FilterResult result) {
+        if (result.held()) {
+            return repository.recordFlagged(sender, message, "GLOBAL", null, result.reason());
+        }
+        if (result.marked()) {
+            return repository.recordMarked(sender, message, "GLOBAL", null, result.reason());
+        }
+        return repository.recordAccepted(sender, message, "GLOBAL", null);
+    }
+
+    private Component detected(String reason, boolean held) {
+        String hint = held
+            ? " - angehalten, bis jemand entscheidet"
+            : " - zugestellt, [DEL] entfernt sie nachträglich";
+        return Component.text("[Detectet] ", held ? NamedTextColor.GOLD : NamedTextColor.YELLOW)
+            .hoverEvent(HoverEvent.showText(Component.text(reason + hint, NamedTextColor.YELLOW)));
+    }
+
+    private Component deleteControl(String messageId) {
+        return Component.text("[DEL] ", NamedTextColor.RED)
+            .hoverEvent(HoverEvent.showText(Component.text("Nachricht löschen", NamedTextColor.RED)))
+            .clickEvent(ClickEvent.runCommand("/chatcontrol delete " + messageId));
+    }
+
+    private Component keepControl(String messageId) {
+        return Component.text("[BEHALTEN] ", NamedTextColor.GREEN)
+            .hoverEvent(HoverEvent.showText(Component.text("Nachricht nicht löschen", NamedTextColor.GREEN)))
+            .clickEvent(ClickEvent.runCommand("/chatcontrol keep " + messageId));
     }
 
     private Map<Audience, Component> holdForReview(AsyncChatEvent event, ChatRenderer renderer) {

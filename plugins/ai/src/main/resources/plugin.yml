@@ -3,15 +3,15 @@ version: ${version}
 main: de.pumpecraft.ai.PumpeAiPlugin
 api-version: '1.21'
 author: PumpeCraft
-description: DeepSeek text generation service for PumpeCraft plugins.
+description: Text generation and moderation service for PumpeCraft plugins.
 depend: [PumpeUtils]
 load: STARTUP
 commands:
   pumpeai:
-    description: Shows the DeepSeek connection state or generates a test line.
-    usage: /pumpeai <status|test>
+    description: Shows the AI connection state, generates a test line or moderates a text.
+    usage: /pumpeai <status|test|check <Text>>
     permission: pumpecraft.ai.admin
 permissions:
   pumpecraft.ai.admin:
-    description: Allows checking and testing the DeepSeek connection.
+    description: Allows checking and testing the AI connection.
     default: op

@@ -42,7 +42,7 @@ final class ChatControlCommand implements CommandExecutor, TabCompleter {
         String messageId = args[1];
         if (args[0].equalsIgnoreCase("keep")) {
             TrackedChatMessage tracked = trackedMessages.get(messageId);
-            if (tracked == null || !tracked.reviewRequired()) {
+            if (tracked == null || !tracked.held()) {
                 sender.sendMessage(Component.text("Diese Nachricht wartet nicht auf eine Entscheidung.", NamedTextColor.RED));
                 return true;
             }

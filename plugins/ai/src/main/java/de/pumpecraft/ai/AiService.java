@@ -1,5 +1,6 @@
 package de.pumpecraft.ai;
 
+import de.pumpecraft.ai.support.FailureCooldown;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -16,18 +17,19 @@ public final class AiService {
     private final DeepSeekClient client;
     private final ExecutorService executor;
     private final Logger logger;
-    private volatile long failedUntil;
+    private final FailureCooldown cooldown;
 
     AiService(AiSettings settings, DeepSeekClient client, ExecutorService executor, Logger logger) {
         this.settings = settings;
         this.client = client;
         this.executor = executor;
         this.logger = logger;
+        this.cooldown = new FailureCooldown(settings.failureCooldown());
     }
 
     /** @return {@code false}, solange kein Schlüssel gesetzt ist oder ein Fehlschlag nachwirkt */
     public boolean available() {
-        return settings.usable() && System.currentTimeMillis() >= failedUntil;
+        return settings.usable() && !cooldown.active();
     }
 
     public String model() {
@@ -55,9 +57,9 @@ public final class AiService {
             Thread.currentThread().interrupt();
             return List.of();
         } catch (IOException | RuntimeException exception) {
-            failedUntil = System.currentTimeMillis() + settings.failureCooldown().toMillis();
+            cooldown.trip();
             logger.log(Level.WARNING, "DeepSeek request failed; falling back for "
-                + settings.failureCooldown().toSeconds() + "s.", exception);
+                + cooldown.duration().toSeconds() + "s.", exception);
             return List.of();
         }
     }

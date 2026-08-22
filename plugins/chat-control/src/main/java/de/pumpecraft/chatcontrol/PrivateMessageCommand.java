@@ -18,11 +18,18 @@ import org.jetbrains.annotations.NotNull;
 final class PrivateMessageCommand implements CommandExecutor, TabCompleter {
     private final PumpeChatControlPlugin plugin;
     private final ChatFilter filter;
+    private final ChatReviewer reviewer;
     private final ChatMessageRepository repository;
 
-    PrivateMessageCommand(PumpeChatControlPlugin plugin, ChatFilter filter, ChatMessageRepository repository) {
+    PrivateMessageCommand(
+        PumpeChatControlPlugin plugin,
+        ChatFilter filter,
+        ChatReviewer reviewer,
+        ChatMessageRepository repository
+    ) {
         this.plugin = plugin;
         this.filter = filter;
+        this.reviewer = reviewer;
         this.repository = repository;
     }
 
@@ -46,16 +53,47 @@ final class PrivateMessageCommand implements CommandExecutor, TabCompleter {
         String message = String.join(" ", Arrays.copyOfRange(args, 1, args.length)).trim();
         FilterResult result = filter.inspect(ChatActor.of(sender).id(), message);
         if (!result.allowed()) {
-            repository.recordBlocked(sender, message, "MSG", recipient, result.reason());
-            sender.sendMessage(plugin.blockedMessage(result.reason()));
+            block(sender, recipient, message, result);
+            return true;
+        }
+        if (!reviewer.active()) {
+            deliver(sender, recipient, message, result);
             return true;
         }
 
+        reviewer.review(message).thenAccept(reviewed -> plugin.getServer().getScheduler()
+            .runTask(plugin, () -> complete(sender, recipient, message, reviewed)));
+        return true;
+    }
+
+    // Eine angehaltene Privatnachricht hätte niemanden, der sie freigeben kann - was im Chat
+    // aufgehalten würde, wird hier blockiert. Eine Markierung wird nur vermerkt.
+    private void complete(CommandSender sender, Player recipient, String message, FilterResult result) {
+        if (!result.allowed()) {
+            block(sender, recipient, message, result);
+            return;
+        }
+        if (!recipient.isOnline()) {
+            sender.sendMessage(Component.text("Dieser Spieler ist nicht online.", NamedTextColor.RED));
+            return;
+        }
+        deliver(sender, recipient, message, result);
+    }
+
+    private void block(CommandSender sender, Player recipient, String message, FilterResult result) {
+        repository.recordBlocked(sender, message, "MSG", recipient, result.reason());
+        sender.sendMessage(plugin.blockedMessage(result.reason()));
+    }
+
+    private void deliver(CommandSender sender, Player recipient, String message, FilterResult result) {
         sender.sendMessage(privateMessage(sender, recipient, recipient, message));
         Player replyTarget = sender instanceof Player player ? player : null;
         recipient.sendMessage(privateMessage(sender, recipient, replyTarget, message));
+        if (result.marked()) {
+            repository.recordMarked(sender, message, "MSG", recipient, result.reason());
+            return;
+        }
         repository.recordAccepted(sender, message, "MSG", recipient);
-        return true;
     }
 
     private Component privateMessage(CommandSender sender, Player recipient, Player replyTarget, String message) {

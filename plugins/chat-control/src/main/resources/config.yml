@@ -1,4 +1,4 @@
-config-version: 2
+config-version: 3
 
 filter:
   blocked-terms:
@@ -58,5 +58,29 @@ filter:
     window-seconds: 8
     max-messages: 5
     repeat-seconds: 30
+
+# Zweite Pruefung ueber PumpeAI. Sie greift erst, wenn die Wortliste oben nichts gefunden hat,
+# und faengt das ab, was dort nicht woertlich drinsteht. Ohne PumpeAI oder ohne Schluessel in
+# dessen config.yml bleibt allein die Wortliste aktiv.
+moderation:
+  enabled: true
+
+  # Die Pruefung kennt zwei Stufen. Ein leichter Treffer wird immer nur markiert: die Nachricht
+  # geht sofort in den All-Chat, das Team sieht [Detectet] und kann sie mit [DEL] nachtraeglich
+  # entfernen. Was hier steht, gilt nur fuer den schweren Treffer - die Grenze dazwischen sind
+  # die hold-thresholds in der config.yml von PumpeAI. Ein Treffer der Wortliste oben wird immer
+  # angehalten.
+  # review = Nachricht wird angehalten, bis das Team [BEHALTEN] oder [DEL] klickt
+  # block  = Nachricht wird sofort abgelehnt, das Team sieht sie nie
+  action: review
+
+  # So lange wartet der Chat hoechstens auf das Urteil. Laeuft die Zeit ab, geht die Nachricht
+  # ungeprueft durch - ein langsamer Endpunkt darf den Chat nicht anhalten.
+  max-wait-millis: 1200
+
+  # Privatnachrichten werden ebenfalls geprueft. Sie koennen nicht angehalten werden, weil sie
+  # niemand freigeben koennte: Ein Treffer heisst dort immer Block.
+  private-messages: true
+
 messages:
   blocked-prefix: "Deine Nachricht wurde blockiert: "

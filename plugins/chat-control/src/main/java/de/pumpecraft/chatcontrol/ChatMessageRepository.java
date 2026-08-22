@@ -31,6 +31,14 @@ final class ChatMessageRepository {
         return messageId;
     }
 
+    // Markiert heisst: zugestellt, aber auffaellig. blocked bleibt false, der Grund steht
+    // trotzdem in der Zeile - sonst waere die Erkennung nach einem Neustart nicht mehr da.
+    String recordMarked(CommandSender sender, String message, String type, Player recipient, String reason) {
+        String messageId = UUID.randomUUID().toString();
+        persist(messageId, sender, message, type, recipient, false, reason, null);
+        return messageId;
+    }
+
     void recordBlocked(CommandSender sender, String message, String type, Player recipient, String reason) {
         persist(UUID.randomUUID().toString(), sender, message, type, recipient, true, reason, null);
     }

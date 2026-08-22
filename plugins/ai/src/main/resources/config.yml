@@ -1,4 +1,4 @@
-config-version: 1
+config-version: 4
 
 # Ohne Schluessel bleibt der Dienst aus und jedes Plugin nutzt seine eigenen Texte weiter.
 # Der Schluessel kann auch in der Umgebungsvariable DEEPSEEK_API_KEY stehen; sie wird nur
@@ -28,3 +28,63 @@ request-timeout-seconds: 20
 # Nach einem Fehlschlag wird fuer diese Zeit kein neuer Versuch gestartet, damit ein
 # abgelaufener Schluessel oder eine Netzstoerung nicht bei jeder Meldung erneut auflaeuft.
 failure-cooldown-seconds: 180
+
+# Moderation: prueft Texte ueber den kostenlosen Endpunkt von OpenAI. Er braucht einen eigenen
+# Schluessel - der DeepSeek-Schluessel oben passt dort nicht. Bleibt "api-key" leer, wird
+# OPENAI_API_KEY aus der Umgebung gelesen; fehlt auch der, prueft niemand und die Plugins
+# bleiben bei ihren eigenen Filtern.
+moderation:
+  enabled: true
+  api-key: ""
+
+  base-url: "https://api.openai.com/v1"
+  model: "omni-moderation-latest"
+
+  request-timeout-seconds: 5
+  failure-cooldown-seconds: 120
+
+  # Laengere Texte werden vor dem Versand gekuerzt; eine Chatzeile bleibt weit darunter.
+  max-characters: 500
+
+  # Ab diesem Wert gilt eine Kategorie als Treffer und die Nachricht wird markiert. OpenAI selbst flaggt erst, wenn es sich sehr
+  # sicher ist, und bewertet kurze deutsche Saetze auffallend niedrig: "Bring dich um" kommt auf
+  # 0.12 self-harm/intent und 0.02 harassment. Darum liegen die Schwellen hier weit darunter -
+  # harmlose Nachrichten liegen in diesen Kategorien typisch bei 0.0001, der Abstand reicht.
+  # Niedriger = mehr Treffer, aber auch mehr Fehlalarme. /pumpeai check zeigt die Werte einer
+  # echten Nachricht, danach laesst sich das nachziehen.
+  default-threshold: 0.3
+  thresholds:
+    harassment: 0.1
+    harassment/threatening: 0.05
+    hate: 0.05
+    hate/threatening: 0.05
+    sexual: 0.2
+    sexual/minors: 0.05
+    self-harm: 0.1
+    self-harm/intent: 0.1
+    self-harm/instructions: 0.1
+    illicit: 0.5
+    illicit/violent: 0.4
+
+  # Ab diesen Werten wiegt ein Treffer schwer genug, um die Nachricht anzuhalten, bis das Team
+  # entschieden hat. Darunter wird nur markiert und sofort zugestellt. Wer hier ueberall dieselben
+  # Werte wie oben eintraegt, haelt jede erkannte Nachricht an.
+  default-hold-threshold: 0.7
+  hold-thresholds:
+    harassment: 0.5
+    harassment/threatening: 0.3
+    hate: 0.3
+    hate/threatening: 0.2
+    sexual: 0.6
+    sexual/minors: 0.2
+    self-harm: 0.4
+    self-harm/intent: 0.4
+    self-harm/instructions: 0.4
+    illicit: 0.8
+    illicit/violent: 0.7
+
+  # Kategorien, die hier stehen, zaehlen nie als Treffer - auch dann nicht, wenn OpenAI selbst
+  # flaggt. Gewalt steht drin, weil "ich hau dich gleich um" im Spiel meistens ein Creeper ist.
+  ignored-categories:
+    - violence
+    - violence/graphic

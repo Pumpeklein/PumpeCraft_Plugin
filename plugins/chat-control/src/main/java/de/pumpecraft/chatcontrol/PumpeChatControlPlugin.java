@@ -19,7 +19,7 @@ import org.bukkit.permissions.PermissionDefault;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class PumpeChatControlPlugin extends JavaPlugin {
-    private static final int CONFIG_VERSION = 2;
+    private static final int CONFIG_VERSION = 3;
     private static final List<String> REQUIRED_BLOCKED_TERMS = List.of(
         "hurensohn", "hurentochter", "hure", "nutte", "nutten", "schlampe", "fotze",
         "wichser", "wixer", "ficker", "bastard", "missgeburt", "arschloch", "arschgeige",
@@ -46,13 +46,18 @@ public final class PumpeChatControlPlugin extends JavaPlugin {
         DatabaseService database = Databases.require(this);
         ChatMessageRepository repository = new ChatMessageRepository(this, database);
         ChatFilter filter = new ChatFilter(getConfig());
+        ChatReviewer reviewer = ChatReviewer.create(this, getConfig().getConfigurationSection("moderation"));
         ChatIdentityRenderer identityRenderer = new ChatIdentityRenderer();
 
         getServer().getPluginManager().registerEvents(
-            new ChatControlListener(this, filter, repository, trackedMessages, identityRenderer),
+            new ChatControlListener(this, filter, reviewer, repository, trackedMessages, identityRenderer),
             this
         );
-        PrivateMessageCommand privateMessages = new PrivateMessageCommand(this, filter, repository);
+        ChatReviewer privateReviewer = getConfig().getBoolean("moderation.private-messages", true)
+            ? reviewer
+            : ChatReviewer.none();
+        PrivateMessageCommand privateMessages =
+            new PrivateMessageCommand(this, filter, privateReviewer, repository);
         Objects.requireNonNull(getCommand("msg")).setExecutor(privateMessages);
         Objects.requireNonNull(getCommand("msg")).setTabCompleter(privateMessages);
         ChatControlCommand moderation = new ChatControlCommand(this, repository, trackedMessages);
@@ -61,6 +66,9 @@ public final class PumpeChatControlPlugin extends JavaPlugin {
 
         getServer().getScheduler().runTaskTimer(this, this::removeExpiredMessages, 20L * 60L, 20L * 60L);
         getLogger().info("Chat tracking, filtering, private messages and DEL moderation are active.");
+        getLogger().info(reviewer.active()
+            ? "Automatic message review through PumpeAI is active."
+            : "Automatic message review is inactive; only the term filter applies.");
     }
 
     String permission(String key) {
@@ -78,9 +86,12 @@ public final class PumpeChatControlPlugin extends JavaPlugin {
         int version = getConfig().getInt("config-version", 1);
         if (version >= CONFIG_VERSION) return;
 
-        LinkedHashSet<String> terms = new LinkedHashSet<>(getConfig().getStringList("filter.blocked-terms"));
-        terms.addAll(REQUIRED_BLOCKED_TERMS);
-        getConfig().set("filter.blocked-terms", new ArrayList<>(terms));
+        if (version < 2) {
+            LinkedHashSet<String> terms = new LinkedHashSet<>(getConfig().getStringList("filter.blocked-terms"));
+            terms.addAll(REQUIRED_BLOCKED_TERMS);
+            getConfig().set("filter.blocked-terms", new ArrayList<>(terms));
+        }
+        getConfig().options().copyDefaults(true);
         getConfig().set("config-version", CONFIG_VERSION);
         saveConfig();
     }
