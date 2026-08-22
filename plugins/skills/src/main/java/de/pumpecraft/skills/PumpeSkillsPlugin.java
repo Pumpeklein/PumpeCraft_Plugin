@@ -1,10 +1,12 @@
 package de.pumpecraft.skills;
 
+import de.pumpecraft.enchants.EnchantCooldownSkill;
 import java.util.Objects;
 import java.util.Set;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class PumpeSkillsPlugin extends JavaPlugin {
@@ -24,6 +26,14 @@ public final class PumpeSkillsPlugin extends JavaPlugin {
         SkillRepository repository = new SkillRepository(this);
         SkillRewardService rewards = new SkillRewardService(this, repository);
         service = new SkillService(this, repository, rewards);
+        Plugin enchantsPlugin = getServer().getPluginManager().getPlugin("PumpeEnchants");
+        if (enchantsPlugin != null && enchantsPlugin.isEnabled()) {
+            getServer().getServicesManager().register(
+                EnchantCooldownSkill.class,
+                new EnchantCooldownProgress(service),
+                this,
+                ServicePriority.Normal);
+        }
         placedBlocks = new PlacedBlockTracker();
 
         getServer().getPluginManager().registerEvents(
@@ -63,6 +73,7 @@ public final class PumpeSkillsPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        getServer().getServicesManager().unregisterAll(this);
         if (service != null) {
             service.shutdown();
         }

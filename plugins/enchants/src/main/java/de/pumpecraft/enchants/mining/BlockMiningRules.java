@@ -16,6 +16,7 @@ import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.Plugin;
 
 /**
  * The order matters: first the chain collects, then the furnace converts, then telekinesis
@@ -29,11 +30,18 @@ public final class BlockMiningRules {
     private final VeinMiner veins = new VeinMiner();
     private final ChainBreaker breaker = new ChainBreaker();
     private final EnchantChains chains;
+    private final ChainCooldowns cooldowns;
 
-    public BlockMiningRules(EnchantService enchants, EnchantSettings settings, EnchantChains chains) {
+    public BlockMiningRules(
+        Plugin plugin,
+        EnchantService enchants,
+        EnchantSettings settings,
+        EnchantChains chains
+    ) {
         this.enchants = enchants;
         this.settings = settings;
         this.chains = chains;
+        this.cooldowns = new ChainCooldowns(plugin, enchants, settings);
     }
 
     public void apply(BlockBreakEvent event) {
@@ -54,7 +62,7 @@ public final class BlockMiningRules {
             && tool.getEnchantmentLevel(Enchantment.SILK_TOUCH) == 0;
 
         Block block = event.getBlock();
-        List<Block> chain = chain(block, tool);
+        List<Block> chain = chain(block, tool, player);
         if (chain.isEmpty() && !telekinesis && !furnace) {
             return;
         }
@@ -88,21 +96,33 @@ public final class BlockMiningRules {
         }
     }
 
-    private List<Block> chain(Block origin, ItemStack tool) {
+    private List<Block> chain(Block origin, ItemStack tool, Player player) {
         Material type = origin.getType();
         int vein = enchants.activeLevel(tool, EnchantRegistry.VEIN_MINING);
         if (vein > 0 && isOre(type)) {
             int limit = settings.perLevel(EnchantRegistry.VEIN_MINING, "block-limit", vein, 8, 16, 32);
-            return veins.collect(origin, sameFamily(type), limit - 1);
+            return availableChain(origin, player, EnchantRegistry.VEIN_MINING,
+                sameFamily(type), limit - 1);
         }
         int lumberjack = enchants.activeLevel(tool, EnchantRegistry.LUMBERJACK);
         if (lumberjack > 0 && Tag.LOGS.isTagged(type)) {
             int limit = settings.perLevel(
                 EnchantRegistry.LUMBERJACK, "block-limit", lumberjack, 32, 64);
-            return veins.collect(origin, candidate -> Tag.LOGS.isTagged(candidate.getType()),
-                limit - 1);
+            return availableChain(origin, player, EnchantRegistry.LUMBERJACK,
+                candidate -> Tag.LOGS.isTagged(candidate.getType()), limit - 1);
         }
         return List.of();
+    }
+
+    private List<Block> availableChain(
+        Block origin,
+        Player player,
+        org.bukkit.NamespacedKey enchantment,
+        Predicate<Block> matches,
+        int limit
+    ) {
+        List<Block> found = veins.collect(origin, matches, limit);
+        return found.isEmpty() || cooldowns.activate(player, enchantment) ? found : List.of();
     }
 
     private Predicate<Block> sameFamily(Material origin) {

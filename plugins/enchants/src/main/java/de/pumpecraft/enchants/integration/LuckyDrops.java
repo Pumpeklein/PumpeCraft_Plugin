@@ -55,10 +55,10 @@ public final class LuckyDrops {
             player.getName(),
             granted,
             TransactionType.ENCHANT_REWARD,
-            "Glückspilz",
+            "Lucky",
             "Fund beim Spielen"));
         player.sendActionBar(Component.text(
-            "Glückspilz: +" + granted + " PP", NamedTextColor.GOLD));
+            "Lucky: +" + granted + " PP", NamedTextColor.GOLD));
     }
 
     private PointsService points() {

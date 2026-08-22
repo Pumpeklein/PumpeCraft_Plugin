@@ -1,30 +1,44 @@
-config-version: 2
+config-version: 3
 
-# Takt für alles ohne eigenes Event: Magnet und Sprungfeder.
+# Takt für alles ohne eigenes Event: Magnet und Jump Spring.
 tick-interval-ticks: 10
 
 anvil:
   level-cost: 5
   max-enchants-per-item: 2
 
+loot:
+  # Chance, dass ein Custom-Buch zusätzlich ein passendes Vanilla-Enchantment trägt.
+  vanilla-enchant-chance-percent: 38.0
+  second-vanilla-enchant-chance-percent: 6.0
+
 enchants:
   telekinesis:
     enabled: true
+    loot-chance-percent: 2.0
   furnace:
     enabled: true
+    loot-chance-percent: 1.2
   vein_mining:
     enabled: true
+    loot-chance-percent: 0.8
+    cooldown-seconds: 100.0
+    minimum-cooldown-seconds: 60.0
     block-limit:
       level-1: 8
       level-2: 16
       level-3: 32
   lumberjack:
     enabled: true
+    loot-chance-percent: 0.8
+    cooldown-seconds: 100.0
+    minimum-cooldown-seconds: 60.0
     block-limit:
       level-1: 32
       level-2: 64
   magnet:
     enabled: true
+    loot-chance-percent: 1.8
     radius:
       level-1: 3.0
       level-2: 5.0
@@ -33,6 +47,7 @@ enchants:
 
   lifesteal:
     enabled: true
+    loot-chance-percent: 0.4
     percent:
       level-1: 5.0
       level-2: 10.0
@@ -40,6 +55,7 @@ enchants:
     max-heal: 4.0
   execution:
     enabled: true
+    loot-chance-percent: 0.35
     health-threshold-percent: 30.0
     bonus-percent:
       level-1: 15.0
@@ -47,12 +63,14 @@ enchants:
       level-3: 40.0
   thunder:
     enabled: true
+    loot-chance-percent: 0.18
     chance-percent:
       level-1: 5.0
       level-2: 10.0
     bonus-damage: 4.0
   barb:
     enabled: true
+    loot-chance-percent: 0.65
     cooldown-seconds:
       level-1: 6.0
       level-2: 4.0
@@ -60,8 +78,11 @@ enchants:
 
   soulbound:
     enabled: true
+    # Im Mittel ein Soulbound-Buch pro 2.000 natürlich generierter Loot-Kisten.
+    loot-chance-percent: 0.05
   endurance:
     enabled: true
+    loot-chance-percent: 0.25
     health-threshold: 4.0
     duration-seconds: 6
     cooldown-seconds:
@@ -69,20 +90,24 @@ enchants:
       level-2: 60.0
   featherweight:
     enabled: true
+    loot-chance-percent: 1.4
     safe-fall-distance:
       level-1: 6.0
       level-2: 12.0
   jump_spring:
     enabled: true
+    loot-chance-percent: 1.1
 
   scholar:
     enabled: true
+    loot-chance-percent: 0.2
     bonus-percent:
       level-1: 10.0
       level-2: 20.0
       level-3: 35.0
   lucky:
     enabled: true
+    loot-chance-percent: 0.1
     chance-percent:
       level-1: 0.5
       level-2: 1.0
@@ -92,9 +117,11 @@ enchants:
     daily-limit: 250
   clan_bond:
     enabled: true
+    loot-chance-percent: 0.3
     radius: 16.0
     bonus-percent:
       level-1: 5.0
       level-2: 10.0
   courier:
     enabled: true
+    loot-chance-percent: 0.45

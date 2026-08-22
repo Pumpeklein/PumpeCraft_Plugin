@@ -32,7 +32,7 @@ public final class EnchantTargets {
 
     private static Set<Material> suffix(String ending) {
         return Arrays.stream(Material.values())
-            .filter(Material::isItem)
+            .filter(material -> !material.name().startsWith("LEGACY_"))
             .filter(material -> material.name().endsWith(ending))
             .collect(Collectors.toUnmodifiableSet());
     }

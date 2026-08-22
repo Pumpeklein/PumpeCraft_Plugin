@@ -58,7 +58,7 @@ neue Schlüssel, es korrigiert keine alten.
 | `plugins/chat-control` | `PumpeChatControl` | Chatfilter, Privatnachrichten, Persistenz |
 | `plugins/transactions` | `PumpeTransactions` | PumpePoints (PP), Buchungen, Zeitgutschrift |
 | `plugins/mailbox` | `PumpeMailbox` | Briefkasten als Serverobjekt: Klappe, Fahne, Namensschild, Postfach, bezahlter Versand mit Lieferzeit |
-| `plugins/enchants` | `PumpeEnchants` | Eigene Verzauberungen über PDC und Lore, Bücher und Amboss-Kombination, `EnchantService` als Bukkit-Service |
+| `plugins/enchants` | `PumpeEnchants` | Registrierte eigene Verzauberungen, Bücher und Amboss-Kombination, `EnchantService` als Bukkit-Service |
 | `plugins/sub-essentials` | `SubEssentials` | Twitch-Verknüpfung und Menübefehle für Subs |
 
 `plugins/briefkasten` ist der Vorläufer von `plugins/mailbox`, nicht mehr im Build und wartet nur

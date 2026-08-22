@@ -4,19 +4,19 @@ import de.pumpecraft.enchants.CustomEnchant;
 import de.pumpecraft.enchants.EnchantRegistry;
 import de.pumpecraft.enchants.EnchantService;
 import de.pumpecraft.utils.Players;
+import io.papermc.paper.command.brigadier.BasicCommand;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
 /** Hands out the complete set of books so every enchantment can be tried out in one go. */
-public final class EnchantBooksCommand implements CommandExecutor, TabCompleter {
+public final class EnchantBooksCommand implements BasicCommand {
     private final EnchantRegistry registry;
     private final EnchantService enchants;
 
@@ -26,10 +26,11 @@ public final class EnchantBooksCommand implements CommandExecutor, TabCompleter 
     }
 
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+    public void execute(CommandSourceStack source, String[] args) {
+        CommandSender sender = source.getSender();
         if (args.length > 1) {
-            sender.sendMessage(error("Nutzung: /" + label + " [Spieler]"));
-            return true;
+            sender.sendMessage(error("Nutzung: /enchantbooks [Spieler]"));
+            return;
         }
         Player target = args.length == 1
             ? Players.online(args[0]).orElse(null)
@@ -37,14 +38,14 @@ public final class EnchantBooksCommand implements CommandExecutor, TabCompleter 
         if (target == null) {
             sender.sendMessage(error(args.length == 1
                 ? "Dieser Spieler ist nicht online."
-                : "Nutzung: /" + label + " <Spieler>"));
-            return true;
+                : "Nutzung: /enchantbooks <Spieler>"));
+            return;
         }
 
         List<ItemStack> books = books();
         if (books.isEmpty()) {
             sender.sendMessage(error("Es ist keine eigene Verzauberung aktiv."));
-            return true;
+            return;
         }
 
         int dropped = 0;
@@ -66,17 +67,16 @@ public final class EnchantBooksCommand implements CommandExecutor, TabCompleter 
                 target.getName() + " hat " + books.size() + " Verzauberungsbücher bekommen.",
                 NamedTextColor.GREEN));
         }
-        return true;
     }
 
     @Override
-    public List<String> onTabComplete(
-        CommandSender sender,
-        Command command,
-        String alias,
-        String[] args
-    ) {
+    public Collection<String> suggest(CommandSourceStack source, String[] args) {
         return args.length == 1 ? Players.completeOnlineNames(args[0], 40) : List.of();
+    }
+
+    @Override
+    public String permission() {
+        return "pumpecraft.enchants.admin";
     }
 
     private List<ItemStack> books() {

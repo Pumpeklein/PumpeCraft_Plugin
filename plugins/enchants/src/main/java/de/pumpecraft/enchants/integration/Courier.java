@@ -55,7 +55,7 @@ public final class Courier {
         }
         if (cargo.isEmpty()) {
             player.sendMessage(Component.text(
-                "Kurier findet keinen vollen Stapel zum Verschicken.", NamedTextColor.GRAY));
+                "Courier findet keinen vollen Stapel zum Verschicken.", NamedTextColor.GRAY));
             return;
         }
 
@@ -73,7 +73,7 @@ public final class Courier {
             }
             player.playSound(player.getLocation(), Sound.ITEM_BOOK_PUT, 0.8F, 1.2F);
             player.sendMessage(Component.text(
-                "Kurier hat " + delivered + " Stapel in deinen Briefkasten gebracht.",
+                "Courier hat " + delivered + " Stapel in deinen Briefkasten gebracht.",
                 NamedTextColor.GREEN));
         });
     }

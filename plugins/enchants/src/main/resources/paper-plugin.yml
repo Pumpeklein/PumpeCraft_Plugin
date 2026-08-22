@@ -1,0 +1,37 @@
+name: PumpeEnchants
+version: ${version}
+main: de.pumpecraft.enchants.PumpeEnchantsPlugin
+bootstrapper: de.pumpecraft.enchants.PumpeEnchantsBootstrap
+api-version: '1.21'
+author: PumpeCraft
+description: Registered custom enchantments for PumpeCraft.
+dependencies:
+  server:
+    PumpeUtils:
+      load: BEFORE
+      required: true
+      join-classpath: true
+    PumpeDatabase:
+      load: BEFORE
+      required: true
+      join-classpath: true
+    PumpeTransactions:
+      load: BEFORE
+      required: false
+      join-classpath: true
+    PumpeMailbox:
+      load: BEFORE
+      required: false
+      join-classpath: true
+    PumpeClanSystem:
+      load: BEFORE
+      required: false
+      join-classpath: true
+    PumpeBaseSystem:
+      load: BEFORE
+      required: false
+      join-classpath: true
+permissions:
+  pumpecraft.enchants.admin:
+    description: Allows applying custom enchantments and handing out enchantment books.
+    default: op

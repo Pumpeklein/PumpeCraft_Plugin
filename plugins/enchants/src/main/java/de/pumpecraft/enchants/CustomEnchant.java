@@ -7,6 +7,8 @@ import org.bukkit.NamespacedKey;
 public record CustomEnchant(
     NamespacedKey key,
     String displayName,
+    String legacyDisplayName,
+    String description,
     int maximumLevel,
     EnchantRarity rarity,
     Set<Material> allowedMaterials,
@@ -24,9 +26,12 @@ public record CustomEnchant(
         return key.getKey();
     }
 
-    /** The text a lore line and every message use, so both stay comparable. */
     public String label(int level) {
-        return displayName + " " + RomanNumerals.format(level);
+        return maximumLevel == 1 ? displayName : displayName + " " + RomanNumerals.format(level);
+    }
+
+    public String legacyLabel(int level) {
+        return legacyDisplayName + " " + RomanNumerals.format(level);
     }
 
     public boolean supports(Material material) {

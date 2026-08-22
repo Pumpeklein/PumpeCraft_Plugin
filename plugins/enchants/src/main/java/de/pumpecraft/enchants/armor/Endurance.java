@@ -47,6 +47,6 @@ public final class Endurance {
         int seconds = settings.amount(EnchantRegistry.ENDURANCE, "duration-seconds", 6);
         player.addPotionEffect(new PotionEffect(
             PotionEffectType.REGENERATION, seconds * 20, level - 1, true, true, true));
-        player.sendActionBar(Component.text("Ausdauer hält dich am Leben.", NamedTextColor.LIGHT_PURPLE));
+        player.sendActionBar(Component.text("Endurance hält dich am Leben.", NamedTextColor.LIGHT_PURPLE));
     }
 }

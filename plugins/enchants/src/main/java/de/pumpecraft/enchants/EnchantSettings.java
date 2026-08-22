@@ -33,6 +33,10 @@ public final class EnchantSettings {
         return config.getDouble(path(key, option), fallback);
     }
 
+    public double value(String path, double fallback) {
+        return config.getDouble(path, fallback);
+    }
+
     public int anvilLevelCost() {
         return Math.max(1, config.getInt("anvil.level-cost", 5));
     }

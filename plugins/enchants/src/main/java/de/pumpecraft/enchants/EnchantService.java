@@ -80,6 +80,19 @@ public final class EnchantService {
     }
 
     public ApplyResult set(ItemStack item, NamespacedKey key, int level) {
+        return set(item, key, level, false);
+    }
+
+    public ApplyResult setUnrestricted(ItemStack item, NamespacedKey key, int level) {
+        return set(item, key, level, true);
+    }
+
+    private ApplyResult set(
+        ItemStack item,
+        NamespacedKey key,
+        int level,
+        boolean ignoreItemRestriction
+    ) {
         Optional<CustomEnchant> definition = registry.find(key);
         if (definition.isEmpty()) {
             return ApplyResult.UNKNOWN;
@@ -91,7 +104,8 @@ public final class EnchantService {
         if (level < 1 || level > enchant.maximumLevel()) {
             return ApplyResult.INVALID_LEVEL;
         }
-        if (item == null || item.getType().isAir() || !enchant.supports(item.getType())) {
+        if (item == null || item.getType().isAir()
+            || (!ignoreItemRestriction && !enchant.supports(item.getType()))) {
             return ApplyResult.INVALID_ITEM;
         }
         Map<CustomEnchant, Integer> present = items.list(item);
@@ -113,6 +127,14 @@ public final class EnchantService {
         return items.remove(item, key);
     }
 
+    public void refreshBook(ItemStack item) {
+        items.refreshBook(item);
+    }
+
+    public boolean upgradeBook(ItemStack item) {
+        return items.upgradeBook(item);
+    }
+
     public ItemStack createBook(NamespacedKey key, int level) {
         CustomEnchant enchant = registry.find(key)
             .orElseThrow(() -> new IllegalArgumentException("Unknown enchantment: " + key));
@@ -120,11 +142,11 @@ public final class EnchantService {
             throw new IllegalArgumentException("Invalid level " + level + " for " + key + ".");
         }
         ItemStack book = new ItemStack(Material.ENCHANTED_BOOK);
-        items.set(book, enchant, level);
         ItemMeta meta = book.getItemMeta();
-        meta.displayName(Component.text(enchant.label(level), NamedTextColor.GOLD)
+        meta.displayName(Component.text(enchant.label(level), NamedTextColor.LIGHT_PURPLE)
             .decoration(TextDecoration.ITALIC, false));
         book.setItemMeta(meta);
+        items.set(book, enchant, level);
         return book;
     }
 

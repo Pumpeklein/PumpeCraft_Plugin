@@ -4,19 +4,19 @@ import de.pumpecraft.enchants.CustomEnchant;
 import de.pumpecraft.enchants.EnchantRegistry;
 import de.pumpecraft.enchants.EnchantService;
 import de.pumpecraft.utils.Players;
+import io.papermc.paper.command.brigadier.BasicCommand;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.IntStream;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
-public final class EnchantCommand implements CommandExecutor, TabCompleter {
+public final class EnchantCommand implements BasicCommand {
     private final EnchantRegistry registry;
     private final EnchantService enchants;
 
@@ -26,34 +26,35 @@ public final class EnchantCommand implements CommandExecutor, TabCompleter {
     }
 
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+    public void execute(CommandSourceStack source, String[] args) {
+        CommandSender sender = source.getSender();
         if (args.length != 3) {
-            sender.sendMessage(error("Nutzung: /" + label + " <Spieler> <Verzauberung> <Stufe>"));
-            return true;
+            sender.sendMessage(error("Nutzung: /customenchant <Spieler> <Verzauberung> <Stufe>"));
+            return;
         }
         Player target = Players.online(args[0]).orElse(null);
         if (target == null) {
             sender.sendMessage(error("Dieser Spieler ist nicht online."));
-            return true;
+            return;
         }
         CustomEnchant enchant = registry.find(args[1]).orElse(null);
         if (enchant == null) {
             sender.sendMessage(error("Unbekannte Verzauberung: " + args[1]));
-            return true;
+            return;
         }
         int level;
         try {
             level = Integer.parseInt(args[2]);
         } catch (NumberFormatException exception) {
             sender.sendMessage(error("Die Stufe muss eine Zahl sein."));
-            return true;
+            return;
         }
 
         ItemStack held = target.getInventory().getItemInMainHand();
         if (held.getType() == Material.BOOK) {
             if (level < 1 || level > enchant.maximumLevel() || !registry.isEnabled(enchant.key())) {
                 sender.sendMessage(error("Diese Stufe ist nicht verfügbar."));
-                return true;
+                return;
             }
             consumeOne(target, held);
             for (ItemStack rest : target.getInventory()
@@ -61,10 +62,11 @@ public final class EnchantCommand implements CommandExecutor, TabCompleter {
                 target.getWorld().dropItemNaturally(target.getLocation(), rest);
             }
         } else {
-            EnchantService.ApplyResult outcome = enchants.set(held, enchant.key(), level);
+            EnchantService.ApplyResult outcome = enchants.setUnrestricted(
+                held, enchant.key(), level);
             if (outcome != EnchantService.ApplyResult.APPLIED) {
                 sender.sendMessage(error(message(outcome)));
-                return true;
+                return;
             }
             target.getInventory().setItemInMainHand(held);
         }
@@ -72,16 +74,10 @@ public final class EnchantCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(Component.text(
             enchant.label(level) + " liegt jetzt auf dem Item von " + target.getName() + ".",
             NamedTextColor.GREEN));
-        return true;
     }
 
     @Override
-    public List<String> onTabComplete(
-        CommandSender sender,
-        Command command,
-        String alias,
-        String[] args
-    ) {
+    public Collection<String> suggest(CommandSourceStack source, String[] args) {
         if (args.length == 1) {
             return Players.completeOnlineNames(args[0], 40);
         }
@@ -98,6 +94,11 @@ public final class EnchantCommand implements CommandExecutor, TabCompleter {
                 .mapToObj(String::valueOf).toList(), args[2]);
         }
         return List.of();
+    }
+
+    @Override
+    public String permission() {
+        return "pumpecraft.enchants.admin";
     }
 
     private void consumeOne(Player player, ItemStack held) {
