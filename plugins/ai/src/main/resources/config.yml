@@ -1,4 +1,4 @@
-config-version: 4
+config-version: 5
 
 # Ohne Schluessel bleibt der Dienst aus und jedes Plugin nutzt seine eigenen Texte weiter.
 # Der Schluessel kann auch in der Umgebungsvariable DEEPSEEK_API_KEY stehen; sie wird nur
@@ -28,6 +28,29 @@ request-timeout-seconds: 20
 # Nach einem Fehlschlag wird fuer diese Zeit kein neuer Versuch gestartet, damit ein
 # abgelaufener Schluessel oder eine Netzstoerung nicht bei jeder Meldung erneut auflaeuft.
 failure-cooldown-seconds: 180
+
+# Erzeugte Servermeldungen. Jedes Thema hat eigene Vorlagen im jeweiligen Plugin; was hier
+# abgeschaltet wird, faellt darauf zurueck und kostet nichts.
+messages:
+  enabled: true
+
+  # Zeilen pro Anfrage und die Grenze, ab der nachgefuellt wird. Groessere Stapel kosten pro
+  # Zeile weniger, weil System-Prompt und Aufgabe nur einmal bezahlt werden.
+  batch-size: 10
+  refill-below: 3
+
+  # Beim Start werden alle angemeldeten Themen einmal vorgefuellt - rund 44 Anfragen. Der Vorrat
+  # ueberlebt einen Neustart in pools.yml, gebraucht wird das also nur beim allerersten Start
+  # und nach neuen Themen.
+  warm-up: true
+
+  # Liefert eine Anfrage keine brauchbare Zeile, pausiert das Thema fuer diese Zeit. Sonst kostet
+  # ein Thema, dessen Zeilen immer durchfallen, bei jeder Meldung eine weitere Anfrage.
+  retry-cooldown-seconds: 300
+
+  # Themen ohne erzeugte Texte. Ein * am Ende ist ein Praefix: "death-*" nimmt alle 33
+  # Todesursachen auf einmal aus. Die Schluessel zeigt /pumpeai status.
+  excluded-topics: []
 
 # Moderation: prueft Texte ueber den kostenlosen Endpunkt von OpenAI. Er braucht einen eigenen
 # Schluessel - der DeepSeek-Schluessel oben passt dort nicht. Bleibt "api-key" leer, wird

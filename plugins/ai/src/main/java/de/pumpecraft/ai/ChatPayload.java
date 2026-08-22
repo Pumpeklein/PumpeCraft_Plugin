@@ -23,7 +23,7 @@ final class ChatPayload {
         return body.toString();
     }
 
-    static String reply(String json) {
+    static Completion reply(String json) {
         JsonObject root = JsonParser.parseString(json).getAsJsonObject();
         if (root.has("error")) {
             throw new IllegalStateException("DeepSeek returned an error: " + errorMessage(root));
@@ -33,10 +33,27 @@ final class ChatPayload {
         if (choices == null || choices.isEmpty()) {
             throw new IllegalStateException("DeepSeek returned no choices.");
         }
-        return choices.get(0).getAsJsonObject()
+        String content = choices.get(0).getAsJsonObject()
             .getAsJsonObject("message")
             .get("content")
             .getAsString();
+        return new Completion(content, usage(root));
+    }
+
+    private static TokenUsage usage(JsonObject root) {
+        JsonObject usage = root.getAsJsonObject("usage");
+        if (usage == null) {
+            return TokenUsage.NONE;
+        }
+        return new TokenUsage(
+            number(usage, "prompt_tokens"),
+            number(usage, "completion_tokens"),
+            number(usage, "prompt_cache_hit_tokens")
+        );
+    }
+
+    private static long number(JsonObject object, String member) {
+        return object.has(member) && !object.get(member).isJsonNull() ? object.get(member).getAsLong() : 0L;
     }
 
     private static String errorMessage(JsonObject root) {

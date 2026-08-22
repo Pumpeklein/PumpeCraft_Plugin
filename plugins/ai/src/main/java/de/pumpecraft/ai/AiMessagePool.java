@@ -3,6 +3,7 @@ package de.pumpecraft.ai;
 import de.pumpecraft.utils.messages.MessageSource;
 import de.pumpecraft.utils.messages.MessageTopic;
 import java.util.Deque;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -18,26 +19,30 @@ import java.util.regex.Pattern;
  */
 final class AiMessagePool implements MessageSource {
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{[a-zA-Z]+}");
-    private static final int BATCH_SIZE = 10;
-    private static final int REFILL_BELOW = 3;
     private static final int MAX_LENGTH = 140;
 
     private final AiService ai;
+    private final MessageSettings settings;
+    private final AiMessageStore store;
     private final Map<String, Deque<String>> pools = new ConcurrentHashMap<>();
     private final Set<String> refilling = ConcurrentHashMap.newKeySet();
+    private final Map<String, Long> pausedUntil = new ConcurrentHashMap<>();
 
-    AiMessagePool(AiService ai) {
+    AiMessagePool(AiService ai, MessageSettings settings, AiMessageStore store) {
         this.ai = ai;
+        this.settings = settings;
+        this.store = store;
+        store.load().forEach((key, lines) -> pools.put(key, new ConcurrentLinkedDeque<>(lines)));
     }
 
     @Override
     public String next(MessageTopic topic) {
-        if (!ai.available()) {
+        if (!usable(topic)) {
             return null;
         }
 
-        Deque<String> pool = pools.computeIfAbsent(topic.key(), key -> new ConcurrentLinkedDeque<>());
-        if (pool.size() < REFILL_BELOW) {
+        Deque<String> pool = pool(topic);
+        if (pool.size() < settings.refillBelow()) {
             refill(topic, pool);
         }
         return pool.poll();
@@ -45,10 +50,23 @@ final class AiMessagePool implements MessageSource {
 
     @Override
     public void warmUp(MessageTopic topic) {
-        if (!ai.available()) {
+        if (!settings.warmUp() || !usable(topic)) {
             return;
         }
-        refill(topic, pools.computeIfAbsent(topic.key(), key -> new ConcurrentLinkedDeque<>()));
+        Deque<String> pool = pool(topic);
+        if (pool.size() >= settings.refillBelow()) {
+            return;
+        }
+        refill(topic, pool);
+    }
+
+    void save() {
+        store.save(pools);
+    }
+
+    int stored(MessageTopic topic) {
+        Deque<String> pool = pools.get(topic.key());
+        return pool == null ? 0 : pool.size();
     }
 
     /** @return Zeilen im Vorrat und Themen, für die schon einmal nachgefüllt wurde */
@@ -57,18 +75,46 @@ final class AiMessagePool implements MessageSource {
         return lines + " Zeilen in " + pools.size() + " Themen";
     }
 
+    private boolean usable(MessageTopic topic) {
+        return settings.enabled() && ai.available() && !settings.excluded(topic);
+    }
+
+    private Deque<String> pool(MessageTopic topic) {
+        return pools.computeIfAbsent(topic.key(), key -> new ConcurrentLinkedDeque<>());
+    }
+
     private void refill(MessageTopic topic, Deque<String> pool) {
+        Long paused = pausedUntil.get(topic.key());
+        if (paused != null && System.currentTimeMillis() < paused) {
+            return;
+        }
         if (!refilling.add(topic.key())) {
             return;
         }
 
         Set<String> allowed = TopicPrompt.placeholders(topic);
         Set<String> required = TopicPrompt.required(topic);
-        ai.lines(TopicPrompt.instruction(topic), BATCH_SIZE)
-            .thenAccept(lines -> lines.stream()
-                .filter(line -> usable(line, allowed, required))
-                .forEach(pool::add))
+        ai.lines(TopicPrompt.instruction(topic), settings.batchSize())
+            .thenAccept(lines -> accept(topic, pool, lines, allowed, required))
             .whenComplete((ignored, error) -> refilling.remove(topic.key()));
+    }
+
+    // Eine Antwort ohne brauchbare Zeile pausiert das Thema. Ohne das kostet ein Thema, dessen
+    // Zeilen immer durchfallen, bei jeder einzelnen Meldung eine weitere Anfrage.
+    private void accept(
+        MessageTopic topic,
+        Deque<String> pool,
+        List<String> lines,
+        Set<String> allowed,
+        Set<String> required
+    ) {
+        List<String> accepted = lines.stream()
+            .filter(line -> usable(line, allowed, required))
+            .toList();
+        pool.addAll(accepted);
+        if (accepted.isEmpty()) {
+            pausedUntil.put(topic.key(), System.currentTimeMillis() + settings.retryCooldown().toMillis());
+        }
     }
 
     private boolean usable(String line, Set<String> allowed, Set<String> required) {

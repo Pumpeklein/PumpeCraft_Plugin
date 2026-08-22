@@ -18,6 +18,7 @@ public final class AiService {
     private final ExecutorService executor;
     private final Logger logger;
     private final FailureCooldown cooldown;
+    private final AiUsage usage = new AiUsage();
 
     AiService(AiSettings settings, DeepSeekClient client, ExecutorService executor, Logger logger) {
         this.settings = settings;
@@ -36,6 +37,10 @@ public final class AiService {
         return settings.model();
     }
 
+    AiUsage usage() {
+        return usage;
+    }
+
     /**
      * @return die erzeugten Zeilen, im Fehlerfall eine leere Liste - der Aufrufer bleibt bei
      *     seinen eigenen Texten
@@ -52,7 +57,9 @@ public final class AiService {
 
     private List<String> request(String prompt) {
         try {
-            return TextLines.parse(client.complete(settings.systemPrompt(), prompt));
+            Completion completion = client.complete(settings.systemPrompt(), prompt);
+            usage.record(completion.usage());
+            return TextLines.parse(completion.text());
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             return List.of();

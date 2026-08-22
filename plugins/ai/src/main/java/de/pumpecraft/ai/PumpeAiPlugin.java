@@ -13,7 +13,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public final class PumpeAiPlugin extends JavaPlugin {
     private static final int REQUEST_THREADS = 3;
-    private static final int CONFIG_VERSION = 4;
+    private static final int CONFIG_VERSION = 5;
+    private static final long SAVE_INTERVAL_TICKS = 20L * 300L;
 
     private ExecutorService executor;
     private AiMessagePool pool;
@@ -35,13 +36,19 @@ public final class PumpeAiPlugin extends JavaPlugin {
         moderation = ModerationService.create(getConfig().getConfigurationSection("moderation"), getLogger());
         getServer().getServicesManager().register(ModerationService.class, moderation, this, ServicePriority.Normal);
 
-        pool = new AiMessagePool(service);
+        MessageSettings messageSettings = MessageSettings.from(getConfig().getConfigurationSection("messages"));
+        pool = new AiMessagePool(service, messageSettings, new AiMessageStore(getDataFolder(), getLogger()));
         Messages.use(pool);
 
-        AiCommand command = new AiCommand(this, service, settings, pool, moderation);
+        AiCommand command = new AiCommand(this, service, settings, messageSettings, pool, moderation);
         PluginCommand pluginCommand = Objects.requireNonNull(getCommand("pumpeai"), "Missing command: pumpeai");
         pluginCommand.setExecutor(command);
         pluginCommand.setTabCompleter(command);
+
+        // Ein abgewuergter Server kaeme sonst mit leeren Vorraeten zurueck, und das kostet
+        // wieder eine Anfrage pro Thema.
+        getServer().getScheduler().runTaskTimerAsynchronously(
+            this, pool::save, SAVE_INTERVAL_TICKS, SAVE_INTERVAL_TICKS);
 
         getLogger().info(settings.usable()
             ? "DeepSeek ready; model " + settings.model() + "."
@@ -54,6 +61,9 @@ public final class PumpeAiPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         Messages.use(null);
+        if (pool != null) {
+            pool.save();
+        }
         getServer().getServicesManager().unregisterAll(this);
         if (moderation != null) {
             moderation.shutdown();

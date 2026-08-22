@@ -13,7 +13,7 @@ final class DeepSeekClient {
         this.http = new JsonHttp("DeepSeek", settings.requestTimeout());
     }
 
-    String complete(String systemPrompt, String userPrompt) throws IOException, InterruptedException {
+    Completion complete(String systemPrompt, String userPrompt) throws IOException, InterruptedException {
         String response = http.post(
             settings.baseUrl() + "/chat/completions",
             settings.apiKey(),

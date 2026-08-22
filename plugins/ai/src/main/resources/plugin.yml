@@ -8,8 +8,8 @@ depend: [PumpeUtils]
 load: STARTUP
 commands:
   pumpeai:
-    description: Shows the AI connection state, generates a test line or moderates a text.
-    usage: /pumpeai <status|test|check <Text>>
+    description: Shows the AI state, lists the message topics, generates a test line or moderates a text.
+    usage: /pumpeai <status|topics|test|check <Text>>
     permission: pumpecraft.ai.admin
 permissions:
   pumpecraft.ai.admin:

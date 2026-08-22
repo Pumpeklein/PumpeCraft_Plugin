@@ -28,6 +28,22 @@ Beide sind unabhängig voneinander: Fehlt ein Schlüssel, bleibt genau dieser Di
 Ohne Schlüssel bleibt der Dienst still: `available()` ist `false` und jedes Plugin nutzt weiter
 seine eigenen Texte.
 
+## Einrichtung Meldungen
+
+Abschnitt `messages` derselben `config.yml` steuert, wie viel erzeugt wird:
+
+| Schlüssel | Bedeutung |
+| --- | --- |
+| `enabled` | Schaltet erzeugte Meldungen ab; alle Plugins nutzen dann ihre Vorlagen |
+| `batch-size`, `refill-below` | Zeilen pro Anfrage und Grenze, ab der nachgefüllt wird |
+| `warm-up` | Alle angemeldeten Themen beim Start einmal vorfüllen |
+| `retry-cooldown-seconds` | Pause für ein Thema, dessen Antwort keine brauchbare Zeile enthielt |
+| `excluded-topics` | Themen ohne erzeugte Texte, `*` am Ende ist ein Präfix |
+
+`excluded-topics` ist der Hebel gegen Kosten: Die 33 Todesursachen sind die mit Abstand
+häufigsten Meldungen, `death-*` nimmt sie in einer Zeile heraus. `/pumpeai topics` listet jeden
+Schlüssel mit seinem Vorrat.
+
 ## Einrichtung Moderation
 
 Der Moderations-Endpunkt von OpenAI kostet nichts, braucht aber einen **eigenen** Schlüssel - der
@@ -69,9 +85,11 @@ die fünf stärksten Kategorien mit ihren Werten.
 
 ## Befehl
 
-- `/pumpeai status` - Schlüssel gesetzt, Modell, Endpunkt, bereit ja/nein, Zustand der Moderation.
+- `/pumpeai status` - Schlüssel gesetzt, Modell, Endpunkt, bereit ja/nein, Zustand der Moderation
+  und der Verbrauch seit dem Serverstart: Anfragen, Token, Cache-Anteil, Schnitt je Anfrage.
 - `/pumpeai test` - holt drei Beispielzeilen und zeigt sie an. Der Weg zum Prüfen der Verbindung.
 - `/pumpeai check <Text>` - prüft einen Text und zeigt Urteil und die stärksten Kategorien.
+- `/pumpeai topics` - alle angemeldeten Themen mit Vorrat oder dem Hinweis, dass sie ausgenommen sind.
 
 Permission: `pumpecraft.ai.admin` (Standard: op).
 
@@ -97,10 +115,25 @@ So läuft eine Meldung:
    verworfen.
 
 Der erste Griff in ein leeres Thema liefert immer eine eigene Vorlage - deshalb wird jedes Thema
-vorgewärmt, sobald es sich über `Messages.register` anmeldet. Beim Serverstart sind das rund 45
+vorgewärmt, sobald es sich über `Messages.register` anmeldet. Beim Serverstart sind das 44
 Anfragen (33 Todesursachen, Meilenstein, Join, First Join, Leave, Fortschritt, vier Strafen, zwei
 Trader), die über drei Threads im Hintergrund laufen. `/pumpeai status` zeigt, wie voll die
-Vorräte sind.
+Vorräte sind, `/pumpeai topics` je Thema.
+
+Bezahlt wird dieses Vorwärmen nur einmal: Beim Herunterfahren schreibt `AiMessageStore` die
+Vorräte nach `plugins/PumpeAI/pools.yml` und holt sie beim Start zurück. Ohne das kostet jeder
+Neustart die vollen 44 Anfragen, obwohl die Zeilen von gestern noch gelten - bei einem Server,
+der mehrmals am Tag neu startet, ist das der grösste Posten auf der Rechnung.
+
+Eine Anfrage kostet gemessen rund 600 Token: ~200 System-Prompt, ~215 Aufgabe mit drei
+Beispielen, ~190 für zehn Zeilen. Der System-Prompt ist in jeder Anfrage derselbe und wird von
+DeepSeek als Präfix gecacht, kostet also nur einen Bruchteil. Ein vollständiges Vorwärmen sind
+damit rund 26.000 Token - einmalig, nicht pro Start. Was wirklich anfällt, steht in
+`/pumpeai status`.
+
+Ein Thema, dessen Antwort keine brauchbare Zeile enthält, pausiert danach
+(`retry-cooldown-seconds`). Sonst löst jede einzelne Meldung dieses Themas eine neue Anfrage aus,
+die genauso wieder durchfällt.
 
 Ein Thema, das sich nicht anmeldet, wird erst beim ersten Gebrauch nachgefüllt - dann kommt genau
 diese eine Meldung noch aus der Vorlage.
@@ -159,8 +192,11 @@ Beispiel im Bestand: `AiChatReviewer` in [plugins/chat-control](../chat-control/
 | `TextLines` | Zerlegt die Antwort in Zeilen und entfernt Nummerierung und Anführungszeichen |
 | `Ai` | Service-Lookup, `null` wenn das Plugin fehlt |
 | `AiMessagePool` | Vorrat je Thema, Nachschub im Hintergrund, Prüfung der Zeilen |
+| `MessageSettings` | Abschnitt `messages` als Record, inklusive der ausgenommenen Themen |
+| `AiMessageStore` | Vorräte in `pools.yml`, damit ein Neustart nichts kostet |
+| `AiUsage`, `TokenUsage`, `Completion` | Verbrauch aus dem `usage`-Block der Antwort, gezählt seit dem Start |
 | `TopicPrompt` | Aufgabe und erlaubte Platzhalter aus einem `MessageTopic` |
-| `AiCommand` | `/pumpeai status\|test\|check` |
+| `AiCommand` | `/pumpeai status\|topics\|test\|check` |
 | `support/JsonHttp` | JSON-POST mit Bearer-Token, für beide Anbieter |
 | `support/FailureCooldown` | Sperrzeit nach einem Fehlschlag |
 | `support/DaemonThreads` | Benannte Daemon-Threads für die Executor-Pools |
