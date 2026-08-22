@@ -1,3 +1,6 @@
 clans:
   max-members: 20
   invitation-expiry-minutes: 15
+
+# Änderungen aus dem Web-Panel werden spätestens nach diesem Intervall übernommen.
+synchronization-interval-ticks: 40

@@ -18,7 +18,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class PumpeModPlugin extends JavaPlugin {
-    private static final int CONFIG_VERSION = 3;
+    private static final int CONFIG_VERSION = 4;
 
     private ModerationRepository repository;
     private ModerationCommand moderationCommand;
@@ -43,11 +43,13 @@ public final class PumpeModPlugin extends JavaPlugin {
         vanishService = new VanishService(this);
         getServer().getPluginManager().registerEvents(new VanishListener(this, vanishService), this);
 
+        ModerationSettings moderationSettings = ModerationSettings.from(
+            getConfig(), getLogger());
         moderationCommand = new ModerationCommand(
             this,
             repository,
             vanishService,
-            ModerationSettings.from(getConfig(), getLogger())
+            moderationSettings
         );
         registerCommand("report", moderationCommand);
         registerCommand("reports", moderationCommand);
@@ -58,6 +60,12 @@ public final class PumpeModPlugin extends JavaPlugin {
         registerCommand("unban", moderationCommand);
         registerCommand("vanish", moderationCommand);
         getServer().getPluginManager().registerEvents(moderationCommand, this);
+        getServer().getScheduler().runTaskTimer(
+            this,
+            moderationCommand::synchronizeOnlinePlayers,
+            moderationSettings.synchronizationIntervalTicks(),
+            moderationSettings.synchronizationIntervalTicks()
+        );
 
         flightService = new FlightService();
         FlyCommand flyCommand = new FlyCommand(flightService, vanishService);

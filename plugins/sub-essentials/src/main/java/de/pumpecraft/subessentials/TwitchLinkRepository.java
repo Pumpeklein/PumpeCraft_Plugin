@@ -5,6 +5,8 @@ import de.pumpecraft.database.Databases;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.bukkit.plugin.Plugin;
@@ -61,6 +63,24 @@ final class TwitchLinkRepository {
                     return result.next() ? Optional.of(readLink(result)) : Optional.empty();
                 }
             }
+        });
+    }
+
+    List<TwitchLink> findAll() {
+        return database.withConnection(connection -> {
+            List<TwitchLink> links = new ArrayList<>();
+            try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT player_uuid, player_name, twitch_user_id, twitch_login,
+                       twitch_display_name, is_subscriber, linked_at, subscription_checked_at,
+                       game_notified_at, subscription_notified_state
+                  FROM pc_twitch_links
+                 ORDER BY player_uuid
+                """); ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    links.add(readLink(result));
+                }
+            }
+            return List.copyOf(links);
         });
     }
 

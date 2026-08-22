@@ -5,7 +5,7 @@ import java.util.Locale;
 import java.util.logging.Logger;
 import org.bukkit.configuration.file.FileConfiguration;
 
-record ModerationSettings(URI reportsUrl, URI reportUrlBase) {
+record ModerationSettings(URI reportsUrl, URI reportUrlBase, long synchronizationIntervalTicks) {
     private static final URI DEFAULT_REPORTS_URL = URI.create(
         "https://support.pumpe-klein.de/minecraft/reports"
     );
@@ -16,7 +16,8 @@ record ModerationSettings(URI reportsUrl, URI reportUrlBase) {
     static ModerationSettings from(FileConfiguration config, Logger logger) {
         return new ModerationSettings(
             readUrl(config, logger, "reports-url", DEFAULT_REPORTS_URL),
-            readUrl(config, logger, "report-url-base", DEFAULT_REPORT_URL_BASE)
+            readUrl(config, logger, "report-url-base", DEFAULT_REPORT_URL_BASE),
+            Math.max(20L, config.getLong("synchronization-interval-ticks", 40L))
         );
     }
 

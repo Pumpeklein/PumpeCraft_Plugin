@@ -10,5 +10,9 @@ Umgebung. Dieselben Werte benötigt die Website. Das Kanal-Token braucht für di
 Prüfung den Twitch-Scope `channel:read:subscriptions`. Werte aus `config.yml` dienen nur als
 lokaler Fallback und sollten in Produktion leer bleiben.
 
+Die regelmäßige Abo-Prüfung umfasst alle verknüpften Twitch-Konten, auch wenn der zugehörige
+Minecraft-Spieler offline ist. Statuswechsel werden gespeichert und beim nächsten Login
+mitgeteilt; online Spieler erhalten die Änderung direkt nach der Prüfung.
+
 Minecraft kann Browser aus Sicherheitsgründen nicht ungefragt öffnen. `/twitch link` sendet
 deshalb einen deutlich markierten, anklickbaren Link mit Hover-Text.

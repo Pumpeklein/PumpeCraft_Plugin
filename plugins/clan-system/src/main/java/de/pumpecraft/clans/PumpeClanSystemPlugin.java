@@ -5,10 +5,13 @@ import de.pumpecraft.utils.clan.ClanDisplayService;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.concurrent.atomic.AtomicBoolean;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.PluginCommand;
@@ -24,10 +27,13 @@ public final class PumpeClanSystemPlugin extends JavaPlugin {
     private ClanRepository repository;
     private ClanTabService tabService;
     private volatile Directory directory = Directory.empty();
+    private final AtomicBoolean synchronizationRunning = new AtomicBoolean();
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        getConfig().options().copyDefaults(true);
+        saveConfig();
         permissions = new PermissionRegistry(this);
         permissions.load();
         clanNameBlacklist = ClanNameBlacklist.load(this);
@@ -47,22 +53,18 @@ public final class PumpeClanSystemPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(
             new ClanListener(this, repository, tabService), this);
 
-        refreshDirectory();
-        tabService.refresh();
+        synchronizeExternalState();
         getServer().getScheduler().runTaskTimer(
             this,
-            () -> {
-                refreshDirectory();
-                runAsync(() -> repository.cleanupExpiredInvitations(System.currentTimeMillis()));
-            },
-            20L * 60L,
-            20L * 60L
+            this::synchronizeExternalState,
+            synchronizationIntervalTicks(),
+            synchronizationIntervalTicks()
         );
         getServer().getScheduler().runTaskTimer(
             this,
-            tabService::applyOnlinePlayers,
-            20L * 30L,
-            20L * 30L
+            () -> runAsync(() -> repository.cleanupExpiredInvitations(System.currentTimeMillis())),
+            20L * 60L,
+            20L * 60L
         );
         getLogger().info("Clan system enabled.");
     }
@@ -200,6 +202,58 @@ public final class PumpeClanSystemPlugin extends JavaPlugin {
 
     private void refreshDirectoryNow() {
         directory = repository.directory();
+    }
+
+    private void synchronizeExternalState() {
+        if (!synchronizationRunning.compareAndSet(false, true)) {
+            return;
+        }
+        Set<UUID> onlinePlayers = getServer().getOnlinePlayers().stream()
+            .map(Player::getUniqueId)
+            .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        getServer().getScheduler().runTaskAsynchronously(this, () -> {
+            try {
+                Directory loadedDirectory = repository.directory();
+                List<ClanData.TabEntry> loadedEntries = repository.tabEntries();
+                Map<UUID, List<String>> notifications =
+                    repository.takeNotifications(onlinePlayers);
+                getServer().getScheduler().runTask(this, () -> {
+                    try {
+                        directory = loadedDirectory;
+                        tabService.applySnapshot(loadedEntries);
+                        deliverNotifications(notifications);
+                    } finally {
+                        synchronizationRunning.set(false);
+                    }
+                });
+            } catch (RuntimeException exception) {
+                synchronizationRunning.set(false);
+                getLogger().warning(
+                    "Could not synchronize panel clan changes: " + exception.getMessage());
+            }
+        });
+    }
+
+    private void deliverNotifications(Map<UUID, List<String>> notifications) {
+        notifications.forEach((playerId, messages) -> {
+            Player player = getServer().getPlayer(playerId);
+            if (player == null || !player.isOnline()) {
+                runAsync(() -> {
+                    long createdAt = System.currentTimeMillis();
+                    for (String message : messages) {
+                        repository.addNotifications(List.of(playerId), message, createdAt++);
+                    }
+                });
+                return;
+            }
+            for (String message : messages) {
+                player.sendMessage(Component.text(message, NamedTextColor.GOLD));
+            }
+        });
+    }
+
+    private long synchronizationIntervalTicks() {
+        return Math.max(20L, getConfig().getLong("synchronization-interval-ticks", 40L));
     }
 
     private void registerCommand(String name, org.bukkit.command.CommandExecutor executor) {

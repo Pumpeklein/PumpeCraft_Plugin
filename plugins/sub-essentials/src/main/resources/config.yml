@@ -1,4 +1,4 @@
-config-version: 2
+config-version: 3
 
 website:
   twitch-link-url: "https://support.pumpe-klein.de/auth/twitch/minecraft"
@@ -9,7 +9,7 @@ twitch:
   client-id: ""
   auth-token: ""
   channel-login: ""
-  subscription-refresh-minutes: 5
+  subscription-refresh-minutes: 1
 
 cache:
   database-poll-seconds: 5

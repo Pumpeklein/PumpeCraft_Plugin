@@ -12,6 +12,10 @@ import java.sql.Statement;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -316,6 +320,84 @@ final class ModerationRepository {
                 }
             }
         });
+    }
+
+    ModerationSnapshot activePunishments(Collection<UUID> targetIds) {
+        if (targetIds.isEmpty()) {
+            return new ModerationSnapshot(Map.of(), Map.of());
+        }
+        return database.withConnection(connection -> {
+            long now = Instant.now().toEpochMilli();
+            String placeholders = String.join(",", Collections.nCopies(targetIds.size(), "?"));
+            Map<UUID, BanRecord> bans = new LinkedHashMap<>();
+            try (PreparedStatement statement = connection.prepareStatement(
+                """
+                SELECT target_uuid, punishment_id, reason, staff_name, created_at, expires_at
+                  FROM pc_punishments
+                 WHERE punishment_type = 'BAN'
+                   AND revoked_at IS NULL
+                   AND (expires_at IS NULL OR expires_at > ?)
+                   AND target_uuid IN (%s)
+                 ORDER BY target_uuid, (expires_at IS NULL) DESC, expires_at DESC
+                """.formatted(placeholders)
+            )) {
+                statement.setLong(1, now);
+                bindTargetIds(statement, targetIds, 2);
+                try (ResultSet result = statement.executeQuery()) {
+                    while (result.next()) {
+                        UUID targetId = UUID.fromString(result.getString("target_uuid"));
+                        long expiresAtValue = result.getLong("expires_at");
+                        Long expiresAt = result.wasNull() ? null : expiresAtValue;
+                        bans.putIfAbsent(targetId, new BanRecord(
+                            result.getString("punishment_id"),
+                            result.getString("reason"),
+                            result.getString("staff_name"),
+                            result.getLong("created_at"),
+                            expiresAt
+                        ));
+                    }
+                }
+            }
+
+            Map<UUID, MuteRecord> mutes = new LinkedHashMap<>();
+            try (PreparedStatement statement = connection.prepareStatement(
+                """
+                SELECT target_uuid, reason, staff_name, muted_at, expires_at
+                  FROM pc_mutes
+                 WHERE unmuted_at IS NULL
+                   AND expires_at > ?
+                   AND target_uuid IN (%s)
+                """.formatted(placeholders)
+            )) {
+                statement.setLong(1, now);
+                bindTargetIds(statement, targetIds, 2);
+                try (ResultSet result = statement.executeQuery()) {
+                    while (result.next()) {
+                        mutes.put(
+                            UUID.fromString(result.getString("target_uuid")),
+                            new MuteRecord(
+                                result.getString("reason"),
+                                result.getString("staff_name"),
+                                result.getLong("muted_at"),
+                                result.getLong("expires_at")
+                            )
+                        );
+                    }
+                }
+            }
+            return new ModerationSnapshot(bans, mutes);
+        });
+    }
+
+    private void bindTargetIds(
+        PreparedStatement statement,
+        Collection<UUID> targetIds,
+        int startIndex
+    ) throws SQLException {
+        int index = startIndex;
+        for (UUID targetId : targetIds) {
+            statement.setString(index++, targetId.toString());
+        }
     }
 
     PunishmentTarget findActiveBanTarget(String punishmentId) {

@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -22,6 +23,7 @@ final class SubscriberStatusService implements SubscriberService {
     private final Map<UUID, Long> notificationVersions = new ConcurrentHashMap<>();
     private final Map<UUID, Boolean> subscriptionNotificationVersions = new ConcurrentHashMap<>();
     private final Map<UUID, Long> unlinkedAt = new ConcurrentHashMap<>();
+    private final AtomicBoolean subscriptionRefreshRunning = new AtomicBoolean();
 
     SubscriberStatusService(
         SubEssentialsPlugin plugin,
@@ -80,6 +82,28 @@ final class SubscriberStatusService implements SubscriberService {
         });
     }
 
+    void refreshAllSubscriptions() {
+        if (!subscriptionRefreshRunning.compareAndSet(false, true)) {
+            return;
+        }
+        plugin.runAsync(() -> {
+            try {
+                for (TwitchLink link : repository.findAll()) {
+                    Optional<Boolean> current = twitch.isSubscriber(link.twitchUserId());
+                    if (current.isEmpty()) {
+                        continue;
+                    }
+                    repository.updateSubscription(
+                        link.playerId(), current.get(), System.currentTimeMillis());
+                }
+                plugin.runSync(() -> Bukkit.getOnlinePlayers()
+                    .forEach(player -> load(player, false)));
+            } finally {
+                subscriptionRefreshRunning.set(false);
+            }
+        });
+    }
+
     void remove(UUID playerId) {
         subscribers.remove(playerId);
         notificationVersions.remove(playerId);
@@ -107,6 +131,7 @@ final class SubscriberStatusService implements SubscriberService {
         notificationVersions.clear();
         subscriptionNotificationVersions.clear();
         unlinkedAt.clear();
+        subscriptionRefreshRunning.set(false);
     }
 
     private void apply(UUID playerId, boolean subscriber) {

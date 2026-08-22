@@ -25,8 +25,11 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -331,25 +334,56 @@ final class ClanRepository {
     }
 
     List<String> takeNotifications(UUID playerId) {
+        return takeNotifications(List.of(playerId)).getOrDefault(playerId, List.of());
+    }
+
+    Map<UUID, List<String>> takeNotifications(Collection<UUID> playerIds) {
+        if (playerIds.isEmpty()) {
+            return Map.of();
+        }
         return database.inTransaction(connection -> {
-            List<String> messages = new ArrayList<>();
+            String playerPlaceholders = String.join(",",
+                Collections.nCopies(playerIds.size(), "?"));
+            Map<UUID, List<String>> messages = new LinkedHashMap<>();
+            List<Long> notificationIds = new ArrayList<>();
             try (PreparedStatement statement = connection.prepareStatement(
-                "SELECT message FROM pc_clan_notifications WHERE player_uuid = ? ORDER BY created_at, id"
+                """
+                SELECT id, player_uuid, message
+                  FROM pc_clan_notifications
+                 WHERE player_uuid IN (%s)
+                 ORDER BY created_at, id
+                 FOR UPDATE
+                """.formatted(playerPlaceholders)
             )) {
-                statement.setString(1, playerId.toString());
+                int index = 1;
+                for (UUID playerId : playerIds) {
+                    statement.setString(index++, playerId.toString());
+                }
                 try (ResultSet result = statement.executeQuery()) {
                     while (result.next()) {
-                        messages.add(result.getString("message"));
+                        notificationIds.add(result.getLong("id"));
+                        UUID playerId = UUID.fromString(result.getString("player_uuid"));
+                        messages.computeIfAbsent(playerId, ignored -> new ArrayList<>())
+                            .add(result.getString("message"));
                     }
                 }
             }
-            try (PreparedStatement statement = connection.prepareStatement(
-                "DELETE FROM pc_clan_notifications WHERE player_uuid = ?"
-            )) {
-                statement.setString(1, playerId.toString());
-                statement.executeUpdate();
+            if (!notificationIds.isEmpty()) {
+                String idPlaceholders = String.join(",",
+                    Collections.nCopies(notificationIds.size(), "?"));
+                try (PreparedStatement statement = connection.prepareStatement(
+                    "DELETE FROM pc_clan_notifications WHERE id IN (" + idPlaceholders + ")"
+                )) {
+                    for (int index = 0; index < notificationIds.size(); index++) {
+                        statement.setLong(index + 1, notificationIds.get(index));
+                    }
+                    statement.executeUpdate();
+                }
             }
-            return List.copyOf(messages);
+            Map<UUID, List<String>> immutable = new LinkedHashMap<>();
+            messages.forEach((playerId, playerMessages) ->
+                immutable.put(playerId, List.copyOf(playerMessages)));
+            return Map.copyOf(immutable);
         });
     }
 

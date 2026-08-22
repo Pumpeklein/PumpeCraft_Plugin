@@ -1,4 +1,7 @@
-config-version: 3
+config-version: 4
+
+# Website-Bans und -Mutes werden spätestens nach diesem Intervall für eingeloggte Spieler aktiv.
+synchronization-interval-ticks: 40
 
 # Direkter Link zum Reports-Reiter des Web-Panels.
 reports-url: "https://support.pumpe-klein.de/minecraft/reports"

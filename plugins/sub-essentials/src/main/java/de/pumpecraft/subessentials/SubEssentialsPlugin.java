@@ -9,7 +9,7 @@ import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class SubEssentialsPlugin extends JavaPlugin {
-    private static final int CONFIG_VERSION = 2;
+    private static final int CONFIG_VERSION = 3;
 
     private SubscriberStatusService subscribers;
 
@@ -43,8 +43,8 @@ public final class SubEssentialsPlugin extends JavaPlugin {
         );
         getServer().getScheduler().runTaskTimer(
             this,
-            () -> Bukkit.getOnlinePlayers().forEach(player -> subscribers.load(player, true)),
-            settings.subscriptionRefreshTicks(),
+            subscribers::refreshAllSubscriptions,
+            20L,
             settings.subscriptionRefreshTicks()
         );
 
@@ -92,6 +92,10 @@ public final class SubEssentialsPlugin extends JavaPlugin {
 
         if (version < 2 && getConfig().getLong("cache.database-poll-seconds", 30L) == 30L) {
             getConfig().set("cache.database-poll-seconds", 5L);
+        }
+        if (version < 3
+            && getConfig().getLong("twitch.subscription-refresh-minutes", 5L) == 5L) {
+            getConfig().set("twitch.subscription-refresh-minutes", 1L);
         }
         getConfig().options().copyDefaults(true);
         getConfig().set("config-version", CONFIG_VERSION);

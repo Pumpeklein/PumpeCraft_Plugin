@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -58,6 +59,7 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
     private final ModerationSettings settings;
     /** Aktive Mutes der eingeloggten Spieler; hält den Chat-Check von der Datenbank fern. */
     private final Map<UUID, MuteRecord> muteCache = new ConcurrentHashMap<>();
+    private final AtomicBoolean synchronizationRunning = new AtomicBoolean();
 
     public ModerationCommand(
         PumpeModPlugin plugin,
@@ -227,6 +229,60 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
         sender.sendMessage(reportStatus(repository.countOpenReports()));
         repository.markOpenReportsSeen(actorId(sender));
         return true;
+    }
+
+    void synchronizeOnlinePlayers() {
+        Set<UUID> playerIds = Bukkit.getOnlinePlayers().stream()
+            .map(Player::getUniqueId)
+            .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        if (playerIds.isEmpty() || !synchronizationRunning.compareAndSet(false, true)) {
+            return;
+        }
+        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+            ModerationSnapshot snapshot;
+            try {
+                snapshot = repository.activePunishments(playerIds);
+            } catch (RuntimeException exception) {
+                synchronizationRunning.set(false);
+                plugin.getLogger().log(
+                    Level.WARNING, "Could not synchronize panel punishments.", exception);
+                return;
+            }
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                try {
+                    applySnapshot(snapshot, playerIds);
+                } finally {
+                    synchronizationRunning.set(false);
+                }
+            });
+        });
+    }
+
+    private void applySnapshot(ModerationSnapshot snapshot, Set<UUID> checkedPlayers) {
+        for (UUID playerId : checkedPlayers) {
+            Player player = Bukkit.getPlayer(playerId);
+            if (player == null || !player.isOnline()) {
+                continue;
+            }
+            BanRecord ban = snapshot.bans().get(playerId);
+            if (ban != null) {
+                muteCache.remove(playerId);
+                player.kick(banScreen(ban));
+                continue;
+            }
+
+            MuteRecord previous = muteCache.get(playerId);
+            MuteRecord current = snapshot.mutes().get(playerId);
+            if (current == null) {
+                if (previous != null) {
+                    muteCache.remove(playerId);
+                    player.sendMessage(muteEndedMessage());
+                }
+            } else if (!current.equals(previous)) {
+                muteCache.put(playerId, current);
+                player.sendMessage(muteMessage(current));
+            }
+        }
     }
 
     private boolean handleWarn(CommandSender sender, String label, String[] args) {
@@ -577,6 +633,7 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
 
     void clearCaches() {
         muteCache.clear();
+        synchronizationRunning.set(false);
     }
 
     private boolean canViewReports(Player player) {
@@ -745,6 +802,15 @@ public final class ModerationCommand implements CommandExecutor, TabCompleter, L
     }
 
     private record TargetPlayer(UUID uniqueId, String name) {
+    }
+
+    private Component muteEndedMessage() {
+        return joinLines(List.of(
+            CHAT_DIVIDER,
+            Component.text("Dein Mute ist nicht mehr aktiv", NamedTextColor.GREEN,
+                TextDecoration.BOLD),
+            CHAT_DIVIDER
+        ));
     }
 
     private record UnbanTarget(TargetPlayer target, String punishmentId) {

@@ -60,6 +60,14 @@ final class ClanTabService implements ClanDisplayService {
         });
     }
 
+    void applySnapshot(List<TabEntry> loaded) {
+        entries.clear();
+        for (TabEntry entry : loaded) {
+            entries.put(entry.playerId(), entry);
+        }
+        applyOnlinePlayers();
+    }
+
     void applyOnlinePlayers() {
         for (Player player : Bukkit.getOnlinePlayers()) {
             apply(player);
