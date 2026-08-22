@@ -28,7 +28,7 @@ public final class ItemEnchants {
         "pumpeenchants", "book_format");
     private static final NamespacedKey BOOK_RENDERED_LORE = new NamespacedKey(
         "pumpeenchants", "book_rendered_lore");
-    private static final int BOOK_FORMAT_VERSION = 1;
+    private static final int BOOK_FORMAT_VERSION = 2;
     private static final String LORE_SEPARATOR = "\u001f";
 
     private final EnchantRegistry registry;
@@ -219,15 +219,25 @@ public final class ItemEnchants {
             .collect(java.util.stream.Collectors.toSet());
         lore.removeIf(previousVanillaLines::contains);
         List<Component> descriptions = new ArrayList<>();
+        String bookName = meta.displayName() == null ? "" : PLAIN.serialize(meta.displayName());
         for (CustomEnchant enchant : registry.all()) {
-            if (meta.hasStoredEnchant(nativeEnchant(enchant.key()))) {
-                descriptions.add(Component.text(enchant.description(), NamedTextColor.GRAY)
+            int level = meta.getStoredEnchantLevel(nativeEnchant(enchant.key()));
+            if (level <= 0) {
+                continue;
+            }
+            if (!bookName.equals(enchant.label(level))) {
+                descriptions.add(Component.text(enchant.label(level), NamedTextColor.LIGHT_PURPLE)
                     .decoration(TextDecoration.ITALIC, false));
             }
+            descriptions.add(Component.text(enchant.description(), NamedTextColor.GRAY)
+                .decoration(TextDecoration.ITALIC, false));
         }
         meta.getStoredEnchants().entrySet().stream()
             .filter(entry -> entry.getKey().getKey().getNamespace().equals("minecraft"))
+            .sorted(Map.Entry.comparingByKey(
+                java.util.Comparator.comparing(enchantment -> enchantment.getKey().toString())))
             .map(entry -> entry.getKey().displayName(entry.getValue())
+                .color(NamedTextColor.YELLOW)
                 .decoration(TextDecoration.ITALIC, false))
             .forEach(descriptions::add);
         List<String> renderedLore = descriptions.stream().map(PLAIN::serialize).toList();
