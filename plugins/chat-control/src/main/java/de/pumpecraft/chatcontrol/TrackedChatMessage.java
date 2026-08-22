@@ -10,7 +10,7 @@ record TrackedChatMessage(
     SignedMessage signedMessage,
     Set<Audience> viewers,
     long createdAt,
-    boolean reviewRequired,
+    boolean held,
     Map<Audience, Component> pendingDeliveries
 ) {
 }

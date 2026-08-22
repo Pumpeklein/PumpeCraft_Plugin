@@ -11,7 +11,6 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.projectiles.ProjectileSource;
 
 import de.pumpecraft.utils.messages.Messages;
 import net.kyori.adventure.text.Component;
@@ -60,34 +59,29 @@ public final class DeathMessageListener implements Listener {
         if (!(damageEvent instanceof EntityDamageByEntityEvent entityDamageEvent)) {
             return "das Universum";
         }
-
-        Entity damager = entityDamageEvent.getDamager();
-        if (damager instanceof Player player) {
-            return player.getName();
-        }
-
-        if (damager instanceof Projectile projectile) {
-            ProjectileSource shooter = projectile.getShooter();
-            if (shooter instanceof Player player) {
-                return player.getName();
-            }
-        }
-
-        Component customNameComponent = damager.customName();
-        String customName = customNameComponent == null ? null : PlainTextComponentSerializer.plainText().serialize(customNameComponent);
-        return customName == null || customName.isBlank() ? readableEntityName(damager) : customName;
+        return name(attacker(entityDamageEvent.getDamager()));
     }
 
-    private String readableEntityName(Entity entity) {
-        String[] parts = entity.getType().name().toLowerCase().split("_");
-        StringBuilder builder = new StringBuilder();
-        for (String part : parts) {
-            if (!builder.isEmpty()) {
-                builder.append(' ');
-            }
-            builder.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
+    // Der Pfeil ist nicht der Toeter: Ohne diesen Schritt steht bei jedem Skelettschuss "Arrow"
+    // in der Meldung. Nur wenn niemand geschossen hat - ein Werfer etwa - bleibt das Geschoss.
+    private Entity attacker(Entity damager) {
+        if (damager instanceof Projectile projectile && projectile.getShooter() instanceof Entity shooter) {
+            return shooter;
         }
-        return builder.toString();
+        return damager;
+    }
+
+    private String name(Entity entity) {
+        if (entity instanceof Player player) {
+            return player.getName();
+        }
+        Component customNameComponent = entity.customName();
+        String customName = customNameComponent == null
+            ? null
+            : PlainTextComponentSerializer.plainText().serialize(customNameComponent);
+        return customName == null || customName.isBlank()
+            ? EntityNames.german(entity.getType())
+            : customName;
     }
 
     private Map<String, String> values(DeathContext context) {

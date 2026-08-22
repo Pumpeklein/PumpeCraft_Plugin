@@ -1,9 +1,16 @@
 # PumpeAI
 
-DeepSeek-Anbindung als Bibliotheks-Plugin. Es erzeugt selbst keine Meldungen - es liefert nur
-Textzeilen an Plugins, die danach fragen.
+Bibliotheks-Plugin für alles, was ein Modell erledigt. Es entscheidet selbst nichts - es liefert
+Textzeilen und Urteile an Plugins, die danach fragen. Zwei Dienste, zwei Anbieter:
 
-## Einrichtung
+| Dienst | Anbieter | Wofür |
+| --- | --- | --- |
+| `AiService` | DeepSeek | Erzeugte Servermeldungen |
+| `ModerationService` | OpenAI | Prüfung von Spielertexten auf Beleidigung, Hass, Sexuelles |
+
+Beide sind unabhängig voneinander: Fehlt ein Schlüssel, bleibt genau dieser Dienst still.
+
+## Einrichtung Textgenerierung
 
 `plugins/PumpeAI/config.yml`:
 
@@ -21,10 +28,68 @@ Textzeilen an Plugins, die danach fragen.
 Ohne Schlüssel bleibt der Dienst still: `available()` ist `false` und jedes Plugin nutzt weiter
 seine eigenen Texte.
 
+## Einrichtung Meldungen
+
+Abschnitt `messages` derselben `config.yml` steuert, wie viel erzeugt wird:
+
+| Schlüssel | Bedeutung |
+| --- | --- |
+| `enabled` | Schaltet erzeugte Meldungen ab; alle Plugins nutzen dann ihre Vorlagen |
+| `batch-size`, `refill-below` | Zeilen pro Anfrage und Grenze, ab der nachgefüllt wird |
+| `warm-up` | Alle angemeldeten Themen beim Start einmal vorfüllen |
+| `retry-cooldown-seconds` | Pause für ein Thema, dessen Antwort keine brauchbare Zeile enthielt |
+| `excluded-topics` | Themen ohne erzeugte Texte, `*` am Ende ist ein Präfix |
+
+`excluded-topics` ist der Hebel gegen Kosten: Die 33 Todesursachen sind die mit Abstand
+häufigsten Meldungen, `death-*` nimmt sie in einer Zeile heraus. `/pumpeai topics` listet jeden
+Schlüssel mit seinem Vorrat.
+
+## Einrichtung Moderation
+
+Der Moderations-Endpunkt von OpenAI kostet nichts, braucht aber einen **eigenen** Schlüssel - der
+DeepSeek-Schlüssel funktioniert dort nicht. Abschnitt `moderation` in derselben `config.yml`:
+
+| Schlüssel | Bedeutung |
+| --- | --- |
+| `enabled` | Schaltet die Prüfung ab, ohne den Schlüssel zu entfernen |
+| `api-key` | OpenAI-Schlüssel. Bleibt er leer, wird `OPENAI_API_KEY` aus der Umgebung gelesen |
+| `base-url` | Endpunkt, Standard `https://api.openai.com/v1` |
+| `model` | Standard `omni-moderation-latest` |
+| `request-timeout-seconds`, `failure-cooldown-seconds` | Grenzen pro Anfrage, Sperrzeit nach einem Fehlschlag |
+| `max-characters` | Längere Texte werden vor dem Versand gekürzt |
+| `default-threshold` | Ab welchem Wert eine Kategorie ohne eigene Schwelle als Treffer gilt |
+| `thresholds` | Schwelle je Kategorie, niedriger = mehr Treffer |
+| `default-hold-threshold`, `hold-thresholds` | Ab hier wiegt der Treffer schwer |
+| `ignored-categories` | Kategorien, die nie als Treffer zählen |
+
+OpenAI liefert zu jedem Text dreizehn Kategorien mit einem Wert zwischen 0 und 1 und ein eigenes
+`flagged`. Dieses `flagged` setzt es erst sehr spät - deshalb entscheiden bei uns die Schwellen,
+und `flagged` zählt nur zusätzlich.
+
+Wie spät, zeigt ein gemessenes Beispiel: "Bring dich um" kommt auf 0.12 `self-harm/intent`, 0.02
+`harassment` und `flagged=False`. Kurze deutsche Sätze bewertet das Modell durchgehend niedrig,
+und darum stehen die Schwellen hier bei 0.05 bis 0.2 statt bei den 0.5, die man erwarten würde.
+Harmlose Nachrichten liegen in denselben Kategorien bei 0.0001 und tiefer - der Abstand trägt das.
+Was die Wortliste von `PumpeChatControl` ohnehin kennt, kommt hier gar nicht erst an.
+
+Ein Urteil hat deshalb zwei Stufen: Wer nur die erste Schwelle reisst, ist ein Verdacht
+(`ModerationSeverity.LOW`), wer auch die zweite reisst, ist deutlich (`HIGH`). Was ein Plugin
+daraus macht, ist seine Sache - `PumpeChatControl` stellt einen Verdacht zu und markiert ihn nur,
+und hält erst die deutlichen Treffer auf. Ohne diese Trennung hängt bei tiefen Schwellen der halbe
+Chat fest, und bei hohen wird wieder nichts erkannt. Was in `ignored-categories` steht, zählt in keinem Fall:
+`violence` steht dort, weil im Spiel dauernd jemand jemanden umbringt und meistens ein Creeper
+gemeint ist.
+
+`/pumpeai check <Text>` ist der Weg, die Schwellen einzustellen: Es zeigt für eine echte Nachricht
+die fünf stärksten Kategorien mit ihren Werten.
+
 ## Befehl
 
-- `/pumpeai status` - Schlüssel gesetzt, Modell, Endpunkt, bereit ja/nein.
+- `/pumpeai status` - Schlüssel gesetzt, Modell, Endpunkt, bereit ja/nein, Zustand der Moderation
+  und der Verbrauch seit dem Serverstart: Anfragen, Token, Cache-Anteil, Schnitt je Anfrage.
 - `/pumpeai test` - holt drei Beispielzeilen und zeigt sie an. Der Weg zum Prüfen der Verbindung.
+- `/pumpeai check <Text>` - prüft einen Text und zeigt Urteil und die stärksten Kategorien.
+- `/pumpeai topics` - alle angemeldeten Themen mit Vorrat oder dem Hinweis, dass sie ausgenommen sind.
 
 Permission: `pumpecraft.ai.admin` (Standard: op).
 
@@ -50,10 +115,25 @@ So läuft eine Meldung:
    verworfen.
 
 Der erste Griff in ein leeres Thema liefert immer eine eigene Vorlage - deshalb wird jedes Thema
-vorgewärmt, sobald es sich über `Messages.register` anmeldet. Beim Serverstart sind das rund 45
+vorgewärmt, sobald es sich über `Messages.register` anmeldet. Beim Serverstart sind das 44
 Anfragen (33 Todesursachen, Meilenstein, Join, First Join, Leave, Fortschritt, vier Strafen, zwei
 Trader), die über drei Threads im Hintergrund laufen. `/pumpeai status` zeigt, wie voll die
-Vorräte sind.
+Vorräte sind, `/pumpeai topics` je Thema.
+
+Bezahlt wird dieses Vorwärmen nur einmal: Beim Herunterfahren schreibt `AiMessageStore` die
+Vorräte nach `plugins/PumpeAI/pools.yml` und holt sie beim Start zurück. Ohne das kostet jeder
+Neustart die vollen 44 Anfragen, obwohl die Zeilen von gestern noch gelten - bei einem Server,
+der mehrmals am Tag neu startet, ist das der grösste Posten auf der Rechnung.
+
+Eine Anfrage kostet gemessen rund 600 Token: ~200 System-Prompt, ~215 Aufgabe mit drei
+Beispielen, ~190 für zehn Zeilen. Der System-Prompt ist in jeder Anfrage derselbe und wird von
+DeepSeek als Präfix gecacht, kostet also nur einen Bruchteil. Ein vollständiges Vorwärmen sind
+damit rund 26.000 Token - einmalig, nicht pro Start. Was wirklich anfällt, steht in
+`/pumpeai status`.
+
+Ein Thema, dessen Antwort keine brauchbare Zeile enthält, pausiert danach
+(`retry-cooldown-seconds`). Sonst löst jede einzelne Meldung dieses Themas eine neue Anfrage aus,
+die genauso wieder durchfällt.
 
 Ein Thema, das sich nicht anmeldet, wird erst beim ersten Gebrauch nachgefüllt - dann kommt genau
 diese eine Meldung noch aus der Vorlage.
@@ -73,6 +153,33 @@ if (ai != null && ai.available()) {
 `softdepend: [PumpeAI]` in die `plugin.yml` eintragen, damit das eigene Plugin auch ohne die
 KI startet. Niemals im Spielverlauf auf das Ergebnis warten.
 
+## Texte prüfen
+
+```java
+ModerationService moderation = Ai.moderation(plugin);   // null, wenn PumpeAI nicht läuft
+if (moderation != null && moderation.available()) {
+    moderation.inspect(message).thenAccept(verdict -> {
+        if (verdict.flagged()) {
+            // verdict.label() ist der deutsche Kategoriename, verdict.score() die Sicherheit
+        }
+    });
+}
+```
+
+Zwei Regeln, die aus einer Prüfung erst eine brauchbare Moderation machen:
+
+- **Ein Fehlschlag darf keine Nachricht kosten.** `inspect` liefert bei Timeout, HTTP-Fehler oder
+  fehlendem Schlüssel `ModerationVerdict.CLEAN`, und nach einem Fehlschlag pausiert der Dienst.
+  Wer prüft, muss den unauffälligen Fall als Normalfall behandeln.
+- **Wer wartet, wartet mit Grenze.** Ein Aufrufer auf einem asynchronen Thread darf
+  `get(timeout, …)` benutzen und fällt danach auf "erlaubt" zurück. Auf dem Server-Thread wird
+  nie gewartet, dort zählt nur `thenAccept` und ein Sprung zurück über den Scheduler.
+
+Die Prüfung läuft auf einem eigenen Thread-Pool, getrennt von der Textgenerierung: Eine Anfrage,
+auf die der Chat wartet, darf nicht hinter minutenlangem Meldungsnachschub hängen.
+
+Beispiel im Bestand: `AiChatReviewer` in [plugins/chat-control](../chat-control/README.md).
+
 ## Aufbau
 
 | Klasse | Aufgabe |
@@ -85,7 +192,25 @@ KI startet. Niemals im Spielverlauf auf das Ergebnis warten.
 | `TextLines` | Zerlegt die Antwort in Zeilen und entfernt Nummerierung und Anführungszeichen |
 | `Ai` | Service-Lookup, `null` wenn das Plugin fehlt |
 | `AiMessagePool` | Vorrat je Thema, Nachschub im Hintergrund, Prüfung der Zeilen |
+| `MessageSettings` | Abschnitt `messages` als Record, inklusive der ausgenommenen Themen |
+| `AiMessageStore` | Vorräte in `pools.yml`, damit ein Neustart nichts kostet |
+| `AiUsage`, `TokenUsage`, `Completion` | Verbrauch aus dem `usage`-Block der Antwort, gezählt seit dem Start |
 | `TopicPrompt` | Aufgabe und erlaubte Platzhalter aus einem `MessageTopic` |
-| `AiCommand` | `/pumpeai status\|test` |
+| `AiCommand` | `/pumpeai status\|topics\|test\|check` |
+| `support/JsonHttp` | JSON-POST mit Bearer-Token, für beide Anbieter |
+| `support/FailureCooldown` | Sperrzeit nach einem Fehlschlag |
+| `support/DaemonThreads` | Benannte Daemon-Threads für die Executor-Pools |
 
-Der Schlüssel steht ausschließlich im Authorization-Header und wird nirgends geloggt.
+| Klasse in `moderation` | Aufgabe |
+| --- | --- |
+| `ModerationService` | Öffentliche API: `available()`, `inspect(text)`, eigener Thread-Pool |
+| `ModerationSettings` | Abschnitt `moderation` als Record, Schlüssel auch aus der Umgebung |
+| `ModerationClient` | Der HTTP-Aufruf, blockierend, nur auf dem eigenen Thread |
+| `ModerationPayload` | Request-Body und Antwort des Moderations-Endpunkts |
+| `ModerationScores` | Die rohen Werte je Kategorie plus das `flagged` von OpenAI |
+| `ModerationRules` | Schwellen und Ausnahmen - hier entsteht das Urteil |
+| `ModerationVerdict` | Das Urteil: Stufe, stärkste Kategorie, alle Werte |
+| `ModerationSeverity` | Die Stufen `NONE`, `LOW`, `HIGH` |
+| `ModerationCategories` | Die Kategorien mit deutschem Namen |
+
+Beide Schlüssel stehen ausschließlich im Authorization-Header und werden nirgends geloggt.

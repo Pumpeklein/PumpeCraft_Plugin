@@ -3,9 +3,9 @@ version: ${version}
 main: de.pumpecraft.chatcontrol.PumpeChatControlPlugin
 api-version: '1.21'
 author: PumpeCraft
-description: Filters, tracks and moderates global and private player chat.
+description: Filters, reviews, tracks and moderates global and private player chat.
 depend: [PumpeDatabase, PumpeUtils]
-softdepend: [PumpeClanSystem, SubEssentials]
+softdepend: [PumpeClanSystem, SubEssentials, PumpeAI]
 commands:
   msg:
     aliases: [tell, w]

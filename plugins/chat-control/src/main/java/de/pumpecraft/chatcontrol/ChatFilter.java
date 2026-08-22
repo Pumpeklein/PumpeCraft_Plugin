@@ -17,6 +17,9 @@ final class ChatFilter {
     private static final Pattern SEPARATORS = Pattern.compile("[^a-z0-9]+");
     private static final Pattern REPEATED_CHARACTERS = Pattern.compile("([a-z0-9])\\1+");
 
+    private static final int MIN_STEM_LENGTH = 4;
+    private static final int MAX_MISSING_CHARACTERS = 2;
+
     private final List<String> blockedTerms;
     private final long windowMillis;
     private final int maxMessages;
@@ -41,7 +44,7 @@ final class ChatFilter {
         String normalized = normalize(original);
         for (String term : blockedTerms) {
             if (containsTerm(normalized, term)) {
-                return FilterResult.review("Der Chatfilter hat eine unzulässige Formulierung erkannt.");
+                return FilterResult.hold("Der Chatfilter hat eine unzulässige Formulierung erkannt.");
             }
         }
 
@@ -73,6 +76,9 @@ final class ChatFilter {
         if (paddedMessage.contains(paddedTerm)) {
             return true;
         }
+        if (matchesStem(message, term)) {
+            return true;
+        }
 
         String collapsedTerm = term.replace(" ", "");
         StringBuilder obfuscated = new StringBuilder("(?:^|\\s)");
@@ -84,6 +90,29 @@ final class ChatFilter {
         }
         obfuscated.append("(?:$|\\s)");
         return Pattern.compile(obfuscated.toString()).matcher(message).find();
+    }
+
+    /**
+     * In der Liste steht "fotze", geschrieben wird "Fotz" oder "fotzen": ein Wort zaehlt auch
+     * dann, wenn es den Begriff nur anfaengt oder um eine Endung verlaengert. Kurze Woerter
+     * bleiben aussen vor, sonst traefe "hur" auf halbe Sprache zu.
+     */
+    private static boolean matchesStem(String message, String term) {
+        if (term.contains(" ")) {
+            return false;
+        }
+        for (String word : message.split(" ")) {
+            if (word.length() < MIN_STEM_LENGTH) {
+                continue;
+            }
+            if (word.startsWith(term)) {
+                return true;
+            }
+            if (term.startsWith(word) && term.length() - word.length() <= MAX_MISSING_CHARACTERS) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String normalize(String value) {

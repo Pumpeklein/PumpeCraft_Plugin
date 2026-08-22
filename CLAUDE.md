@@ -45,7 +45,7 @@ neue Schlüssel, es korrigiert keine alten.
 | --- | --- | --- |
 | `plugins/database` | `PumpeDatabase` | HikariCP-Pool, Flyway-Migrationen, `DatabaseService` als Bukkit-Service |
 | `plugins/utils` | `PumpeUtils` | Statische Helfer ohne Zustand plus Sektionen `messages` und `objects` |
-| `plugins/ai` | `PumpeAI` | DeepSeek-Anbindung als Dienst; erzeugt Textzeilen für andere Plugins |
+| `plugins/ai` | `PumpeAI` | Modell-Anbindung als Dienst: erzeugte Textzeilen (DeepSeek) und Textprüfung (OpenAI-Moderation) |
 | `plugins/anticheat` | `PumpeAntiCheat` | Checks, Client-Erkennung, Item-Validierung |
 | `plugins/essentials` | `PumpeEssentials` | Inventar- und Enderchest-Zugriff für das Team, Item-Dienste, Rücksprungpunkte (`/back`), Haltungen (`/sit`, `/crawl`) |
 | `plugins/mod` | `PumpeMod` | Bans, Mutes, Reports, Notizen |
@@ -55,7 +55,7 @@ neue Schlüssel, es korrigiert keine alten.
 | `plugins/trader` | `PumpeTrader` | Handels-NPCs |
 | `plugins/death-messages` | `PumpeDeathMessages` | Todes-, Join-, Leave- und Fortschrittsmeldungen, Todeszähler |
 | `plugins/playtime` | `PumpePlaytime` | Spielzeit-Erfassung |
-| `plugins/chat-control` | `PumpeChatControl` | Chatfilter, Privatnachrichten, Persistenz |
+| `plugins/chat-control` | `PumpeChatControl` | Chatfilter, automatische Prüfung über `PumpeAI`, Privatnachrichten, Persistenz |
 | `plugins/transactions` | `PumpeTransactions` | PumpePoints (PP), Buchungen, Zeitgutschrift |
 | `plugins/mailbox` | `PumpeMailbox` | Briefkasten als Serverobjekt: Klappe, Fahne, Namensschild, Postfach, bezahlter Versand mit Lieferzeit |
 | `plugins/enchants` | `PumpeEnchants` | Registrierte eigene Verzauberungen, Bücher und Amboss-Kombination, `EnchantService` als Bukkit-Service |
@@ -85,6 +85,12 @@ Abhängigkeit zur KI.
 **Erzeugte Texte.** Was von `PumpeAI` kommt, ist Kür. Die eigenen Vorlagen bleiben stehen und
 gelten immer dann, wenn nichts Erzeugtes bereitliegt — nie im Spielverlauf auf eine Antwort
 warten, nie ungeprüft in den Chat schreiben. Referenz: `AiMessagePool` in `plugins/ai`.
+
+**Geprüfte Texte.** Alles, was ein Modell über einen Spielertext urteilt, kommt über
+`ModerationService` aus `plugins/ai` — kein Plugin spricht selbst mit einem Anbieter. Ein Urteil,
+das ausbleibt, heißt immer "erlaubt": Ein abgelaufener Schlüssel darf keine Nachricht kosten. Wer
+auf ein Urteil wartet, tut das nur auf einem asynchronen Thread und nur mit Zeitgrenze. Referenz:
+`AiChatReviewer` in `plugins/chat-control`.
 
 ## Build
 

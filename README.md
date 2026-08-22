@@ -14,7 +14,8 @@ Multi-plugin workspace for the PumpeCraft server.
 - `plugins/death-messages` - custom death messages
 - `plugins/playtime` - playtime tracking and rewards
 - `plugins/anticheat` - Bedrock-aware server-side cheat detection
-- `plugins/chat-control` - global/private chat tracking, filtering and DEL moderation
+- `plugins/ai` - generated text and message review as a service for the other plugins
+- `plugins/chat-control` - global/private chat tracking, filtering, automatic review and DEL moderation
 
 Each folder is an independent Paper plugin module with its own `plugin.yml`, Java entrypoint and README.
 

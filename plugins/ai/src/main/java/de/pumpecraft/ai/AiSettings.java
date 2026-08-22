@@ -1,5 +1,6 @@
 package de.pumpecraft.ai;
 
+import de.pumpecraft.ai.support.JsonHttp;
 import java.time.Duration;
 import org.bukkit.configuration.file.FileConfiguration;
 
@@ -29,7 +30,7 @@ record AiSettings(
         return new AiSettings(
             config.getBoolean("enabled", true),
             apiKey(config),
-            stripTrailingSlash(config.getString("base-url", "https://api.deepseek.com")),
+            JsonHttp.base(config.getString("base-url", "https://api.deepseek.com")),
             config.getString("model", "deepseek-chat"),
             systemPrompt(config),
             config.getDouble("temperature", 1.3D),
@@ -56,9 +57,5 @@ record AiSettings(
     private static String systemPrompt(FileConfiguration config) {
         String configured = config.getString("system-prompt", "").trim();
         return configured.isEmpty() ? DEFAULT_SYSTEM_PROMPT : configured;
-    }
-
-    private static String stripTrailingSlash(String url) {
-        return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
     }
 }
