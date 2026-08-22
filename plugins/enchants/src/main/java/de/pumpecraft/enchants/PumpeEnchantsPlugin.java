@@ -22,7 +22,9 @@ import de.pumpecraft.enchants.listener.DamageEnchantListener;
 import de.pumpecraft.enchants.listener.EnchantBookMigrationListener;
 import de.pumpecraft.enchants.listener.SoulboundListener;
 import de.pumpecraft.enchants.listener.LootEnchantListener;
+import de.pumpecraft.enchants.listener.RareBookDiscoveryListener;
 import de.pumpecraft.enchants.loot.CustomEnchantLoot;
+import de.pumpecraft.enchants.loot.RareBookDiscovery;
 import de.pumpecraft.enchants.mining.BlockMiningRules;
 import de.pumpecraft.enchants.integration.Courier;
 import de.pumpecraft.enchants.integration.LuckyDrops;
@@ -37,7 +39,7 @@ import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class PumpeEnchantsPlugin extends JavaPlugin {
-    private static final int CONFIG_VERSION = 3;
+    private static final int CONFIG_VERSION = 4;
 
     private EnchantTicker ticker;
 
@@ -66,7 +68,9 @@ public final class PumpeEnchantsPlugin extends JavaPlugin {
             new Barb(service, settings));
         SoulboundRules soulbound = new SoulboundRules(
             this, service, new SoulboundRepository(this));
-        CustomEnchantLoot customLoot = new CustomEnchantLoot(registry, service, settings);
+        RareBookDiscovery rareBooks = new RareBookDiscovery(this, service);
+        CustomEnchantLoot customLoot = new CustomEnchantLoot(
+            registry, service, settings, rareBooks);
 
         listen(new BlockEnchantListener(
             new BlockMiningRules(this, service, settings, chains), lucky, chains));
@@ -78,6 +82,9 @@ public final class PumpeEnchantsPlugin extends JavaPlugin {
         listen(new SoulboundListener(this, soulbound));
         listen(new CourierListener(new Courier(this, service)));
         listen(new LootEnchantListener(customLoot));
+        listen(new RareBookDiscoveryListener(this, rareBooks));
+        getServer().getScheduler().runTask(this, () ->
+            getServer().getOnlinePlayers().forEach(rareBooks::discover));
         EnchantBookMigrationListener bookMigration = new EnchantBookMigrationListener(service);
         listen(bookMigration);
         getServer().getScheduler().runTask(this, () -> {
@@ -139,12 +146,28 @@ public final class PumpeEnchantsPlugin extends JavaPlugin {
 
     private void migrateConfig() {
         reloadConfig();
-        if (getConfig().getInt("config-version", 2) < 3) {
+        int version = getConfig().getInt("config-version", 2);
+        if (version < 3) {
             applyRaisedLootChances();
+        }
+        if (version < 4) {
+            applyCooldownRange();
         }
         getConfig().options().copyDefaults(true);
         getConfig().set("config-version", CONFIG_VERSION);
         saveConfig();
+    }
+
+    private void applyCooldownRange() {
+        for (String enchantment : List.of("vein_mining", "lumberjack")) {
+            String path = "enchants." + enchantment;
+            if (getConfig().getDouble(path + ".cooldown-seconds", 100.0) == 100.0) {
+                getConfig().set(path + ".cooldown-seconds", 60.0);
+            }
+            if (getConfig().getDouble(path + ".minimum-cooldown-seconds", 60.0) == 60.0) {
+                getConfig().set(path + ".minimum-cooldown-seconds", 30.0);
+            }
+        }
     }
 
     private void applyRaisedLootChances() {

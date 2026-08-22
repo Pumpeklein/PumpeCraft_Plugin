@@ -18,15 +18,18 @@ public final class CustomEnchantLoot {
     private final EnchantRegistry registry;
     private final EnchantService enchants;
     private final EnchantSettings settings;
+    private final RareBookDiscovery rareBooks;
 
     public CustomEnchantLoot(
         EnchantRegistry registry,
         EnchantService enchants,
-        EnchantSettings settings
+        EnchantSettings settings,
+        RareBookDiscovery rareBooks
     ) {
         this.registry = registry;
         this.enchants = enchants;
         this.settings = settings;
+        this.rareBooks = rareBooks;
     }
 
     public int addBooks(Collection<ItemStack> loot, Random random) {
@@ -41,6 +44,7 @@ public final class CustomEnchantLoot {
             loot.add(book);
             added++;
         }
+        rareBooks.markGeneratedLoot(loot);
         return added;
     }
 

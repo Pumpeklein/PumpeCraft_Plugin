@@ -28,11 +28,30 @@ public final class ItemEnchants {
         "pumpeenchants", "book_format");
     private static final NamespacedKey BOOK_RENDERED_LORE = new NamespacedKey(
         "pumpeenchants", "book_rendered_lore");
-    private static final int BOOK_FORMAT_VERSION = 2;
+    private static final int BOOK_FORMAT_VERSION = 3;
     private static final String LORE_SEPARATOR = "\u001f";
 
     private final EnchantRegistry registry;
     private final Set<String> legacyLines;
+    private final Set<String> legacyEnglishDescriptions = Set.of(
+        "Moves block drops and experience directly into your inventory.",
+        "Automatically smelts suitable block drops while mining.",
+        "Mines connected ore veins by breaking a single block.",
+        "Fells an entire tree by breaking a single block.",
+        "Pulls nearby dropped items towards you.",
+        "Heals you for a portion of the damage dealt.",
+        "Deals more damage to targets below 30% health.",
+        "May strike your target with lightning and deal additional damage.",
+        "Pulls hit targets towards you.",
+        "Keeps this item with you when you die.",
+        "Grants regeneration when your health is critically low.",
+        "Prevents fall damage from shorter falls.",
+        "Permanently grants increased jump strength while worn.",
+        "Increases the skill points you earn.",
+        "May grant PumpePoints when mining or killing mobs.",
+        "Deals more damage while a clan member is nearby.",
+        "Sends full stacks to your mailbox with sneak-right-click."
+    );
 
     public ItemEnchants(EnchantRegistry registry) {
         this.registry = registry;
@@ -297,6 +316,7 @@ public final class ItemEnchants {
         }
         List<Component> lore = new ArrayList<>(meta.lore());
         lore.removeIf(line -> legacyLines.contains(PLAIN.serialize(line))
+            || legacyEnglishDescriptions.contains(PLAIN.serialize(line))
             || registry.all().stream().anyMatch(enchant ->
                 enchant.description().equals(PLAIN.serialize(line))));
         meta.lore(lore.isEmpty() ? null : lore);

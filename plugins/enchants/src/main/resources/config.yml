@@ -1,4 +1,4 @@
-config-version: 3
+config-version: 4
 
 # Takt für alles ohne eigenes Event: Magnet und Jump Spring.
 tick-interval-ticks: 10
@@ -22,8 +22,8 @@ enchants:
   vein_mining:
     enabled: true
     loot-chance-percent: 0.8
-    cooldown-seconds: 100.0
-    minimum-cooldown-seconds: 60.0
+    cooldown-seconds: 60.0
+    minimum-cooldown-seconds: 30.0
     block-limit:
       level-1: 8
       level-2: 16
@@ -31,8 +31,8 @@ enchants:
   lumberjack:
     enabled: true
     loot-chance-percent: 0.8
-    cooldown-seconds: 100.0
-    minimum-cooldown-seconds: 60.0
+    cooldown-seconds: 60.0
+    minimum-cooldown-seconds: 30.0
     block-limit:
       level-1: 32
       level-2: 64
@@ -79,7 +79,7 @@ enchants:
   soulbound:
     enabled: true
     # Im Mittel ein Soulbound-Buch pro 2.000 natürlich generierter Loot-Kisten.
-    loot-chance-percent: 0.05
+    loot-chance-percent: 0.15
   endurance:
     enabled: true
     loot-chance-percent: 0.25
@@ -100,14 +100,14 @@ enchants:
 
   scholar:
     enabled: true
-    loot-chance-percent: 0.2
+    loot-chance-percent: 0.4
     bonus-percent:
       level-1: 10.0
       level-2: 20.0
       level-3: 35.0
   lucky:
     enabled: true
-    loot-chance-percent: 0.1
+    loot-chance-percent: 0.2
     chance-percent:
       level-1: 0.5
       level-2: 1.0
@@ -117,7 +117,7 @@ enchants:
     daily-limit: 250
   clan_bond:
     enabled: true
-    loot-chance-percent: 0.3
+    loot-chance-percent: 1.0
     radius: 16.0
     bonus-percent:
       level-1: 5.0

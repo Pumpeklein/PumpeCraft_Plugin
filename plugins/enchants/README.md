@@ -71,8 +71,8 @@ Grundstücksschutz ihn ablehnen und `PumpeSkills` ihn zählen. Für dieselbe Zei
 **Eine Ader ist eine Handlung.** Lucky würfelt einmal pro Aktion, nicht einmal pro Block.
 
 **Kettenabbau hat Cooldown.** Vein Miner verwendet den Miner-Skill, Lumberjack den
-Farmer-Skill. Der Cooldown sinkt linear von 100 Sekunden auf Skill-Level 1 bis auf 60 Sekunden
-auf Skill-Level 100. Ohne `PumpeSkills` gelten 100 Sekunden.
+Farmer-Skill. Der Cooldown sinkt linear von 60 Sekunden auf Skill-Level 1 bis auf 30 Sekunden
+auf Skill-Level 100. Ohne `PumpeSkills` gelten 60 Sekunden.
 
 **Kampf in Schutzzonen.** Die Kampf-Verzauberungen hängen an `EventPriority.HIGH` mit
 `ignoreCancelled`. `PumpeBaseSystem` bricht einen verbotenen Schlag bereits bei `LOW` ab, damit
@@ -96,6 +96,11 @@ Natürlich generierte Container-Loot-Tabellen können selten ein Custom-Buch erh
 steht für jedes Enchantment unter `enchants.<id>.loot-chance-percent`. Soulbound liegt standardmäßig
 bei 0,05 %. Ein Teil der Bücher trägt zusätzlich ein oder selten zwei passende Vanilla-Enchantments;
 solche Mischbücher lassen sich in beiden Richtungen im Amboss kombinieren.
+
+Generierte Soulbound-, Lucky- und Mending-Bücher werden beim ersten Übergang in ein
+Spielerinventar mit Finder, Datum und Uhrzeit versehen. Gleichzeitig kündigt eine von fünf fest
+formulierten deutschen Nachrichten den Fund im Serverchat an; das AI-Plugin ist daran nicht
+beteiligt. Verschieben und erneutes Aufheben lösen keine weitere Meldung aus.
 
 Beim Serverstart werden vorhandene Custom-Bücher in geladenen Inventaren und Chunks auf das
 aktuelle Buchformat gebracht. Spielerinventare und Enderkisten folgen beim Login, ungeladene

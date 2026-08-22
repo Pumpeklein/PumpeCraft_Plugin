@@ -44,9 +44,9 @@ public final class ChainCooldowns {
             return false;
         }
 
-        double base = settings.value(enchantment, "cooldown-seconds", 100.0);
+        double base = settings.value(enchantment, "cooldown-seconds", 60.0);
         double minimum = Math.min(base,
-            settings.value(enchantment, "minimum-cooldown-seconds", 60.0));
+            settings.value(enchantment, "minimum-cooldown-seconds", 30.0));
         double progress = skillProgress(player, enchantment);
         double seconds = base - ((base - minimum) * progress);
         readyAt.put(use, now + Math.round(seconds * 1000.0));
